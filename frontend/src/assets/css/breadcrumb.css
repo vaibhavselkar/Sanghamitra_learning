@@ -1,0 +1,67 @@
+/* src/assets/css/breadcrumb.css */
+
+/* Main breadcrumb container */
+.breadcrumbs {
+    padding: 15px 0;
+    background-color: #5fcf80; /* Your brand green */
+    min-height: 40px;
+    margin-bottom: 30px;
+  }
+  
+  .breadcrumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    align-items: center;
+  }
+  
+  .breadcrumbs ol li {
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Breadcrumb links */
+  .breadcrumbs ol li a {
+    color: white;
+    text-decoration: none;
+    transition: 0.3s;
+    font-weight: 500;
+    font-size: 15px;
+  }
+  
+  .breadcrumbs ol li a:hover {
+    color: #e6e6e6;
+    text-decoration: underline;
+  }
+  
+  /* Separator */
+  .breadcrumbs ol li + li::before {
+    content: "/";
+    display: inline-block;
+    padding: 0 10px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  /* Current page */
+  .breadcrumbs ol li.current {
+    color: white;
+    font-weight: 600;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .breadcrumbs {
+      padding: 10px 0;
+    }
+    
+    .breadcrumbs ol li a,
+    .breadcrumbs ol li.current {
+      font-size: 14px;
+    }
+    
+    .breadcrumbs ol li + li::before {
+      padding: 0 8px;
+    }
+  }
