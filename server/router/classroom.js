@@ -19,6 +19,7 @@ const generateJoinCode = () => {
 };
 
 // Enhanced registration route
+// Enhanced registration route - FIXED
 router.post('/register', async (req, res) => {
   const { 
       name, 
@@ -93,15 +94,12 @@ router.post('/register', async (req, res) => {
           classroomCode = tutorCode.trim();
       }
 
-      // Hash password before saving
-      const saltRounds = 12;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-      // Create user with hashed password
+      // REMOVED MANUAL HASHING - Let the pre('save') middleware handle it
+      // Create user with plain password (will be hashed by middleware)
       const user = new User({
           name: name.trim(),
           email: email.toLowerCase().trim(),
-          password: hashedPassword,
+          password: password, // Plain password - will be hashed by pre('save')
           role,
           classroomCode: classroomCode
       });
@@ -174,14 +172,6 @@ router.get('/classrooms', async (req, res) => {
 });
 
 
-// Get specific classroom (with access control)
-router.get('/classroom/:classroomId', 
-  authenticate, 
-  authorizeClassroom, 
-  (req, res) => {
-    res.json(req.classroom);
-  }
-);
 
 // Join classroom (students only)
 router.post('/classroom/join', 
@@ -215,6 +205,349 @@ router.post('/classroom/join',
     }
   }
 );
+
+router.get('/auth/profile', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate('ownedClassrooms', 'name joinCode subjects createdAt')
+      .select('-password -tokens'); // Don't send sensitive data
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        classroomCode: user.classroomCode,
+        ownedClassrooms: user.ownedClassrooms.map(classroom => classroom._id),
+        classroomDetails: user.ownedClassrooms, // Full classroom details
+        loginHistory: user.loginHistory
+      }
+    });
+  } catch (error) {
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ error: 'Server error fetching profile' });
+  }
+});
+
+// Helper function to determine student status
+const getStudentStatus = (student) => {
+  if (!student.loginHistory || student.loginHistory.length === 0) {
+    return 'inactive';
+  }
+
+  const lastLogin = new Date(student.loginHistory[student.loginHistory.length - 1].loginTimestamp);
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+  return lastLogin > threeDaysAgo ? 'active' : 'inactive';
+};
+
+// Helper function to get last active date
+const getLastActiveDate = (student) => {
+  if (!student.loginHistory || student.loginHistory.length === 0) {
+    return 'Never';
+  }
+
+  const lastLogin = new Date(student.loginHistory[student.loginHistory.length - 1].loginTimestamp);
+  return lastLogin.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+};
+
+// Get classroom statistics
+router.get('/classroom/:classroomId/stats', authenticate, async (req, res) => {
+  try {
+    const { classroomId } = req.params;
+    const user = req.user;
+
+    const classroom = await Classroom.findById(classroomId)
+      .populate('tutor', '_id')
+      .populate('students', 'loginHistory date');
+
+    if (!classroom) {
+      return res.status(404).json({ error: 'Classroom not found' });
+    }
+
+    // Check access
+    const hasAccess = (
+      (user.role === 'tutor' && classroom.tutor._id.toString() === user._id.toString()) ||
+      user.role === 'admin'
+    );
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied to this classroom' });
+    }
+
+    // Calculate statistics
+    const totalStudents = classroom.students.length;
+    const activeStudents = classroom.students.filter(student => 
+      getStudentStatus(student) === 'active'
+    ).length;
+
+    // Mock progress data (replace with real progress tracking)
+    const avgProgress = totalStudents > 0 ? Math.floor(Math.random() * 30) + 60 : 0;
+    const avgScore = totalStudents > 0 ? Math.floor(Math.random() * 20) + 75 : 0;
+
+    res.json({
+      totalStudents,
+      activeStudents,
+      avgProgress,
+      avgScore,
+      activityRate: totalStudents > 0 ? Math.round((activeStudents / totalStudents) * 100) : 0
+    });
+  } catch (error) {
+    console.error('Stats fetch error:', error);
+    res.status(500).json({ error: 'Server error fetching statistics' });
+  }
+});
+
+// Get tutor's classrooms overview (for tutors with multiple classrooms)
+router.get('/tutor/classrooms', authenticate, authorizeRole('tutor', 'admin'), async (req, res) => {
+  try {
+    const user = req.user;
+    
+    let classroomsQuery;
+    if (user.role === 'admin') {
+      classroomsQuery = Classroom.find({});
+    } else {
+      classroomsQuery = Classroom.find({ tutor: user._id });
+    }
+
+    const classrooms = await classroomsQuery
+      .populate('tutor', 'name email')
+      .populate('students', 'name email loginHistory');
+
+    const classroomsWithStats = classrooms.map(classroom => {
+      const totalStudents = classroom.students.length;
+      const activeStudents = classroom.students.filter(student => 
+        getStudentStatus(student) === 'active'
+      ).length;
+
+      return {
+        _id: classroom._id,
+        name: classroom.name,
+        joinCode: classroom.joinCode,
+        subjects: classroom.subjects,
+        createdAt: classroom.createdAt,
+        tutor: classroom.tutor,
+        stats: {
+          totalStudents,
+          activeStudents,
+          activityRate: totalStudents > 0 ? Math.round((activeStudents / totalStudents) * 100) : 0
+        }
+      };
+    });
+
+    res.json(classroomsWithStats);
+  } catch (error) {
+    console.error('Tutor classrooms fetch error:', error);
+    res.status(500).json({ error: 'Server error fetching classrooms' });
+  }
+});
+
+// Update classroom information
+router.get('/classroom/:classroomId', async (req, res) => {
+  try {
+    const { classroomId } = req.params;
+
+    // Find classroom and populate with your exact schema fields
+    const classroom = await Classroom.findById(classroomId)
+      .populate('tutor', 'name email')
+      .populate('students', 'name email date loginHistory classroomCode role');
+
+    if (!classroom) {
+      return res.status(404).json({ error: 'Classroom not found' });
+    }
+
+    // Helper function to determine student status
+    const getStudentStatus = (student) => {
+      if (!student.loginHistory || student.loginHistory.length === 0) {
+        return 'inactive';
+      }
+      const lastLogin = new Date(student.loginHistory[student.loginHistory.length - 1].loginTimestamp);
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      return lastLogin > threeDaysAgo ? 'active' : 'inactive';
+    };
+
+    // Helper function to get last active date
+    const getLastActiveDate = (student) => {
+      if (!student.loginHistory || student.loginHistory.length === 0) {
+        return 'Never';
+      }
+      const lastLogin = new Date(student.loginHistory[student.loginHistory.length - 1].loginTimestamp);
+      return lastLogin.toISOString().split('T')[0];
+    };
+
+    res.json({
+      _id: classroom._id,
+      name: classroom.name,
+      joinCode: classroom.joinCode,
+      subjects: classroom.subjects,
+      createdAt: classroom.createdAt,
+      tutor: classroom.tutor,
+      students: classroom.students.map(student => ({
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        date: student.date,
+        loginHistory: student.loginHistory,
+        status: getStudentStatus(student),
+        lastActive: getLastActiveDate(student)
+      }))
+    });
+  } catch (error) {
+    console.error('Classroom fetch error:', error);
+    res.status(500).json({ error: 'Server error fetching classroom' });
+  }
+});
+// Remove student from classroom (enhanced)
+router.delete('/classroom/:classroomId/student/:studentId', 
+  authenticate, 
+  authorizeRole('tutor', 'admin'), 
+  async (req, res) => {
+    try {
+      const { classroomId, studentId } = req.params;
+      const user = req.user;
+
+      const classroom = await Classroom.findById(classroomId);
+      if (!classroom) {
+        return res.status(404).json({ error: 'Classroom not found' });
+      }
+
+      // Check access
+      if (user.role !== 'admin' && classroom.tutor.toString() !== user._id.toString()) {
+        return res.status(403).json({ error: 'Access denied to this classroom' });
+      }
+
+      // Check if student is in classroom
+      if (!classroom.students.includes(studentId)) {
+        return res.status(400).json({ error: 'Student is not in this classroom' });
+      }
+
+      // Remove student from classroom
+      classroom.students = classroom.students.filter(
+        student => student.toString() !== studentId
+      );
+      await classroom.save();
+
+      // Remove classroom code from student
+      await User.findByIdAndUpdate(studentId, { 
+        $unset: { classroomCode: "" } 
+      });
+
+      res.json({ 
+        message: 'Student removed from classroom successfully',
+        remainingStudents: classroom.students.length
+      });
+    } catch (error) {
+      console.error('Student removal error:', error);
+      res.status(500).json({ error: 'Server error removing student' });
+    }
+  }
+);
+
+// Get student details (for individual student view)
+router.get('/student/:studentId', authenticate, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const user = req.user;
+
+    const student = await User.findById(studentId)
+      .select('-password -tokens')
+      .populate('classroomCode');
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Check access - tutor can only see students in their classrooms
+    if (user.role === 'tutor') {
+      const classroom = await Classroom.findOne({ 
+        tutor: user._id, 
+        students: studentId 
+      });
+      
+      if (!classroom) {
+        return res.status(403).json({ error: 'Access denied to this student' });
+      }
+    }
+
+    res.json({
+      student: {
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        role: student.role,
+        classroomCode: student.classroomCode,
+        registrationDate: student.date,
+        loginHistory: student.loginHistory,
+        status: getStudentStatus(student),
+        lastActive: getLastActiveDate(student)
+      }
+    });
+  } catch (error) {
+    console.error('Student fetch error:', error);
+    res.status(500).json({ error: 'Server error fetching student' });
+  }
+});
+
+// Search students within tutor's classrooms
+router.get('/tutor/students/search', authenticate, authorizeRole('tutor'), async (req, res) => {
+  try {
+    const { q } = req.query; // search query
+    const user = req.user;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+    }
+
+    // Find tutor's classrooms
+    const classrooms = await Classroom.find({ tutor: user._id })
+      .populate({
+        path: 'students',
+        match: {
+          $or: [
+            { name: { $regex: q.trim(), $options: 'i' } },
+            { email: { $regex: q.trim(), $options: 'i' } }
+          ]
+        },
+        select: 'name email date loginHistory classroomCode'
+      });
+
+    // Flatten students from all classrooms
+    const students = classrooms.reduce((acc, classroom) => {
+      const studentsWithClassroom = classroom.students.map(student => ({
+        ...student.toObject(),
+        classroom: {
+          _id: classroom._id,
+          name: classroom.name,
+          joinCode: classroom.joinCode
+        }
+      }));
+      return acc.concat(studentsWithClassroom);
+    }, []);
+
+    res.json({
+      students: students.map(student => ({
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        registrationDate: student.date,
+        status: getStudentStatus(student),
+        lastActive: getLastActiveDate(student),
+        classroom: student.classroom
+      })),
+      total: students.length
+    });
+  } catch (error) {
+    console.error('Student search error:', error);
+    res.status(500).json({ error: 'Server error searching students' });
+  }
+});
 
 // Create new classroom (tutors only)
 router.post('/classroom', 

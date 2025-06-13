@@ -19,7 +19,8 @@ import LoginPage from './pages/loginPage';
 import Register from './pages/register';
 import VocabularyDiagnosticTest from './pages/English/vocabulary/VocabularyDiagnosticTest';
 import Programming from './pages/Programming/programming';
-
+import StudentDashboard from './pages/Student/dashboard';
+import TutorDashboard from './pages/Tutor/adminDashboard';
 
 function App() {
   return (
@@ -34,7 +35,9 @@ function App() {
             <Route path="/programming" element={<><Programming /></>} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<Register />} />
-          
+            
+            <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/tutor/dashboard" element={<TutorDashboard />} />
             <Route path="/english/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
             <Route path="/english/rc" element={<RC />} />

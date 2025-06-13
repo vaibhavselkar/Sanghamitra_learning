@@ -28,7 +28,7 @@ const CTFingerScore = require('../model/CT_foundation_score');
 const EngDiagnosticQuestion = require('../model/eng_diagnostic');
 const EngDiagnosticScore = require('../model/eng_diagnostics_scores');
 const Classroom = require('../model/classroom_schema');
-
+const validator = require('validator');
 
 require('../db/conn');
 const User = require('../model/userSchema');
@@ -37,53 +37,104 @@ router.get('/', (req, res) => {
     res.send('Hello World from router');
 })
 
-
-
-
 router.post('/signin', async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    // 1. Validate input
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
 
-    // 1. Find user
-    const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
-
-    // 2. Verify password
+    // 2. Validate email format
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ error: "Please enter a valid email address" });
+    }
+    
+    // 3. Find user by email (case insensitive to match registration)
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // 4. Verify password - SIMPLIFIED (no double hashing)
+    // Compare plain password with stored hashed password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
-
-    // 3. Generate token with role info
-    const token = jwt.sign(
-      {
-        _id: user._id,
-        role: user.role,
-        classroomCode: user.classroomCode || null,
-        name: user.name
-      },
-      process.env.SECRET_KEY,
-      { expiresIn: '7d' }
-    );
-
-    // 4. Return role-specific data
+    
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+    
+    // 5. Generate token - with error handling
+    let token;
+    try {
+      token = await user.generateAuthToken();
+    } catch (tokenError) {
+      console.error('Token generation error:', tokenError);
+      return res.status(500).json({ error: "Authentication token generation failed" });
+    }
+    
+    // 6. Update login history - with error handling
+    try {
+      await user.updateLoginHistory();
+    } catch (historyError) {
+      console.error('Login history update error:', historyError);
+      // Don't fail the login for this, just log the error
+    }
+    
+    // 7. Check if tutor has classroom
+    let hasClassroom = false;
+    let classroomName = null;
+    let classroom = null;
+   
+    if (user.role === 'tutor') {
+      if (user.classroomCode) {
+        try {
+          classroom = await Classroom.findOne({
+            joinCode: user.classroomCode
+          }).select('name subjects');
+          hasClassroom = !!classroom;
+          classroomName = classroom?.name;
+        } catch (classroomError) {
+          console.error('Classroom fetch error:', classroomError);
+          // Continue without classroom info
+        }
+      }
+    }
+    
+    // 8. Prepare response that matches your frontend expectations
     const response = {
+      message: 'Login successful',
       token,
       role: user.role,
       name: user.name,
-      redirectTo: user.role === 'admin' ? '/admin' : 
-                (user.role === 'tutor' ? (user.classroomCode ? '/tutor-dashboard' : '/create-classroom') : 
-                '/student-dashboard')
+      email: user.email,
+      userId: user._id,
+      hasClassroom,
+      classroomCode: user.classroomCode || null
     };
-
-    if (user.role === 'tutor' && user.classroomCode) {
-      response.classroomName = await Classroom.findOne({ 
-        joinCode: user.classroomCode 
-      }).select('name');
+    
+    // Add classroom info for tutors
+    if (user.role === 'tutor' && hasClassroom && classroom) {
+      response.classroomName = classroomName;
+      response.classroom = {
+        id: classroom._id,
+        name: classroom.name,
+        subjects: classroom.subjects
+      };
     }
-
+    
     res.status(200).json(response);
-
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
+    
+  } catch (error) {
+    console.error('Signin error:', error);
+    
+    // Handle specific error types
+    if (error.name === 'CastError') {
+      return res.status(400).json({ error: "Invalid request format" });
+    }
+    
+    res.status(500).json({ error: "Server error. Please try again." });
   }
 });
 

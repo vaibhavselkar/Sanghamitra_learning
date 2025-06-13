@@ -10,6 +10,22 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 
 const app = express();
+// CORS configuration
+const corsOptions = {
+    origin: [
+      'http://localhost:3000',  // React default port
+      'http://localhost:3001',  // Alternative React port
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001'
+    ],
+    credentials: true,  // Important: allows cookies/credentials
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token'],
+    optionsSuccessStatus: 200 // For legacy browser support
+  };
+  
+  // Apply CORS middleware BEFORE your routes
+  app.use(cors(corsOptions));
 
 // Load environment variables
 dotenv.config({ path: './.env' });

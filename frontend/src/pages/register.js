@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { Users, BookOpen, UserCheck, Code, Eye, EyeOff, CheckCircle, XCircle, Shield } from 'lucide-react';
-
+import React, { useState, useEffect } from 'react';
+import { Users, BookOpen, UserCheck, Code, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 
 const RegisterPage = () => {
     const [formData, setFormData] = useState({
@@ -11,8 +10,7 @@ const RegisterPage = () => {
       role: 'student',
       tutorCode: '',
       classroomName: '',
-      subjects: ['math'],
-      adminKey: ''
+      subjects: ['math']
     });
     
     const [uiState, setUiState] = useState({
@@ -23,7 +21,6 @@ const RegisterPage = () => {
       showConfirmPassword: false,
       classroomPreview: null,
       validatingCode: false,
-      showAdminKey: false,
       successMessage: ''
     });
   
@@ -36,14 +33,8 @@ const RegisterPage = () => {
   
     const handleNavigation = (path) => {
       console.log(`Navigate to: ${path}`);
-      // Replace with your actual navigation logic
-      // window.location.href = path;
-    };
-    
-    const handleLogin = (userData) => {
-      console.log('Login successful:', userData);
-      // Store user data in state or context instead of localStorage
-      // setUser(userData); // if using context
+      // navigate to /login page
+      window.location.href = path;
     };
   
     const handleChange = (e) => {
@@ -55,14 +46,35 @@ const RegisterPage = () => {
       }
     };
   
+
+    useEffect(() => {
+        // Check for invite code in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteCode = urlParams.get('code');
+        
+        if (inviteCode) {
+            setFormData(prev => ({ 
+                ...prev, 
+                role: 'student',
+                tutorCode: inviteCode.toUpperCase()
+            }));
+            
+            setUiState(prev => ({ 
+                ...prev, 
+                showTutorCodeField: true 
+            }));
+            
+            // Validate the code immediately
+            validateTutorCode(inviteCode.toUpperCase());
+        }
+    }, []);
     const handleRoleChange = (role) => {
       setFormData(prev => ({ 
         ...prev, 
         role,
         tutorCode: role === 'student' ? prev.tutorCode : '',
         classroomName: role === 'tutor' ? prev.classroomName : '',
-        subjects: role === 'tutor' ? prev.subjects : ['math'],
-        adminKey: role === 'admin' ? prev.adminKey : ''
+        subjects: role === 'tutor' ? prev.subjects : ['math']
       }));
       
       setUiState(prev => ({ 
@@ -133,13 +145,6 @@ const RegisterPage = () => {
         if (formData.subjects.length === 0) return 'At least one subject is required';
       }
       
-      if (formData.role === 'admin') {
-        if (!formData.adminKey.trim()) return 'Admin key is required';
-        if (formData.adminKey !== 'ADMIN2024KEY') {
-          return 'Invalid admin key';
-        }
-      }
-      
       return null;
     };
   
@@ -155,7 +160,7 @@ const RegisterPage = () => {
       setUiState(prev => ({ ...prev, isLoading: true, error: '', successMessage: '' }));
   
       try {
-        // Prepare the data for the API - FIXED: Ensure proper data structure
+        // Prepare the data for the API
         const registrationData = {
           name: formData.name.trim(),
           email: formData.email.trim().toLowerCase(),
@@ -163,15 +168,15 @@ const RegisterPage = () => {
           role: formData.role
         };
   
-        // Add role-specific fields - FIXED: Proper handling of subjects array
+        // Add role-specific fields
         if (formData.role === 'tutor') {
           registrationData.classroomName = formData.classroomName.trim();
-          registrationData.subjects = formData.subjects; // Already an array
+          registrationData.subjects = formData.subjects;
         } else if (formData.role === 'student' && formData.tutorCode) {
           registrationData.tutorCode = formData.tutorCode.trim();
         }
 
-        console.log('Sending registration data:', registrationData); // Debug log
+        console.log('Sending registration data:', registrationData);
   
         // Make the API call
         const response = await fetch('http://localhost:4000/api/register', {
@@ -183,26 +188,20 @@ const RegisterPage = () => {
         });
   
         const data = await response.json();
-        console.log('Server response:', data); // Debug log
+        console.log('Server response:', data);
   
         if (response.ok) {
           // Registration successful
           setUiState(prev => ({ 
             ...prev, 
             isLoading: false, 
-            successMessage: 'Registration successful! Redirecting...',
+            successMessage: 'Registration successful! Redirecting to login...',
             error: ''
           }));
-  
-          // Handle successful registration
-          handleLogin(data.user);
-  
-          // Show success message and redirect after a short delay
+
+          // Redirect to login page after success
           setTimeout(() => {
-            const dashboardPath = 
-              formData.role === 'student' ? '/student-dashboard' : 
-              formData.role === 'tutor' ? '/tutor-dashboard' : '/admin-dashboard';
-            handleNavigation(dashboardPath);
+            handleNavigation('/login');
           }, 2000);
   
         } else {
@@ -224,7 +223,6 @@ const RegisterPage = () => {
       }
     };
   
-    // FIXED: Add success message component
     const SuccessMessage = () => (
       <div style={styles.successBox}>
         <CheckCircle size={20} style={styles.successIcon} />
@@ -238,7 +236,7 @@ const RegisterPage = () => {
           <div style={styles.card}>
             {/* Header */}
             <div style={styles.header}>
-              <h2 style={styles.headerTitle}>Join EduPlatform</h2>
+              <h2 style={styles.headerTitle}>Join Sanghamitra</h2>
               <p style={styles.headerSubtitle}>Create your account to get started</p>
             </div>
   
@@ -271,18 +269,6 @@ const RegisterPage = () => {
                       <UserCheck size={32} style={styles.roleIcon} />
                       <div style={styles.roleTitle}>Tutor</div>
                       <div style={styles.roleDescription}>Teach students</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRoleChange('admin')}
-                      style={{
-                        ...styles.roleButton,
-                        ...(formData.role === 'admin' ? styles.roleButtonActiveAdmin : {})
-                      }}
-                    >
-                      <Shield size={32} style={styles.roleIcon} />
-                      <div style={styles.roleTitle}>Admin</div>
-                      <div style={styles.roleDescription}>Manage platform</div>
                     </button>
                   </div>
                 </div>
@@ -361,41 +347,6 @@ const RegisterPage = () => {
                     </div>
                   </div>
                 </div>
-  
-                {/* Admin-Specific Fields */}
-                {formData.role === 'admin' && (
-                  <div style={styles.adminSection}>
-                    <h3 style={styles.adminTitle}>
-                      <Shield size={20} style={styles.adminIcon} />
-                      Admin Verification
-                    </h3>
-                    
-                    <div style={styles.inputGroup}>
-                      <label style={styles.inputLabel}>Admin Key</label>
-                      <div style={styles.passwordInput}>
-                        <input
-                          type={uiState.showAdminKey ? 'text' : 'password'}
-                          name="adminKey"
-                          value={formData.adminKey}
-                          onChange={handleChange}
-                          style={{...styles.input, ...styles.adminKeyInput}}
-                          placeholder="Enter admin verification key"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setUiState(prev => ({ ...prev, showAdminKey: !prev.showAdminKey }))}
-                          style={styles.passwordToggle}
-                        >
-                          {uiState.showAdminKey ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
-                      </div>
-                      <p style={styles.adminNote}>
-                        Contact your system administrator for the admin key
-                      </p>
-                    </div>
-                  </div>
-                )}
   
                 {/* Tutor-Specific Fields */}
                 {formData.role === 'tutor' && (
@@ -497,13 +448,6 @@ const RegisterPage = () => {
                             </div>
                           </div>
                         )}
-  
-                        {formData.tutorCode && !uiState.classroomPreview && !uiState.validatingCode && (
-                          <div style={styles.invalidCode}>
-                            <XCircle size={20} style={styles.xIcon} />
-                            <p style={styles.invalidCodeText}>Invalid or expired enrollment code</p>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -526,7 +470,6 @@ const RegisterPage = () => {
                   disabled={uiState.isLoading}
                   style={{
                     ...styles.submitButton,
-                    ...(formData.role === 'admin' ? styles.submitButtonAdmin : {}),
                     ...(formData.role === 'tutor' ? styles.submitButtonTutor : {}),
                     ...(uiState.isLoading ? styles.submitButtonDisabled : {})
                   }}
@@ -537,7 +480,7 @@ const RegisterPage = () => {
                       <span>Creating Account...</span>
                     </div>
                   ) : (
-                    `Create ${formData.role === 'tutor' ? 'Tutor' : formData.role === 'admin' ? 'Admin' : 'Student'} Account`
+                    `Create ${formData.role === 'tutor' ? 'Tutor' : 'Student'} Account`
                   )}
                 </button>
   
@@ -617,7 +560,7 @@ const styles = {
   },
   roleButtons: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
+    gridTemplateColumns: '1fr 1fr',
     gap: '1rem'
   },
   roleButton: {
@@ -638,11 +581,6 @@ const styles = {
     borderColor: '#6366f1',
     backgroundColor: '#eef2ff',
     color: '#4f46e5'
-  },
-  roleButtonActiveAdmin: {
-    borderColor: '#dc2626',
-    backgroundColor: '#fef2f2',
-    color: '#dc2626'
   },
   roleIcon: {
     margin: '0 auto 0.5rem',
@@ -692,34 +630,6 @@ const styles = {
     border: 'none',
     color: '#6b7280',
     cursor: 'pointer'
-  },
-  adminSection: {
-    backgroundColor: '#fef2f2',
-    padding: '1.5rem',
-    borderRadius: '0.75rem',
-    border: '1px solid #fecaca'
-  },
-  adminTitle: {
-    fontSize: '1.125rem',
-    fontWeight: '600',
-    color: '#dc2626',
-    marginBottom: '1rem',
-    display: 'flex',
-    alignItems: 'center'
-  },
-  adminIcon: {
-    marginRight: '0.5rem'
-  },
-  adminKeyInput: {
-    fontFamily: 'monospace',
-    letterSpacing: '0.05em'
-  },
-  adminNote: {
-    fontSize: '0.75rem',
-    color: '#7f1d1d',
-    marginTop: '0.5rem',
-    fontStyle: 'italic',
-    margin: '0.5rem 0 0 0'
   },
   tutorSection: {
     backgroundColor: '#eef2ff',
@@ -889,6 +799,23 @@ const styles = {
     color: '#b91c1c',
     margin: 0
   },
+  successBox: {
+    backgroundColor: '#f0f9ff',
+    border: '1px solid #7dd3fc',
+    borderRadius: '0.5rem',
+    padding: '1rem',
+    display: 'flex',
+    gap: '0.75rem',
+    alignItems: 'center'
+  },
+  successIcon: {
+    color: '#0284c7'
+  },
+  successText: {
+    color: '#0c4a6e',
+    margin: 0,
+    fontWeight: '500'
+  },
   errorBox: {
     backgroundColor: '#fef2f2',
     border: '1px solid #fecaca',
@@ -918,11 +845,12 @@ const styles = {
     transition: 'all 0.2s',
     marginTop: '0.5rem'
   },
-  submitButtonAdmin: {
-    background: 'linear-gradient(to right, #dc2626, #b91c1c)'
-  },
   submitButtonTutor: {
     background: 'linear-gradient(to right, #6366f1, #4f46e5)'
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+    cursor: 'not-allowed'
   },
   loadingIndicator: {
     display: 'flex',
