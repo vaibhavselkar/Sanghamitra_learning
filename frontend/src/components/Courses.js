@@ -3,7 +3,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import EnglishImage from "../assets/img/english.index.png";
 import mathsImage from "../assets/img/maths.index.png";
-import programmingImage from "../assets/img/Programming.png"
+import programmingImage from "../assets/img/Programming.png";
 
 const courses = [
   {

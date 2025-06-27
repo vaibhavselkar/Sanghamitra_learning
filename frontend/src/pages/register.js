@@ -9,8 +9,7 @@ const RegisterPage = () => {
       confirmPassword: '',
       role: 'student',
       tutorCode: '',
-      classroomName: '',
-      subjects: ['math']
+      classroomName: ''
     });
     
     const [uiState, setUiState] = useState({
@@ -24,12 +23,6 @@ const RegisterPage = () => {
       successMessage: ''
     });
   
-    const availableSubjects = [
-      { value: 'math', label: 'Mathematics' },
-      { value: 'english', label: 'English' },
-      { value: 'programming', label: 'Programming' },
-      { value: 'statistics', label: 'Statistics' }
-    ];
   
     const handleNavigation = (path) => {
       console.log(`Navigate to: ${path}`);
@@ -73,8 +66,7 @@ const RegisterPage = () => {
         ...prev, 
         role,
         tutorCode: role === 'student' ? prev.tutorCode : '',
-        classroomName: role === 'tutor' ? prev.classroomName : '',
-        subjects: role === 'tutor' ? prev.subjects : ['math']
+        classroomName: role === 'tutor' ? prev.classroomName : ''
       }));
       
       setUiState(prev => ({ 
@@ -83,15 +75,7 @@ const RegisterPage = () => {
         classroomPreview: null 
       }));
     };
-  
-    const handleSubjectToggle = (subject) => {
-      setFormData(prev => ({
-        ...prev,
-        subjects: prev.subjects.includes(subject)
-          ? prev.subjects.filter(s => s !== subject)
-          : [...prev.subjects, subject]
-      }));
-    };
+
   
     const validateTutorCode = async (code) => {
       if (!code || code.length < 6) return;
@@ -142,7 +126,6 @@ const RegisterPage = () => {
       
       if (formData.role === 'tutor') {
         if (!formData.classroomName.trim()) return 'Classroom name is required';
-        if (formData.subjects.length === 0) return 'At least one subject is required';
       }
       
       return null;
@@ -171,7 +154,6 @@ const RegisterPage = () => {
         // Add role-specific fields
         if (formData.role === 'tutor') {
           registrationData.classroomName = formData.classroomName.trim();
-          registrationData.subjects = formData.subjects;
         } else if (formData.role === 'student' && formData.tutorCode) {
           registrationData.tutorCode = formData.tutorCode.trim();
         }
@@ -368,25 +350,6 @@ const RegisterPage = () => {
                         required
                       />
                     </div>
-  
-                    <div>
-                      <label style={styles.inputLabel}>Subjects You'll Teach</label>
-                      <div style={styles.subjectGrid}>
-                        {availableSubjects.map(subject => (
-                          <button
-                            key={subject.value}
-                            type="button"
-                            onClick={() => handleSubjectToggle(subject.value)}
-                            style={{
-                              ...styles.subjectButton,
-                              ...(formData.subjects.includes(subject.value) ? styles.subjectButtonActive : {})
-                            }}
-                          >
-                            <div style={styles.subjectLabel}>{subject.label}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 )}
   
@@ -438,13 +401,6 @@ const RegisterPage = () => {
                             <div>
                               <h4 style={styles.classroomName}>{uiState.classroomPreview.name}</h4>
                               <p style={styles.classroomTutor}>Tutor: {uiState.classroomPreview.tutor}</p>
-                              <div style={styles.subjectTags}>
-                                {uiState.classroomPreview.subjects.map(subject => (
-                                  <span key={subject} style={styles.subjectTag}>
-                                    {subject}
-                                  </span>
-                                ))}
-                              </div>
                             </div>
                           </div>
                         )}
@@ -648,52 +604,6 @@ const styles = {
   tutorIcon: {
     marginRight: '0.5rem'
   },
-  subjectGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '0.75rem'
-  },
-  subjectButton: {
-    padding: '0.75rem',
-    borderRadius: '0.5rem',
-    border: '2px solid #e5e7eb',
-    transition: 'all 0.2s',
-    cursor: 'pointer',
-    backgroundColor: 'white',
-    textAlign: 'center'
-  },
-  subjectButtonActive: {
-    borderColor: '#6366f1',
-    backgroundColor: '#e0e7ff',
-    color: '#4f46e5'
-  },
-  subjectLabel: {
-    fontSize: '0.875rem',
-    fontWeight: '500'
-  },
-  studentSection: {
-    backgroundColor: '#eff6ff',
-    padding: '1.5rem',
-    borderRadius: '0.75rem',
-    border: '1px solid #bfdbfe'
-  },
-  studentHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1rem'
-  },
-  studentTitle: {
-    fontSize: '1.125rem',
-    fontWeight: '600',
-    color: '#2563eb',
-    display: 'flex',
-    alignItems: 'center',
-    margin: 0
-  },
-  studentIcon: {
-    marginRight: '0.5rem'
-  },
   toggleSwitch: {
     position: 'relative',
     display: 'inline-block',
@@ -766,19 +676,6 @@ const styles = {
     fontSize: '0.875rem',
     color: '#166534',
     margin: '0.25rem 0 0'
-  },
-  subjectTags: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '0.25rem',
-    marginTop: '0.5rem'
-  },
-  subjectTag: {
-    backgroundColor: '#dcfce7',
-    color: '#166534',
-    fontSize: '0.75rem',
-    padding: '0.25rem 0.5rem',
-    borderRadius: '9999px'
   },
   invalidCode: {
     backgroundColor: 'white',

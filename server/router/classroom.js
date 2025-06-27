@@ -28,7 +28,6 @@ router.post('/register', async (req, res) => {
       role = 'student', 
       tutorCode, 
       classroomName,
-      subjects = ['math'] // default subject
   } = req.body;
 
   try {
@@ -78,8 +77,7 @@ router.post('/register', async (req, res) => {
 
           classroom = new Classroom({
               name: classroomName.trim(),
-              joinCode: joinCode,
-              subjects: Array.isArray(subjects) ? subjects : [subjects]
+              joinCode: joinCode
           });
 
           await classroom.save();
@@ -136,8 +134,7 @@ router.post('/register', async (req, res) => {
           responseData.classroom = {
               id: classroom._id,
               name: classroom.name,
-              joinCode: classroom.joinCode,
-              subjects: classroom.subjects
+              joinCode: classroom.joinCode
           };
       }
 

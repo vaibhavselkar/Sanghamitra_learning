@@ -4,11 +4,6 @@ const classroomSchema = new mongoose.Schema({
     name: String,
     tutor: { type: mongoose.Schema.Types.ObjectId, ref: 'USER' },
     students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'USER' }],
-    subjects: {
-      type: [String],
-      enum: ['math', 'english', 'programming', 'statistics'], // Your subject list
-      required: true
-    },
     joinCode: { 
       type: String, 
       unique: true,

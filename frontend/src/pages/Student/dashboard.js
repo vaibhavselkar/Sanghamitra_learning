@@ -1,145 +1,315 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../components/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import 'aos/dist/aos.css';
+import '../../assets/css/main.css';
+import '../../assets/css/breadcrumb.css';
+
+// Initialize AOS (Animate On Scroll) if needed
+import 'aos/dist/aos.css';
+
+// Initialize GLightbox if needed
+import 'glightbox/dist/css/glightbox.min.css';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const StudentDashboard = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [dashboardData, setDashboardData] = useState({
-    assignments: [],
-    announcements: [],
-    grades: [],
-    upcomingEvents: [],
-    classroomInfo: null
+  
+  const [userData, setUserData] = useState({
+    username: '',
+    email: '',
+    name: ''
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [userStreak, setUserStreak] = useState(0);
+  const [quizCounts, setQuizCounts] = useState({
+    math: 0,
+    rc: 0,
+    vocab: 0,
+    prog: 0
+  });
+  const [vocabScores, setVocabScores] = useState({ assessments: [] });
+  const [mathTopics, setMathTopics] = useState([]);
+  const [rcData, setRcData] = useState(null);
+  const [programmingData, setProgrammingData] = useState(null);
+  const [ctFingerData, setCTFingerData] = useState({ quizzes: [] });
+  const [progFingerData, setProgFingerData] = useState({ topics: [] });
+  const [loading, setLoading] = useState(true);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, navigate]);
+  const chartRefs = useRef({});
 
-  // Mock data for demonstration (remove when backend is ready)
-  useEffect(() => {
-    const loadMockData = () => {
-      setIsLoading(true);
+  // API Helper function
+  const apiCall = async (url, options = {}) => {
+    try {
+      const response = await fetch(`http://localhost:4000${url}`, {
+        ...options,
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
       
-      // Simulate API delay
-      setTimeout(() => {
-        const mockData = {
-          assignments: [
-            {
-              title: "Mathematics Assignment 1",
-              description: "Solve algebraic equations from Chapter 3",
-              subject: "Mathematics",
-              dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-              status: "pending",
-              grade: null
-            },
-            {
-              title: "Science Lab Report",
-              description: "Chemical reactions experiment report",
-              subject: "Science",
-              dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
-              status: "pending",
-              grade: null
-            },
-            {
-              title: "History Essay",
-              description: "Write about World War II impact",
-              subject: "History",
-              dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-              status: "completed",
-              grade: 88
-            },
-            {
-              title: "English Literature Review",
-              description: "Analyze Shakespeare's Hamlet",
-              subject: "English",
-              dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-              status: "completed",
-              grade: 92
+      if (!response.ok) {
+        if (response.status === 401) {
+          navigate('/login');
+          return null;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error(`API call failed for ${url}:`, error);
+      return null;
+    }
+  };
+
+  // Calculate streak
+  const calculateStreak = (loginHistory) => {
+    const uniqueDays = new Set(
+      loginHistory.map(entry => new Date(entry.loginTimestamp).setHours(0, 0, 0, 0))
+    );
+    const sortedLogins = Array.from(uniqueDays).sort((a, b) => b - a);
+    let streak = 0;
+    const today = new Date().setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < sortedLogins.length; i++) {
+      const expectedDate = new Date(today - i * 86400000);
+      if (sortedLogins[i] === expectedDate.getTime()) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
+
+  // Fetch user streak
+  const fetchUserStreak = async (email) => {
+    const data = await apiCall(`/api/login-history?email=${email}`);
+    if (data && data.loginHistory) {
+      const streak = calculateStreak(data.loginHistory);
+      setUserStreak(streak);
+      return streak;
+    }
+    return 0;
+  };
+
+  // Fetch vocabulary scores
+  const fetchVocabScores = async (email) => {
+    const data = await apiCall(`/api/vocabscores?email=${email}`);
+    setVocabScores(data || { assessments: [] });
+  };
+
+  // Fetch math topics scores
+  const fetchMathTopicsScores = async (email) => {
+    const data = await apiCall(`/api/algebra_scores?email=${email}`);
+    if (data && Array.isArray(data) && data.length > 0) {
+      setMathTopics(data[0].topics || []);
+    }
+  };
+
+  // Fetch RC scores
+  const fetchRCScores = async (email) => {
+    const data = await apiCall(`/api/readingcomprehensionscore?email=${email}`);
+    setRcData(data);
+  };
+
+  // Fetch programming scores
+  const fetchProgrammingScores = async (email) => {
+    const data = await apiCall(`/api/programming?email=${email}`);
+    setProgrammingData(data);
+  };
+
+  // Fetch CT finger exercises
+  const fetchCTFingerExercises = async (email) => {
+    const data = await apiCall(`/api/CT_finger_scores/${email}`);
+    setCTFingerData(data || { quizzes: [] });
+  };
+
+  // Fetch programming finger exercises
+  const fetchProgrammingFingerExercises = async (email) => {
+    const data = await apiCall(`/api/finger-exercise?email=${email}`);
+    setProgFingerData(data || { topics: [] });
+  };
+
+  // Calculate completed topics for programming
+  const calculateCompletedTopics = async (email) => {
+    let progQuizCount = 0;
+    let ctTopics = new Set();
+    let progTopics = new Set();
+
+    try {
+      const progData = await apiCall(`/api/programming?email=${email}`);
+      if (progData && progData.quizzes && progData.quizzes.length > 0) {
+        progQuizCount = 1;
+      }
+    } catch (err) {
+      console.warn("Error fetching programming quizzes:", err);
+    }
+
+    try {
+      const ctData = await apiCall(`/api/CT_finger_scores/${email}`);
+      const quizzes = ctData?.quizzes || ctData || [];
+      quizzes.forEach(quiz => {
+        if (quiz.topic) ctTopics.add(quiz.topic);
+      });
+    } catch (err) {
+      console.warn("Error fetching CT finger scores:", err);
+    }
+
+    try {
+      const fingerData = await apiCall(`/api/finger-exercise?email=${email}`);
+      const topics = fingerData?.topics || fingerData || [];
+      topics.forEach(topic => {
+        if (topic.topicName) progTopics.add(topic.topicName);
+      });
+    } catch (err) {
+      console.warn("Error fetching programming finger exercises:", err);
+    }
+
+    return progQuizCount + ctTopics.size + progTopics.size;
+  };
+
+  // Fetch quiz counts
+  const fetchQuizCounts = async (email) => {
+    try {
+      // Math count
+      const mathData = await apiCall(`/api/algebra_scores?email=${email}`);
+      const mathCount = Array.isArray(mathData) && mathData.length > 0 
+        ? mathData.reduce((count, entry) => count + (entry.topics ? entry.topics.length : 0), 0)
+        : 0;
+
+      // Vocab count
+      const vocabData = await apiCall(`/api/vocabscores?email=${email}`);
+      const vocabCount = vocabData?.assessments ? vocabData.assessments.length : 0;
+
+      // RC count
+      const rcData = await apiCall(`/api/readingcomprehensionscore?email=${email}`);
+      const rcCount = rcData?.topics 
+        ? Object.values(rcData.topics).reduce((total, topic) => total + (topic.solvedPassages ? topic.solvedPassages.length : 0), 0)
+        : 0;
+
+      // Programming count
+      const progCount = await calculateCompletedTopics(email);
+
+      setQuizCounts({
+        math: mathCount,
+        vocab: vocabCount,
+        rc: rcCount,
+        prog: progCount
+      });
+    } catch (error) {
+      console.error('Error fetching quiz counts:', error);
+    }
+  };
+
+  // Create doughnut chart
+  const createDoughnutChart = (canvasId, correctAnswers, incorrectAnswers) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    
+    // Clear any existing chart
+    if (chartRefs.current[canvasId]) {
+      chartRefs.current[canvasId].destroy();
+    }
+
+    chartRefs.current[canvasId] = new ChartJS(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Correct Answers', 'Incorrect Answers'],
+        datasets: [{
+          data: [correctAnswers, incorrectAnswers],
+          backgroundColor: ['#1C4E80', '#A5D8DD'],
+          hoverBackgroundColor: ['#1C4E80', '#A5D8DD'],
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '70%',
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: function (tooltipItem) {
+                return tooltipItem.label + ': ' + tooltipItem.raw;
+              }
             }
-          ],
-          announcements: [
-            {
-              title: "Class Schedule Update",
-              content: "Please note that next Tuesday's math class has been moved to 2:00 PM due to a school assembly.",
-              date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-              priority: "high"
-            },
-            {
-              title: "Science Fair Registration",
-              content: "Registration for the annual science fair is now open. Submit your project proposals by next Friday.",
-              date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-              priority: "normal"
-            },
-            {
-              title: "Library Hours Extended",
-              content: "The school library will now be open until 6:00 PM on weekdays to help students with their studies.",
-              date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
-              priority: "normal"
-            }
-          ],
-          grades: [
-            {
-              assignmentTitle: "History Essay",
-              subject: "History",
-              submittedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-              score: 88,
-              feedback: "Excellent analysis of historical events. Well structured and thoroughly researched."
-            },
-            {
-              assignmentTitle: "English Literature Review",
-              subject: "English",
-              submittedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-              score: 92,
-              feedback: "Outstanding interpretation of the text. Your insights into character development were particularly impressive."
-            },
-            {
-              assignmentTitle: "Math Quiz 2",
-              subject: "Mathematics",
-              submittedDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-              score: 78,
-              feedback: "Good work on algebra problems. Review geometry concepts for improvement."
-            }
-          ],
-          upcomingEvents: [
-            {
-              title: "Science Fair",
-              date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // 2 weeks from now
-              description: "Annual school science fair - showcase your projects!"
-            },
-            {
-              title: "Parent-Teacher Conference",
-              date: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(), // 3 weeks from now
-              description: "Meet with teachers to discuss academic progress"
-            },
-            {
-              title: "Math Olympiad",
-              date: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(), // 4 weeks from now
-              description: "Regional mathematics competition"
-            }
-          ],
-          classroomInfo: {
-            name: "Grade 10A",
-            subject: "General Studies"
           }
-        };
-        
-        setDashboardData(mockData);
-        setIsLoading(false);
-      }, 1000); // 1 second delay to show loading state
+        }
+      }
+    });
+  };
+
+  // Initialize dashboard
+  useEffect(() => {
+    const initDashboard = async () => {
+      // Check if user is authenticated
+      if (!isAuthenticated || !user || !user.id) {
+        navigate('/login');
+        return;
+      }
+
+      setLoading(true);
+
+      // Set user data from AuthContext
+      setUserData({
+        username: user.username || user.name || '',
+        email: user.email || '',
+        name: user.name || user.username || ''
+      });
+
+      const email = user.email;
+      
+      if (email) {
+        // Fetch all dashboard data
+        await Promise.all([
+          fetchUserStreak(email),
+          fetchQuizCounts(email),
+          fetchVocabScores(email),
+          fetchMathTopicsScores(email),
+          fetchRCScores(email),
+          fetchProgrammingScores(email),
+          fetchCTFingerExercises(email),
+          fetchProgrammingFingerExercises(email)
+        ]);
+      }
+
+      setLoading(false);
     };
 
-    if (user) {
-      loadMockData();
+    initDashboard();
+  }, [user, isAuthenticated, navigate]);
+
+  // Create charts after math topics data is loaded
+  useEffect(() => {
+    if (mathTopics.length > 0) {
+      setTimeout(() => {
+        mathTopics.forEach((topic) => {
+          const correctAnswers = topic.questions.filter(q => q.correct).length;
+          const incorrectAnswers = topic.questions.length - correctAnswers;
+          createDoughnutChart(`${topic.topic}-performance-chart`, correctAnswers, incorrectAnswers);
+        });
+      }, 100);
     }
-  }, [user]);
+  }, [mathTopics]);
+
+  // Utility functions
+  const capitalizeFirstLetter = (string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
 
   const handleLogout = async () => {
     try {
@@ -150,406 +320,546 @@ const StudentDashboard = () => {
     }
   };
 
-  const getGradeColor = (grade) => {
-    if (grade >= 90) return 'text-success';
-    if (grade >= 80) return 'text-info';
-    if (grade >= 70) return 'text-warning';
-    return 'text-danger';
+  const goToQuizAnalytics = (quizId) => {
+    window.location.href = `vocab_analytics.html?quizId=${encodeURIComponent(quizId)}`;
   };
 
-  const getAssignmentStatusBadge = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'badge bg-success';
-      case 'pending':
-        return 'badge bg-warning';
-      case 'overdue':
-        return 'badge bg-danger';
-      default:
-        return 'badge bg-secondary';
+  const exploreTopic = (topicName) => {
+    window.location.href = `english/RC_dashboard.html?email=${userData.email}&topic=${topicName}`;
+  };
+
+  const viewProgrammingQuiz = (quizId) => {
+    window.location.href = `coding/programming_details.html?quizId=${quizId}`;
+  };
+
+  const redirectToVocab = () => {
+    window.location.href = "vocabulary.html";
+  };
+
+  const redirectToMath = () => {
+    window.location.href = "algebra/algebra.html";
+  };
+
+  const redirectToRC = () => {
+    window.location.href = "english/RC_topics.html";
+  };
+
+  const redirectToProgramming = () => {
+    window.location.href = "coding/programming.html";
+  };
+
+  // Render vocabulary scores
+  const renderVocabScores = () => {
+    if (!vocabScores.assessments || vocabScores.assessments.length === 0) {
+      return (
+        <div>
+          <p className="no-data">Start learning and improve your Vocabulary</p>
+          <button className="btn btn-success start-learning-btn" onClick={redirectToVocab}>
+            Start Learning
+          </button>
+        </div>
+      );
     }
+
+    const recentAssessments = vocabScores.assessments.slice(-6).reverse();
+
+    return (
+      <table className="table table-striped table-bordered">
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Date</th>
+            <th>Percentage</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {recentAssessments.map((assessment, index) => {
+            const totalQuestions = assessment.questions.length;
+            const correctAnswers = assessment.questions.filter(q => q.is_correct).length;
+            const percentage = totalQuestions > 0 ? ((correctAnswers / totalQuestions) * 100).toFixed(2) : '0.00';
+
+            return (
+              <tr key={index}>
+                <td>{assessment.assess_topic || 'N/A'}</td>
+                <td>{new Date(assessment.date).toLocaleDateString()}</td>
+                <td>{percentage}%</td>
+                <td>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => goToQuizAnalytics(assessment.date)}
+                  >
+                    Analytics
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    );
   };
 
-  if (isLoading) {
+  // Render math topics
+  const renderMathTopics = () => {
+    if (!mathTopics || mathTopics.length === 0) {
+      return <p className="text-muted">No data available for any topic</p>;
+    }
+
+    return (
+      <div className="row">
+        {mathTopics.map((topic) => {
+          const correctAnswers = topic.questions.filter(q => q.correct).length;
+          const incorrectAnswers = topic.questions.length - correctAnswers;
+
+          return (
+            <div key={topic.topic} className="col-lg-6 col-md-12 mb-4">
+              <div className="card-custom" style={{
+                background: '#fff',
+                padding: '20px',
+                margin: '10px 0',
+                boxShadow: '0 0 10px #6c757d'
+              }}>
+                <div>
+                  <h4>{capitalizeFirstLetter(topic.topic)} Performance</h4>
+                  <p><strong>Accuracy:</strong> {correctAnswers}/{topic.questions.length}</p>
+                  <p><strong>Current Level:</strong> {capitalizeFirstLetter(topic.current_level)}</p>
+                </div>
+                <div className="canvas-container" style={{ width: '200px', height: '200px' }}>
+                  <canvas id={`${topic.topic}-performance-chart`} width="500" height="500"></canvas>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Render RC scores
+  const renderRCScores = () => {
+    if (!rcData || !rcData.topics || Object.keys(rcData.topics).length === 0) {
+      return (
+        <div>
+          <p className="no-data">Start learning and improve your Reading Comprehension</p>
+          <button className="btn btn-success start-learning-btn" onClick={redirectToRC}>
+            Start Learning
+          </button>
+        </div>
+      );
+    }
+
+    const rows = [];
+    Object.entries(rcData.topics).forEach(([topicName, topicDetails]) => {
+      if (Array.isArray(topicDetails.solvedPassages)) {
+        const totalPassages = topicDetails.solvedPassages.length;
+        const currentLevel = topicDetails.current_level || 'N/A';
+        
+        const lastActivity = topicDetails.solvedPassages.reduce((latest, passage) => {
+          const passageDate = new Date(passage.timestamp);
+          return passageDate > latest ? passageDate : latest;
+        }, new Date(0));
+
+        const lastActivityFormatted = lastActivity.getTime() !== 0
+          ? lastActivity.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+          : 'N/A';
+
+        rows.push({
+          srNo: rows.length + 1,
+          topicName,
+          totalPassages,
+          currentLevel,
+          lastActivity: lastActivityFormatted
+        });
+      }
+    });
+
+    if (rows.length === 0) {
+      return <p className="no-data">Start Learning and improve your Reading Comprehension</p>;
+    }
+
+    return (
+      <table className="table table-striped table-bordered">
+        <thead>
+          <tr>
+            <th>Sr. No.</th>
+            <th>Topic</th>
+            <th>Total Passages Solved</th>
+            <th>Current Level</th>
+            <th>Last Activity</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>
+              <td>{row.srNo}</td>
+              <td>{row.topicName}</td>
+              <td>{row.totalPassages}</td>
+              <td>{row.currentLevel}</td>
+              <td>{row.lastActivity}</td>
+              <td>
+                <button 
+                  className="btn btn-sm btn-primary"
+                  onClick={() => exploreTopic(row.topicName)}
+                >
+                  Explore
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
+  // Render programming scores
+  const renderProgrammingScores = () => {
+    if (!programmingData || !programmingData.quizzes || programmingData.quizzes.length === 0) {
+      return (
+        <div>
+          <p className="no-data">Start practicing to improve your programming skills</p>
+          <button className="btn btn-success start-learning-btn" onClick={redirectToProgramming}>
+            Start Coding
+          </button>
+        </div>
+      );
+    }
+
+    const sortedQuizzes = [...programmingData.quizzes].sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
+    const recentQuizzes = sortedQuizzes.slice(0, 1);
+
+    return (
+      <div>
+        <table className="table table-striped table-bordered">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Score(%)</th>
+              <th>Questions Passed Out of 20</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentQuizzes.map((quiz, index) => {
+              const quizDate = new Date(quiz.datetime).toLocaleDateString();
+              const passedQuestions = quiz.submissions.filter(sub => sub.test_cases_passed > 0).length;
+              
+              return (
+                <tr key={index}>
+                  <td>{quizDate}</td>
+                  <td>{(quiz.score/20*100).toFixed(0)}</td>
+                  <td>{passedQuestions}</td>
+                  <td>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => viewProgrammingQuiz(quiz._id)}
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <button className="btn btn-primary solve-more-btn mt-3" onClick={redirectToProgramming}>
+          Practice More
+        </button>
+      </div>
+    );
+  };
+
+  // Render CT finger exercises
+  const renderCTFingerExercises = () => {
+    const quizzes = ctFingerData.quizzes || [];
+    const topicScores = {};
+    
+    quizzes.forEach(quiz => {
+      const correctAnswers = quiz.answers.filter(a => a.isCorrect).length;
+      if (!topicScores[quiz.topic]) {
+        topicScores[quiz.topic] = 0;
+      }
+      topicScores[quiz.topic] += correctAnswers;
+    });
+
+    const tableData = Object.entries(topicScores).map(([topic, score], index) => ({
+      srNo: index + 1,
+      topic: topic.replace(/_/g, ' ').toUpperCase(),
+      score: score
+    }));
+
+    if (tableData.length === 0) {
+      return (
+        <button className="btn btn-success" onClick={redirectToProgramming}>
+          Start Learning
+        </button>
+      );
+    }
+
+    return (
+      <table className="table table-striped">
+        <thead>
+          <tr>
+            <th>Sr No.</th>
+            <th>Topic</th>
+            <th>Scores(%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tableData.map((row, index) => (
+            <tr key={index}>
+              <td>{row.srNo}</td>
+              <td>{row.topic}</td>
+              <td>{((row.score/30)*100).toFixed(0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
+  // Render programming finger exercises
+  const renderProgrammingFingerExercises = () => {
+    const topics = progFingerData.topics || [];
+    const topicScores = {};
+    
+    topics.forEach(topic => {
+      const correctSubmissions = topic.submissions?.filter(sub => sub.isCorrect) || [];
+      topicScores[topic.topicName] = correctSubmissions.length;
+    });
+
+    const tableData = Object.entries(topicScores).map(([topic, score], index) => ({
+      srNo: index + 1,
+      topic: topic.replace(/_/g, ' ').toUpperCase(),
+      score: score
+    }));
+
+    if (tableData.length === 0) {
+      return (
+        <button className="btn btn-success" onClick={redirectToProgramming}>
+          Start Learning
+        </button>
+      );
+    }
+
+    return (
+      <table className="table table-striped">
+        <thead>
+          <tr>
+            <th>Sr No.</th>
+            <th>Topic</th>
+            <th>Scores(%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tableData.map((row, index) => (
+            <tr key={index}>
+              <td>{row.srNo}</td>
+              <td>{row.topic}</td>
+              <td>{((row.score/20)*100).toFixed(0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
+  if (loading) {
     return (
       <div className="container-fluid py-4">
         <div className="text-center">
           <div className="spinner-border text-primary" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
-          <p className="mt-2">Loading your dashboard...</p>
+          <p className="mt-2">Loading Dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container-fluid">
-      {/* Header */}
-      <nav className="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-        <div className="container-fluid">
-          <span className="navbar-brand">
-            <i className="bi bi-mortarboard me-2"></i>
-            Student Dashboard
-          </span>
-          
-          <div className="navbar-nav ms-auto">
-            <div className="nav-item dropdown">
-              <a className="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
-                <i className="bi bi-person-circle me-2"></i>
-                {user?.name || 'Student'}
-              </a>
-              <ul className="dropdown-menu dropdown-menu-end">
-                <li><a className="dropdown-item" href="#"><i className="bi bi-person me-2"></i>Profile</a></li>
-                <li><a className="dropdown-item" href="#"><i className="bi bi-gear me-2"></i>Settings</a></li>
-                <li><hr className="dropdown-divider" /></li>
-                <li><button className="dropdown-item" onClick={handleLogout}><i className="bi bi-box-arrow-right me-2"></i>Logout</button></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Welcome Section */}
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="card bg-gradient bg-primary text-white">
-            <div className="card-body">
-              <h4 className="card-title">Welcome back, {user?.name}! 👋</h4>
-              <p className="card-text mb-0">
-                {dashboardData.classroomInfo ? 
-                  `You're enrolled in ${dashboardData.classroomInfo.name} - ${dashboardData.classroomInfo.subject}` :
-                  'Ready to continue your learning journey?'
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="row mb-4">
-        <div className="col-md-3 col-sm-6">
-          <div className="card text-center border-left-primary">
-            <div className="card-body">
-              <div className="text-primary">
-                <i className="bi bi-clipboard-check fs-2"></i>
-              </div>
-              <div className="mt-2">
-                <h5 className="mb-0">{dashboardData.assignments?.filter(a => a.status === 'completed').length || 0}</h5>
-                <small className="text-muted">Completed Assignments</small>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="col-md-3 col-sm-6">
-          <div className="card text-center border-left-warning">
-            <div className="card-body">
-              <div className="text-warning">
-                <i className="bi bi-clock fs-2"></i>
-              </div>
-              <div className="mt-2">
-                <h5 className="mb-0">{dashboardData.assignments?.filter(a => a.status === 'pending').length || 0}</h5>
-                <small className="text-muted">Pending Assignments</small>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="col-md-3 col-sm-6">
-          <div className="card text-center border-left-info">
-            <div className="card-body">
-              <div className="text-info">
-                <i className="bi bi-trophy fs-2"></i>
-              </div>
-              <div className="mt-2">
-                <h5 className="mb-0">
-                  {dashboardData.grades?.length > 0 ? 
-                    Math.round(dashboardData.grades.reduce((acc, g) => acc + g.score, 0) / dashboardData.grades.length) : 0}%
-                </h5>
-                <small className="text-muted">Average Grade</small>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="col-md-3 col-sm-6">
-          <div className="card text-center border-left-success">
-            <div className="card-body">
-              <div className="text-success">
-                <i className="bi bi-calendar-event fs-2"></i>
-              </div>
-              <div className="mt-2">
-                <h5 className="mb-0">{dashboardData.upcomingEvents?.length || 0}</h5>
-                <small className="text-muted">Upcoming Events</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <ul className="nav nav-tabs mb-4">
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            <i className="bi bi-house me-2"></i>Overview
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'assignments' ? 'active' : ''}`}
-            onClick={() => setActiveTab('assignments')}
-          >
-            <i className="bi bi-clipboard me-2"></i>Assignments
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'grades' ? 'active' : ''}`}
-            onClick={() => setActiveTab('grades')}
-          >
-            <i className="bi bi-graph-up me-2"></i>Grades
-          </button>
-        </li>
-        <li className="nav-item">
-          <button 
-            className={`nav-link ${activeTab === 'announcements' ? 'active' : ''}`}
-            onClick={() => setActiveTab('announcements')}
-          >
-            <i className="bi bi-megaphone me-2"></i>Announcements
-          </button>
-        </li>
-      </ul>
-
-      {/* Tab Content */}
-      <div className="tab-content">
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <div className="row">
-            <div className="col-lg-8">
-              <div className="card mb-4">
-                <div className="card-header">
-                  <h5 className="mb-0">
-                    <i className="bi bi-list-task me-2"></i>Recent Assignments
-                  </h5>
-                </div>
-                <div className="card-body">
-                  {dashboardData.assignments?.slice(0, 5).map((assignment, index) => (
-                    <div key={index} className="d-flex justify-content-between align-items-center py-2 border-bottom">
-                      <div>
-                        <h6 className="mb-1">{assignment.title}</h6>
-                        <small className="text-muted">Due: {new Date(assignment.dueDate).toLocaleDateString()}</small>
-                      </div>
-                      <span className={getAssignmentStatusBadge(assignment.status)}>
-                        {assignment.status}
-                      </span>
-                    </div>
-                  )) || <p className="text-muted">No assignments available</p>}
-                </div>
-              </div>
-            </div>
-            
-            <div className="col-lg-4">
-              <div className="card mb-4">
-                <div className="card-header">
-                  <h5 className="mb-0">
-                    <i className="bi bi-calendar-week me-2"></i>Upcoming Events
-                  </h5>
-                </div>
-                <div className="card-body">
-                  {dashboardData.upcomingEvents?.map((event, index) => (
-                    <div key={index} className="mb-3">
-                      <h6 className="mb-1">{event.title}</h6>
-                      <small className="text-muted">
-                        <i className="bi bi-calendar me-1"></i>
-                        {new Date(event.date).toLocaleDateString()}
-                      </small>
-                      <p className="small mb-0">{event.description}</p>
-                    </div>
-                  )) || <p className="text-muted">No upcoming events</p>}
-                </div>
+    <main className="main">
+      <section className="container mt-5">
+        <div className="row">
+          <div className="col-lg-12 mx-auto">
+            <div className="card shadow-sm mb-4 bg-light">
+              <div className="card-header text-black d-flex justify-content-between align-items-center" style={{backgroundColor: '#3498db'}}>
+                <h3 className="mb-1 text-white">Student Dashboard</h3>
               </div>
               
-              <div className="card">
-                <div className="card-header">
-                  <h5 className="mb-0">
-                    <i className="bi bi-megaphone me-2"></i>Latest Announcements
-                  </h5>
-                </div>
-                <div className="card-body">
-                  {dashboardData.announcements?.slice(0, 3).map((announcement, index) => (
-                    <div key={index} className="mb-3">
-                      <h6 className="mb-1">{announcement.title}</h6>
-                      <small className="text-muted">
-                        {new Date(announcement.date).toLocaleDateString()}
-                      </small>
-                      <p className="small mb-0">{announcement.content}</p>
+              <div className="card-body">
+                {/* User Information Section */}
+                <div className="card-custom mb-4" style={{
+                  background: '#fff',
+                  padding: '20px',
+                  margin: '10px 0',
+                  boxShadow: '0 0 10px #6c757d'
+                }}>
+                  <h3>Student Dashboard</h3>
+                  
+                  {/* Flexbox Container for User Info & Quiz Count */}
+                  <div className="info-container" style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '20px',
+                    background: '#fff',
+                    borderRadius: '10px',
+                    boxShadow: '2px 2px 10px rgba(0, 0, 0, 0.1)'
+                  }}>
+                    {/* Left Side: User Information */}
+                    <div className="user-info" style={{ width: '100%' }}>
+                      <h3>User Information</h3>
+                      <p><strong>Username:</strong> {userData.username}</p>
+                      <p><strong>Email:</strong> {userData.email}</p>
                     </div>
-                  )) || <p className="text-muted">No announcements</p>}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Assignments Tab */}
-        {activeTab === 'assignments' && (
-          <div className="card">
-            <div className="card-header">
-              <h5 className="mb-0">All Assignments</h5>
-            </div>
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-hover">
-                  <thead>
-                    <tr>
-                      <th>Title</th>
-                      <th>Subject</th>
-                      <th>Due Date</th>
-                      <th>Status</th>
-                      <th>Grade</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboardData.assignments?.map((assignment, index) => (
-                      <tr key={index}>
-                        <td>
-                          <strong>{assignment.title}</strong>
-                          <br />
-                          <small className="text-muted">{assignment.description}</small>
-                        </td>
-                        <td>{assignment.subject}</td>
-                        <td>{new Date(assignment.dueDate).toLocaleDateString()}</td>
-                        <td>
-                          <span className={getAssignmentStatusBadge(assignment.status)}>
-                            {assignment.status}
-                          </span>
-                        </td>
-                        <td>
-                          {assignment.grade ? 
-                            <span className={getGradeColor(assignment.grade)}>{assignment.grade}%</span> : 
-                            '-'
-                          }
-                        </td>
-                        <td>
-                          <button className="btn btn-sm btn-outline-primary me-2">
-                            <i className="bi bi-eye"></i> View
-                          </button>
-                          {assignment.status === 'pending' && (
-                            <button className="btn btn-sm btn-primary">
-                              <i className="bi bi-upload"></i> Submit
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )) || (
-                      <tr>
-                        <td colSpan="6" className="text-center text-muted">No assignments available</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Grades Tab */}
-        {activeTab === 'grades' && (
-          <div className="card">
-            <div className="card-header">
-              <h5 className="mb-0">Grade Report</h5>
-            </div>
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-striped">
-                  <thead>
-                    <tr>
-                      <th>Assignment</th>
-                      <th>Subject</th>
-                      <th>Date Submitted</th>
-                      <th>Score</th>
-                      <th>Feedback</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dashboardData.grades?.map((grade, index) => (
-                      <tr key={index}>
-                        <td>{grade.assignmentTitle}</td>
-                        <td>{grade.subject}</td>
-                        <td>{new Date(grade.submittedDate).toLocaleDateString()}</td>
-                        <td>
-                          <span className={getGradeColor(grade.score)}>
-                            <strong>{grade.score}%</strong>
-                          </span>
-                        </td>
-                        <td>
-                          {grade.feedback ? (
-                            <button className="btn btn-sm btn-outline-info" title={grade.feedback}>
-                              <i className="bi bi-chat-quote"></i> View
-                            </button>
-                          ) : (
-                            <span className="text-muted">No feedback</span>
-                          )}
-                        </td>
-                      </tr>
-                    )) || (
-                      <tr>
-                        <td colSpan="5" className="text-center text-muted">No grades available</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Announcements Tab */}
-        {activeTab === 'announcements' && (
-          <div className="row">
-            {dashboardData.announcements?.map((announcement, index) => (
-              <div key={index} className="col-md-6 mb-4">
-                <div className="card">
-                  <div className="card-header d-flex justify-content-between">
-                    <h6 className="mb-0">{announcement.title}</h6>
-                    <small className="text-muted">
-                      {new Date(announcement.date).toLocaleDateString()}
-                    </small>
+                    
+                    {/* Right Side: Quiz Count */}
+                    <div className="quiz-count" style={{ width: '100%', textAlign: 'right' }}>
+                      <h3>Quiz Count</h3>
+                      <p>Math: {quizCounts.math}</p>
+                      <p>RC: {quizCounts.rc}</p>
+                      <p>Vocabulary: {quizCounts.vocab}</p>
+                      <p>Programming: {quizCounts.prog}</p>
+                    </div>
                   </div>
-                  <div className="card-body">
-                    <p className="card-text">{announcement.content}</p>
-                    {announcement.priority === 'high' && (
-                      <span className="badge bg-danger">Important</span>
-                    )}
+                  
+                  {/* Streak Section */}
+                  <div className="streak-container" style={{
+                    display: 'flex',
+                    justifyContent: 'space-around',
+                    alignItems: 'center',
+                    padding: '10px',
+                    borderRadius: '12px',
+                    width: '400px',
+                    textAlign: 'center',
+                    marginTop: '20px'
+                  }}>
+                    <div className="streak-title" style={{
+                      fontSize: '18px',
+                      color: '#000000',
+                      fontWeight: 'bold'
+                    }}>Current Streak</div>
+                    <div className="streak-circle" style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      border: '4px solid orange',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      position: 'relative'
+                    }}>
+                      <i className="bi bi-fire" style={{
+                        fontSize: '20px',
+                        color: 'orange',
+                        position: 'absolute',
+                        top: '-20px',
+                        background: '#1E1E1E',
+                        padding: '5px',
+                        borderRadius: '50%'
+                      }}></i>
+                      <span>{userStreak}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )) || (
-              <div className="col-12">
-                <div className="text-center text-muted py-5">
-                  <i className="bi bi-megaphone fs-1"></i>
-                  <p className="mt-3">No announcements available</p>
+
+                {/* Vocabulary and Mathematics Section */}
+                <div className="row mb-4">
+                  <div className="col-lg-6 col-md-12">
+                    <div className="card-custom" style={{
+                      background: '#fff',
+                      padding: '20px',
+                      margin: '10px 0',
+                      boxShadow: '0 0 10px #6c757d'
+                    }}>
+                      <h3>Vocabulary Topic Wise Performance</h3>
+                      <div className="mb-4">
+                        {renderVocabScores()}
+                      </div>
+                      <button 
+                        className="btn btn-primary solve-more-btn"
+                        onClick={redirectToVocab}
+                      >
+                        Solve More
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="col-lg-6 col-md-12">
+                    <div className="card-custom" style={{
+                      background: '#fff',
+                      padding: '20px',
+                      margin: '10px 0',
+                      boxShadow: '0 0 10px #6c757d'
+                    }}>
+                      <h3>Mathematics Quizzes Performance</h3>
+                      <div className="mb-4">
+                        {renderMathTopics()}
+                      </div>
+                      <button 
+                        className="btn btn-primary solve-more-btn"
+                        onClick={redirectToMath}
+                      >
+                        Solve More
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Full-Width Reading Comprehension Section */}
+                <div className="row">
+                  <div className="col-12">
+                    <div className="card-custom" style={{
+                      background: '#fff',
+                      padding: '20px',
+                      margin: '10px 0',
+                      boxShadow: '0 0 10px #6c757d'
+                    }}>
+                      <h3>Reading Comprehension</h3>
+                      <p><strong>Track your progress.</strong></p>
+                      <div>
+                        {renderRCScores()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Modified Programming Progress Section */}
+                <div className="row mt-4">
+                  <div className="col-12">
+                    <div className="card-custom" style={{
+                      background: '#fff',
+                      padding: '20px',
+                      margin: '10px 0',
+                      boxShadow: '0 0 10px #6c757d'
+                    }}>
+                      <h3>CT Finger Exercises</h3>
+                      <div className="mb-4">
+                        {renderCTFingerExercises()}
+                      </div>
+                      
+                      <h3>Python Finger Exercises</h3>
+                      <div className="mb-4">
+                        {renderProgrammingFingerExercises()}
+                      </div>
+                      
+                      <h3>Programming Diagnostic</h3>
+                      <div>
+                        {renderProgrammingScores()}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        )}
-      </div>
-
-      {error && (
-        <div className="alert alert-danger alert-dismissible fade show" role="alert">
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          {error}
-          <button type="button" className="btn-close" onClick={() => setError('')}></button>
         </div>
-      )}
-    </div>
+      </section>
+    </main>
   );
 };
 
