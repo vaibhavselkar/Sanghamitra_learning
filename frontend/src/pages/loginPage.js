@@ -12,6 +12,8 @@ const LoginPage = () => {
   const redirectPath = searchParams.get("redirectPath");
   const { login } = useAuth();
   const navigate = useNavigate();
+  const auth = useAuth();
+  console.log("Auth Context:", auth);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

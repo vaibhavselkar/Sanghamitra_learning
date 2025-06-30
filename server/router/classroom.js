@@ -345,6 +345,18 @@ router.get('/tutor/classrooms', authenticate, authorizeRole('tutor', 'admin'), a
   }
 });
 
+router.get('/student/classroom-info', async (req, res) => {
+  try {
+    const classroomCode = req.session.classroomCode;
+    if (!classroomCode) return res.json({ classroomName: null });
+    
+    const classroom = await Classroom.findOne({ joinCode: classroomCode }).select('name');
+    res.json({ classroomName: classroom?.name || 'No classroom found' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch classroom info' });
+  }
+});
+
 // Update classroom information
 router.get('/classroom/:classroomId', async (req, res) => {
   try {

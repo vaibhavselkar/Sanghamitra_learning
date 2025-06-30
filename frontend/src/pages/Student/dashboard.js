@@ -35,6 +35,7 @@ const StudentDashboard = () => {
   });
   const [vocabScores, setVocabScores] = useState({ assessments: [] });
   const [mathTopics, setMathTopics] = useState([]);
+  const [classroomName, setClassroomName] = useState('');
   const [rcData, setRcData] = useState(null);
   const [programmingData, setProgrammingData] = useState(null);
   const [ctFingerData, setCTFingerData] = useState({ quizzes: [] });
@@ -283,7 +284,8 @@ const StudentDashboard = () => {
           fetchRCScores(email),
           fetchProgrammingScores(email),
           fetchCTFingerExercises(email),
-          fetchProgrammingFingerExercises(email)
+          fetchProgrammingFingerExercises(email),
+          fetchClassroomInfo() 
         ]);
       }
 
@@ -434,6 +436,38 @@ const StudentDashboard = () => {
         })}
       </div>
     );
+  };
+
+  const fetchClassroomInfo = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/student/classroom-info', {
+        method: 'GET',
+        credentials: 'include', // Important: sends session cookie
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
+        const classroomName = data.classroomName;
+        
+        // Store the name_Data in state or variable
+        setClassroomName(classroomName); // If using React state
+        
+        // Or store in a variable
+        window.classroomNameData = classroomName;
+        
+        console.log('Classroom name fetched:', classroomName);
+        return classroomName;
+      } else {
+        console.error('Failed to fetch classroom info');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching classroom info:', error);
+      return null;
+    }
   };
 
   // Render RC scores
@@ -685,7 +719,10 @@ const StudentDashboard = () => {
           <div className="col-lg-12 mx-auto">
             <div className="card shadow-sm mb-4 bg-light">
               <div className="card-header text-black d-flex justify-content-between align-items-center" style={{backgroundColor: '#3498db'}}>
-                <h3 className="mb-1 text-white">Student Dashboard</h3>
+              <div className="classroom-info" style={{ width: '100%', marginTop: '10px' }}>
+                  <h3><strong>Classroom:</strong> {classroomName || 'Not enrolled in any classroom'}</h3>
+                  
+                </div>
               </div>
               
               <div className="card-body">
@@ -713,6 +750,7 @@ const StudentDashboard = () => {
                       <h3>User Information</h3>
                       <p><strong>Username:</strong> {userData.username}</p>
                       <p><strong>Email:</strong> {userData.email}</p>
+                      
                     </div>
                     
                     {/* Right Side: Quiz Count */}

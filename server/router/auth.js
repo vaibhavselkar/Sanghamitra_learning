@@ -64,7 +64,7 @@ router.post('/signin', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
+    req.session.classroomCode = user.classroomCode;
     // 5. Generate token - with error handling
     let token;
     try {

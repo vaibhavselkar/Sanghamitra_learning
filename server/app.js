@@ -13,10 +13,7 @@ const app = express();
 // CORS configuration
 const corsOptions = {
     origin: [
-      'http://localhost:3000',  // React default port
-      'http://localhost:3001',  // Alternative React port
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:3001'
+      'http://localhost:3000'  // React default port    
     ],
     credentials: true,  // Important: allows cookies/credentials
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

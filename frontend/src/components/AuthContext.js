@@ -6,6 +6,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const checkAuth = async () => {
     try {
@@ -19,6 +20,7 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(data.authenticated);
         if (data.authenticated && data.user) {
           setUser(data.user);
+          setToken(data.token || null);
         }
       } else {
         setIsAuthenticated(false);
@@ -30,20 +32,19 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(false);
       setUser(null);
       setToken(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Login function that your LoginPage expects
   const login = async (userData) => {
     try {
       const { token: userToken, user: userInfo } = userData;
       
-      // Validate required data
       if (!userToken || !userInfo) {
         throw new Error('Invalid login data provided');
       }
 
-      // Update state
       setToken(userToken);
       setUser(userInfo);
       setIsAuthenticated(true);
@@ -56,10 +57,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout function
   const logout = async () => {
     try {
-      // Call logout endpoint if you have one
       await fetch('http://localhost:4000/api/logout', {
         method: 'POST',
         credentials: 'include',
@@ -67,7 +66,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error calling logout endpoint:', error);
     } finally {
-      // Clear state regardless of API call result
       setToken(null);
       setUser(null);
       setIsAuthenticated(false);
@@ -82,10 +80,15 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     user,
     token,
+    isLoading,
     login,
     logout,
     checkAuth
   };
+
+  if (isLoading) {
+    return <div>Loading authentication...</div>;
+  }
 
   return (
     <AuthContext.Provider value={contextValue}>
