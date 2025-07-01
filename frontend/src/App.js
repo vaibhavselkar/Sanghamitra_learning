@@ -19,6 +19,12 @@ import LoginPage from './pages/loginPage';
 import Register from './pages/register';
 import VocabularyDiagnosticTest from './pages/English/vocabulary/VocabularyDiagnosticTest';
 import Programming from './pages/Programming/programming';
+import VocabularyGuide from './pages/English/vocabulary/vocabularyGuide';
+import VocabularyEndeavourMain from "./pages/English/vocabulary/vocabularyEndeavourMain";
+import VocabularyEndeavourMoney from "./pages/English/vocabulary/money";
+import VocabularyEndeavourPolitics from "./pages/English/vocabulary/politics";
+import VocabularyEndeavourSchool from "./pages/English/vocabulary/school-and-education";
+import VocabularyEndeavourTechnology from "./pages/English/vocabulary/technology";
 import StudentDashboard from './pages/Student/dashboard';
 import TutorDashboard from './pages/Tutor/adminDashboard';
 
@@ -40,6 +46,12 @@ function App() {
             <Route path="/tutor/dashboard" element={<TutorDashboard />} />
             <Route path="/english/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
+            <Route path="/english/vocabulary/guide" element={<VocabularyGuide />} />
+            <Route path="/english/vocabulary/main-page" element={<VocabularyEndeavourMain />} />
+            <Route path="/english/vocabulary/money" element={<VocabularyEndeavourMoney />} />
+            <Route path="/english/vocabulary/politics" element={<VocabularyEndeavourPolitics />} />
+            <Route path="/english/vocabulary/school-and-education" element={<VocabularyEndeavourSchool />} />
+            <Route path="/english/vocabulary/technology" element={<VocabularyEndeavourTechnology />} />
             <Route path="/english/rc" element={<RC />} />
             <Route path="/english/writing" element={<Writing />} />
 
