@@ -17,10 +17,21 @@ export const AuthProvider = ({ children }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setIsAuthenticated(data.authenticated);
-        if (data.authenticated && data.user) {
-          setUser(data.user);
-          setToken(data.token || null);
+        console.log('Auth check response:', data); // Debug log
+        
+        if (data.authenticated) {
+          setIsAuthenticated(true);
+          if (data.user) {
+            setUser(data.user);
+            setToken(data.token || null);
+          } else {
+            // Handle case where user data isn't provided
+            console.warn('User authenticated but no user data provided');
+          }
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+          setToken(null);
         }
       } else {
         setIsAuthenticated(false);

@@ -64,6 +64,11 @@ router.post('/signin', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
+    req.session.userId = user._id;
+    req.session.email = user.email;
+    req.session.username = user.name; // or user.username if you have that field
+    req.session.name = user.name;
+    req.session.role = user.role;
     req.session.classroomCode = user.classroomCode;
     // 5. Generate token - with error handling
     let token;
@@ -186,15 +191,18 @@ router.get('/login-history', async (req, res) => {
 
 // Endpoint to get session data
 router.get('/session-info', (req, res) => {
-    if (req.session.userId) {
-        return res.status(200).json({
-            email: req.session.email,
-            username: req.session.username,
-            userid: req.session.username
-        });
-    } else {
-        return res.status(401).json({ error: 'Unauthorized access' });
-    }
+  if (req.session.userId) {
+      return res.status(200).json({
+          authenticated: true,
+          email: req.session.email,
+          username: req.session.username,
+          userid: req.session.userId
+      });
+  } else {
+      return res.status(200).json({ 
+          authenticated: false 
+      });
+  }
 });
 
 router.post('/reset-password/check-email', async (req, res) => {
@@ -285,12 +293,21 @@ router.post('/gre_writing_response', async (req, res) => {
 
 // Middleware to check for the JWT token
 router.get('/check-auth', (req, res) => {
-    if (req.session.userId) {
-        res.status(200).json({ authenticated: true });
-    } else {
-        res.status(200).json({ authenticated: false });
-    }
+  if (req.session.userId) {
+      res.status(200).json({ 
+          authenticated: true,
+          user: {
+              id: req.session.userId,
+              email: req.session.email,
+              username: req.session.username,
+              name: req.session.name || req.session.username
+          }
+      });
+  } else {
+      res.status(200).json({ authenticated: false });
+  }
 });
+
 
 router.get('/dashboard', async (req, res) => {
   try {

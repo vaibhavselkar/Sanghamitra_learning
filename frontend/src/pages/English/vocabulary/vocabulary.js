@@ -9,7 +9,7 @@ const VocabularyLearning = () => {
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" data-aos="fade">
+      <div className="page-title">
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -40,7 +40,7 @@ const VocabularyLearning = () => {
         <div className="container">
           <div className="row">
             {/* Diagnostic Test */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={diagnosticTestImg} className="img-fluid" alt="Vocabulary Diagnostic Test" />
                 <div className="course-content">
@@ -62,7 +62,7 @@ const VocabularyLearning = () => {
             </div>
 
             {/* Vocabulary Guide */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={vocabGuideImg} className="img-fluid" alt="Vocabulary Guide" />
                 <div className="course-content">
@@ -84,7 +84,7 @@ const VocabularyLearning = () => {
             </div>
 
             {/* Vocabulary Journey */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={vocabJourneyImg} className="img-fluid" alt="Vocabulary Journey" />
                 <div className="course-content">

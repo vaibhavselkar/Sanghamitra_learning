@@ -196,19 +196,6 @@ const LoginPage = () => {
                   </div>
                 </div>
 
-                <div className="mb-3 form-check">
-                  <input
-                    type="checkbox"
-                    className="form-check-input"
-                    id="showPassword"
-                    checked={showPassword}
-                    onChange={(e) => setShowPassword(e.target.checked)}
-                    disabled={isLoading}
-                  />
-                  <label className="form-check-label" htmlFor="showPassword">
-                    Show Password
-                  </label>
-                </div>
 
                 {errorMessage && (
                   <div className="alert alert-danger mb-3">

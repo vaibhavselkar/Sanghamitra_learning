@@ -335,7 +335,7 @@ const StudentDashboard = () => {
   };
 
   const redirectToVocab = () => {
-    window.location.href = "vocabulary.html";
+    window.location.href = "/english/vocabulary";
   };
 
   const redirectToMath = () => {

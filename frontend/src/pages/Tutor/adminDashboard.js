@@ -76,8 +76,9 @@ const TutorDashboard = () => {
     } else {
       // Fallback: copy to clipboard
       navigator.clipboard.writeText(inviteLink).then(() => {
-        alert('Invite link copied to clipboard!');
-      }).catch(() => {
+        // Show success message with the link
+        showSuccessMessage(`Invite link copied!`, inviteLink);
+    }).catch(() => {
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
         textArea.value = inviteLink;
@@ -85,8 +86,37 @@ const TutorDashboard = () => {
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        alert('Invite link copied to clipboard!');
-      });
+        showSuccessMessage(`Invite link copied!`, inviteLink);
+    });
+    
+    // Custom success message function
+    function showSuccessMessage(message, link) {
+        // Example with a simple div overlay
+        const messageDiv = document.createElement('div');
+        messageDiv.innerHTML = `
+            <div style="
+                position: fixed; 
+                top: 400px; 
+                right: 800px; 
+                background: #28a745; 
+                color: white; 
+                padding: 15px; 
+                border-radius: 5px; 
+                z-index: 1000;
+                max-width: 400px;
+                word-break: break-all;
+            ">
+                <strong>${message}</strong><br>
+                <small>${link}</small>
+            </div>
+        `;
+        document.body.appendChild(messageDiv);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            document.body.removeChild(messageDiv);
+        }, 3000);
+    }
     }
   };
 
