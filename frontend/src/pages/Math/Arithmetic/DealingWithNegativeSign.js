@@ -1,4 +1,3 @@
-// src/pages/math/arithmetic/DealingWithNegativeSign.js
 import React from 'react';
 import { Link } from 'react-router-dom';
 import "../../../assets/css/main.css";
