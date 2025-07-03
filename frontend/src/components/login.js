@@ -6,7 +6,7 @@
  */
 export const checkAuth = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/check-auth', {
+      const response = await fetch('https://sanghamitra-learning-server.vercel.app/api/check-auth', {
         method: 'GET',
         credentials: 'include' // Include credentials for cross-origin requests
       });
@@ -32,7 +32,7 @@ export const checkAuth = async () => {
    */
   export const login = async (email, password, redirectPath = '/') => {
     try {
-      const response = await fetch('http://localhost:4000/api/signin', {
+      const response = await fetch('https://sanghamitra-learning-server.vercel.app/api/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -64,7 +64,7 @@ export const checkAuth = async () => {
    */
   export const logout = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/logout', {
+      const response = await fetch('https://sanghamitra-learning-server.vercel.app/api/logout', {
         method: 'GET',
         credentials: 'include'
       });

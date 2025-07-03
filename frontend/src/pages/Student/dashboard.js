@@ -47,7 +47,7 @@ const StudentDashboard = () => {
   // API Helper function
   const apiCall = async (url, options = {}) => {
     try {
-      const response = await fetch(`http://localhost:4000${url}`, {
+      const response = await fetch(`https://sanghamitra-learning-server.vercel.app/${url}`, {
         ...options,
         credentials: 'include',
         headers: {
@@ -440,7 +440,7 @@ const StudentDashboard = () => {
 
   const fetchClassroomInfo = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/student/classroom-info', {
+      const response = await fetch('https://sanghamitra-learning-server.vercel.app/api/student/classroom-info', {
         method: 'GET',
         credentials: 'include', // Important: sends session cookie
         headers: {
