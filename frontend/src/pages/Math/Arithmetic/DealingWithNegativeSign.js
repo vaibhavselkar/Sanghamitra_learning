@@ -1036,42 +1036,42 @@ const DealingWithNegativeSign = () => {
   
 };
 <style>
-{`
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
+  {`
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
 
-@keyframes fillProgress {
-  from { width: 0%; }
-  to { width: 100%; }
-}
+    @keyframes fillProgress {
+      from { width: 0%; }
+      to { width: 100%; }
+    }
 
-.achievement-card {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
+    .achievement-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
 
-.achievement-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-}
+    .achievement-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+    }
 
-.skill-item {
-  transition: transform 0.2s ease;
-}
+    .skill-item {
+      transition: transform 0.2s ease;
+    }
 
-.skill-item:hover {
-  transform: translateX(5px);
-}
+    .skill-item:hover {
+      transform: translateX(5px);
+    }
 
-.final-message-card {
-  box-shadow: 0 10px 30px rgba(243, 156, 18, 0.3);
-}
+    .final-message-card {
+      box-shadow: 0 10px 30px rgba(243, 156, 18, 0.3);
+    }
 
-.trophy-circle {
-  box-shadow: 0 8px 25px rgba(243, 156, 18, 0.4);
-}
-`};
+    .trophy-circle {
+      box-shadow: 0 8px 25px rgba(243, 156, 18, 0.4);
+    }
+  `}
 </style>
 export default DealingWithNegativeSign;
