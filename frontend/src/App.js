@@ -12,6 +12,8 @@ import RC from "./pages/English/RC/RC";
 import Writing from "./pages/English/writing/writing";
 import HomeAbout from "./components/HomeAbout";
 import Math from "./pages/Math/Math";
+import NumberTheory from './pages/Math/Algebra/NumberTheory';
+import Units from './pages/Math/Algebra/Units';
 import Algebra from "./pages/Math/Algebra/Algebra";
 import Arithmetic from "./pages/Math/Arithmetic/Arithmetic"; // Add this import
 import Addition from "./pages/Math/Arithmetic/Addition";
@@ -62,7 +64,7 @@ function App() {
             
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/tutor/dashboard" element={<TutorDashboard />} />
-            
+
             <Route path="/english/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
             <Route path="/english/vocabulary/guide" element={<VocabularyGuide />} />
