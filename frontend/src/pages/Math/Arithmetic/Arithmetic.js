@@ -1,16 +1,19 @@
-// src/pages/Math/Algebra/Algebra.js
+// src/pages/Math/Arithmetic/Arithmetic.js
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "../../../assets/css/main.css";
 
-const Algebra = () => {
+const Arithmetic = () => {
   const [userData, setUserData] = useState({ email: null });
   const [testStatus, setTestStatus] = useState("Loading status...");
   const [progressData, setProgressData] = useState({
-    numberTheory: 0,
-    units: 0,
+    addition: 0,
+    subtraction: 0,
+    multiplication: 0,
+    division: 0,
+    negativeSigns: 0,
+    ratioPercentage: 0,
     decimals: 0,
-    fractions: 0,
   });
 
   useEffect(() => {
@@ -32,9 +35,9 @@ const Algebra = () => {
 
         if (!email) return;
 
-        // Fetch test attempts for algebra
+        // Fetch test attempts
         const testResponse = await fetch(
-          `http://localhost:4000/api/algebra-testresponses?email=${encodeURIComponent(email)}&all=true`,
+          `http://localhost:4000/api/testresponses?email=${encodeURIComponent(email)}&all=true`,
           { credentials: 'include' }
         );
         
@@ -52,10 +55,14 @@ const Algebra = () => {
 
         // Topic configuration with mapping to progressData keys
         const topics = [
-          { id: "number-theory", total: 25, progressKey: "numberTheory" },
-          { id: "units", total: 20, progressKey: "units" },
+          { id: "addition", total: 30, progressKey: "addition" },
+          { id: "subtraction", total: 30, progressKey: "subtraction" },
+          { id: "multiplication", total: 30, progressKey: "multiplication" },
+          { id: "division", total: 29, progressKey: "division" },
+          { id: "dealing-with-negative-sign", total: 34, progressKey: "negativeSigns" },
+          { id: "ratio-proportion-percentage", total: 30, progressKey: "ratioPercentage" },
           { id: "decimals", total: 30, progressKey: "decimals" },
-          { id: "fractions", total: 35, progressKey: "fractions" },
+
         ];
 
         const progressUpdates = {};
@@ -64,7 +71,7 @@ const Algebra = () => {
         for (const topic of topics) {
           try {
             const response = await fetch(
-              `http://localhost:4000/api/algebra-scores?userEmail=${encodeURIComponent(email)}&operationType=${topic.id}`,
+              `http://localhost:4000/api/arithmetic-scores?userEmail=${encodeURIComponent(email)}&operationType=${topic.id}`,
               { credentials: 'include' }
             );
             
@@ -102,31 +109,75 @@ const Algebra = () => {
     {
       id: "pre-diagnostic",
       title: "PreDiagnosticTest",
-      description: "Assess your current algebra skills",
+      description: "Assess your current arithmetic skills",
       icon: "bi-clipboard-check",
       color: "info",
-      link: "/math/algebra/pre-diagnostic-test",
+      link: "/math/arithmetic/pre-diagnostic-test", // ← UPDATED ROUTE
       isTest: true
     },
     {
-      id: "numbertheory",
-      title: "NumberTheory",
-      description: "Explore properties of integers, prime numbers, and divisibility",
-      icon: "bi-123",
-      color: "success",
-      link: "/math/algebra/number-theory",
-      progress: progressData.numberTheory
+      id: "addition",
+      title: "Addition",
+      description: "Master fundamental number combination",
+      icon: "bi-plus-lg",
+      color: "primary",
+      link: "/math/arithmetic/addition",
+      progress: progressData.addition
     },
     {
-      id: "units",
-      title: "Units",
-      description: "Master unit conversions and dimensional analysis",
-      icon: "bi-rulers",
-      color: "success",
-      link: "/math/algebra/units",
-      progress: progressData.Units
+      id: "subtraction",
+      title: "Subtraction",
+      description: "Learn to subtract numbers effectively with visual aids",
+      icon: "bi-dash-lg",
+      color: "primary",
+      link: "/math/arithmetic/subtraction",
+      progress: progressData.subtraction
     },
-    
+    {
+      id: "multiplication",
+      title: "Multiplication",
+      description: "Discover efficient multiplication strategies",
+      icon: "bi-x-lg",
+      color: "primary",
+      link: "/math/arithmetic/multiplication",
+      progress: progressData.multiplication
+    },
+    {
+      id: "division",
+      title: "Division",
+      description: "Understand division concepts and methods",
+      icon: "bi-slash",
+      color: "primary",
+      link: "/math/arithmetic/division",
+      progress: progressData.division
+    },
+    {
+      id: "decimals",
+      title: "Decimals",
+      description: "Understand decimals concepts and methods",
+      icon: "bi-slash",
+      color: "primary",
+      link: "/math/arithmetic/decimals",
+      progress: progressData.decimals
+    },
+    {
+      id: "dealingwithnegativesign",
+      title: "Dealing With Negative Signs",
+      description: "Master positive and negative number operations",
+      icon: "bi-dash-lg",
+      color: "primary",
+      link: "/math/arithmetic/dealingwithnegativesign",
+      progress: progressData.negativeSigns
+    },
+    {
+      id: "ratioproportionpercentage",
+      title: "Ratio, Proportion, and Percentage",
+      description: "Master Ratio, Proportion, and Percentage",
+      icon: "bi-percent",
+      color: "primary",
+      link: "/math/arithmetic/ratioproportionpercentage",
+      progress: progressData.ratioPercentage
+    },
   ];
 
   return (
@@ -137,12 +188,11 @@ const Algebra = () => {
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
               <div className="col-lg-8">
-                <h1>Algebra</h1>
+                <h1>Arithmetic</h1>
                 <p className="mb-0">
-                  Welcome to our Algebra Learning Hub. Build a strong foundation in algebraic 
-                  concepts with our comprehensive resources and interactive lessons. Master 
-                  number theory, units, decimals, fractions, and more as you progress through 
-                  your mathematical journey.
+                  Welcome to our arithmetic Learning Hub. Enhance your arithmetic skills with our
+                  comprehensive resources and interactive lessons. Join our community and embark on
+                  an enriching journey towards mastering arithmetic.
                 </p>
               </div>
             </div>
@@ -157,7 +207,7 @@ const Algebra = () => {
               <li>
                 <Link to="/math">Math</Link>
               </li>
-              <li className="current">Algebra</li>
+              <li className="current">Arithmetic</li>
             </ol>
           </div>
         </nav>
@@ -274,4 +324,4 @@ const Algebra = () => {
   );
 };
 
-export default Algebra;
+export default Arithmetic;

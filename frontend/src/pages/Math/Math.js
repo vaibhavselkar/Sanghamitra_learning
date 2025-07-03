@@ -1,7 +1,9 @@
+// src/pages/Math/Math.js
 import React from "react";
 import { Link } from "react-router-dom";
 import "../../assets/css/main.css";
 import algebraImg from "../../assets/img/Algebra.png";
+import arithmeticImg from "../../assets/img/Arithmetic.png";
 
 const Math = () => {
   return (
@@ -42,7 +44,7 @@ const Math = () => {
                 <img src={algebraImg} className="img-fluid" alt="Algebra" />
                 <div className="course-content">
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <Link to="/algebra/algebra">
+                    <Link to="/math/algebra">
                       <button className="category">Algebra</button>
                     </Link>
                   </div>
@@ -57,7 +59,27 @@ const Math = () => {
                 </div>
               </div>
             </div>
-            {/* Add more Math topics here as needed */}
+            {/* Arithmetic */}
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+              <div className="course-item">
+                <img src={arithmeticImg} className="img-fluid" alt="Arithmetic" />
+                <div className="course-content">
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <Link to="/math/arithmetic">
+                      <button className="category">Arithmetic</button>
+                    </Link>
+                  </div>
+                  <p className="description">
+                    Welcome to our arithmetic Learning Hub. Enhance your arithmetic skills with our comprehensive resources and interactive lessons. Join our community and embark on an enriching journey towards mastering arithmetic.
+                  </p>
+                  <div className="trainer d-flex justify-content-between align-items-center">
+                    <div className="trainer-rank d-flex align-items-center">
+                      <i className="bi bi-heart heart-icon"></i>&nbsp;65
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

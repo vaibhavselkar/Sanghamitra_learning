@@ -13,8 +13,17 @@ import Writing from "./pages/English/writing/writing";
 import HomeAbout from "./components/HomeAbout";
 import Math from "./pages/Math/Math";
 import Algebra from "./pages/Math/Algebra/Algebra";
-import Fraction from "./pages/Math/Algebra/Fraction";
-import Decimals from "./pages/Math/Algebra/Decimals";
+import Arithmetic from "./pages/Math/Arithmetic/Arithmetic"; // Add this import
+import Addition from "./pages/Math/Arithmetic/Addition";
+import Subtraction from "./pages/Math/Arithmetic/Subtraction";
+import Multiplication from "./pages/Math/Arithmetic/Multiplication";
+import Division from "./pages/Math/Arithmetic/Division";
+import DealingWithNegativeSign from "./pages/Math/Arithmetic/DealingWithNegativeSign";
+import RatioProportionPercentage from "./pages/Math/Arithmetic/RatioProportionPercentage";
+import Fractions from "./pages/Math/Arithmetic/Fractions";
+import Decimals from "./pages/Math/Arithmetic/Decimals";
+import PreDiagnosticTest from './pages/Math/Arithmetic/PreDiagnosticTest';
+import PreDiagnosticResults from './pages/Math/Arithmetic/PreDiagnosticResults';
 import LoginPage from './pages/loginPage';
 import Register from './pages/register';
 import VocabularyDiagnosticTest from './pages/English/vocabulary/VocabularyDiagnosticTest';
@@ -53,6 +62,7 @@ function App() {
             
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/tutor/dashboard" element={<TutorDashboard />} />
+            
             <Route path="/english/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
             <Route path="/english/vocabulary/guide" element={<VocabularyGuide />} />
@@ -65,8 +75,19 @@ function App() {
             <Route path="/english/writing" element={<Writing />} />
 
             <Route path="/math/algebra" element={<Algebra />} />
-            <Route path="/math/algebra/fraction" element={<Fraction />} />
-            <Route path="/math/algebra/decimals" element={<Decimals />} />
+            <Route path="/math/algebra/number-theory" element={<NumberTheory />} />
+            <Route path="/math/algebra/units" element={<Units />} />
+            <Route path="/math/arithmetic" element={<Arithmetic />} />
+            <Route path="/math/arithmetic/addition" element={<Addition />} />
+            <Route path="/math/arithmetic/subtraction" element={<Subtraction />} />
+            <Route path="/math/arithmetic/multiplication" element={<Multiplication />}/>
+            <Route path="math/arithmetic/division" element={<Division />}/>
+            <Route path="math/arithmetic/decimals" element={<Decimals />}/>
+            <Route path="math/arithmetic/fractions" element={<Fractions />}/>
+            <Route path="math/arithmetic/dealingwithnegativesign" element={<DealingWithNegativeSign />}/>
+            <Route path="math/arithmetic/ratioproportionpercentage" element={<RatioProportionPercentage/>}/>
+            <Route path="/math/arithmetic/pre-diagnostic-test" element={<PreDiagnosticTest />} />
+            <Route path="/math/arithmetic/pre-diagnostic-results" element={<PreDiagnosticResults />} />
 
             <Route path="/programming/ct_foundation_1" element={<CTFoundation1 />} />
             <Route path="/programming/ct-foundation-1" element={<CTFoundation2 />} />
