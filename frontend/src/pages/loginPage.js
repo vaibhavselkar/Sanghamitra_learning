@@ -30,7 +30,7 @@ const LoginPage = () => {
     try {
       console.log('Attempting login with:', { email }); // Debug log
       
-      const response = await fetch("http://localhost:4000/api/signin", {
+      const response = await fetch("https://sanghamitra-learning-server.vercel.app/api/signin", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
