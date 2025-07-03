@@ -1072,6 +1072,6 @@ const DealingWithNegativeSign = () => {
 .trophy-circle {
   box-shadow: 0 8px 25px rgba(243, 156, 18, 0.4);
 }
-`}
+`};
 </style>
 export default DealingWithNegativeSign;
