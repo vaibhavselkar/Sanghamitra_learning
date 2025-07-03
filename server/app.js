@@ -13,7 +13,7 @@ const app = express();
 // CORS configuration
 const corsOptions = {
     origin: [
-      'http://localhost:3000'  // React default port    
+      'https://sanghamitra-learning.vercel.app'  // React default port    
     ],
     credentials: true,  // Important: allows cookies/credentials
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
