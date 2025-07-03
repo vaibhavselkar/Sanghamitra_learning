@@ -27,6 +27,15 @@ import VocabularyEndeavourSchool from "./pages/English/vocabulary/school-and-edu
 import VocabularyEndeavourTechnology from "./pages/English/vocabulary/technology";
 import StudentDashboard from './pages/Student/dashboard';
 import TutorDashboard from './pages/Tutor/adminDashboard';
+import CTFoundation1 from './pages/Programming/CT_foundation_1';
+import CTFoundation2 from './pages/Programming/CT_foundation_2';
+import CTFoundation3 from './pages/Programming/CT_foundation_3';
+import CTFoundation4 from "./pages/Programming/CT_Foundation_4";
+import PythonBasics from './pages/Programming/Python_Basics';
+import PythonConditionals from "./pages/Programming/Python_Conditionals";
+import PythonLoops from "./pages/Programming/Python_Loop";
+import PythonFunctions from "./pages/Programming/Python_Functions";
+
 
 function App() {
   return (
@@ -58,6 +67,16 @@ function App() {
             <Route path="/math/algebra" element={<Algebra />} />
             <Route path="/math/algebra/fraction" element={<Fraction />} />
             <Route path="/math/algebra/decimals" element={<Decimals />} />
+
+            <Route path="/programming/ct_foundation_1" element={<CTFoundation1 />} />
+            <Route path="/programming/ct-foundation-1" element={<CTFoundation2 />} />
+            <Route path="/programming/ct-foundation-2" element={<CTFoundation3 />} />
+            <Route path="/programming/ct-foundation-3" element={<CTFoundation4/>} />
+            <Route path="/programming/python-basics" element={<PythonBasics />} />
+            <Route path="/programming/python-conditionals" element={<PythonConditionals />} />
+            <Route path="/programming/python-loops" element={<PythonLoops/>} />
+            <Route path="/programming/python-functions" element={<PythonFunctions />} />
+
           </Routes>
         </main>
         <Footer />

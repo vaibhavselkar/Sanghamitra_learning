@@ -11,7 +11,7 @@ const Programming = () => {
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" data-aos="fade" style={{ marginBottom: '2rem' }}>
+      <div className="page-title" style={{ marginBottom: '2rem' }}>
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -46,7 +46,7 @@ const Programming = () => {
               title: "CT Foundation",
               desc: "Develop problem-solving skills using computational methods",
               bg: "bg-primary",
-              href: "/programming/ct-foundation",
+              href: "/programming/ct_foundation_1",
               progressId: "CT_foundation"
             },
             {
@@ -64,6 +64,14 @@ const Programming = () => {
               bg: "bg-primary",
               href: "/programming/ct-foundation-2",
               progressId: "CT_foundation_2"
+            },
+            {
+              icon: "bi-arrow-repeat",
+              title: "CT Foundation 3",
+              desc: "Master complex computational problem-solving",
+              bg: "bg-primary",
+              href: "/programming/ct-foundation-3",
+              progressId: "CT_foundation_3"
             },
             {
               icon: "bi-code-slash",
