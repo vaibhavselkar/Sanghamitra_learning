@@ -33,13 +33,13 @@ dotenv.config({ path: './.env' });
 app.use(cookieParser());
 
 // Body parser middleware
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 // Session configuration
 app.use(session({
     name: 'sessionId',
-    secret: process.env.SECRET_KEY || 'your-secret-key',
+    secret: process.env.SECRET_KEY,
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
