@@ -41,7 +41,7 @@ app.use(session({
     name: 'sessionId',
     secret: process.env.SECRET_KEY || 'your-secret-key',
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     store: MongoStore.create({
         mongoUrl: process.env.DATABASE,
         collectionName: 'sessions'
