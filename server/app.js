@@ -34,7 +34,7 @@ app.use(cookieParser());
 
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 // Session configuration
 app.use(session({
