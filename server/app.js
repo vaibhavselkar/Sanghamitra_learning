@@ -21,13 +21,11 @@ const corsOptions = {
     optionsSuccessStatus: 200 // For legacy browser support
   };
   
-  // Apply CORS middleware BEFORE your routes
-  app.use(cors(corsOptions));
+// Apply CORS middleware BEFORE your routes
+app.use(cors(corsOptions));
 
 // Load environment variables
 dotenv.config({ path: './.env' });
-
-// CORS configuration - MUST be before other middleware
 
 // Cookie parser BEFORE session
 app.use(cookieParser());
@@ -66,7 +64,7 @@ app.use('/api', authRouter);
 app.use('/api', classroomRoutes);
 
 app.get('/', (req, res) => {
-    res.json({ message: 'Server is running!', port: process.env.PORT || 6000 });
+    res.json({ message: 'Server is running!', port: process.env.PORT });
 });
 
 // Test route
@@ -84,6 +82,4 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(` Express server running on port ${PORT}`);
-    console.log(` API endpoints available at: http://localhost:${PORT}/api`);
-    console.log(` CORS enabled for: http://localhost:3000`);
 });
