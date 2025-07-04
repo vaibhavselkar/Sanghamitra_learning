@@ -13,7 +13,7 @@ const app = express();
 // CORS configuration
 const corsOptions = {
     origin: [
-      'https://sanghamitra-learning.vercel.app'  // React default port    
+      'http://localhost:3000'  // React default port    
     ],
     credentials: true,  // Important: allows cookies/credentials
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -21,23 +21,25 @@ const corsOptions = {
     optionsSuccessStatus: 200 // For legacy browser support
   };
   
-// Apply CORS middleware BEFORE your routes
-app.use(cors(corsOptions));
+  // Apply CORS middleware BEFORE your routes
+  app.use(cors(corsOptions));
 
 // Load environment variables
 dotenv.config({ path: './.env' });
+
+// CORS configuration - MUST be before other middleware
 
 // Cookie parser BEFORE session
 app.use(cookieParser());
 
 // Body parser middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Session configuration
 app.use(session({
     name: 'sessionId',
-    secret: process.env.SECRET_KEY,
+    secret: process.env.SECRET_KEY || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
@@ -45,7 +47,10 @@ app.use(session({
         collectionName: 'sessions'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
+        httpOnly: true,
+        secure: true, // Set to true in production with HTTPS
+        sameSite: 'lax'
     }
 }));
 
@@ -64,7 +69,7 @@ app.use('/api', authRouter);
 app.use('/api', classroomRoutes);
 
 app.get('/', (req, res) => {
-    res.json({ message: 'Server is running!', port: process.env.PORT });
+    res.json({ message: 'Server is running!', port: process.env.PORT || 6000 });
 });
 
 // Test route
@@ -82,4 +87,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(` Express server running on port ${PORT}`);
+    console.log(` API endpoints available at: http://localhost:${PORT}/api`);
+    console.log(` CORS enabled for: http://localhost:3000`);
 });
