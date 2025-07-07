@@ -1,16 +1,13 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "app.js",
-      "use": "@vercel/node"
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend",
+  "installCommand": "cd server && npm install",
+  "functions": {
+    "server/app.js": {
+      "runtime": "@vercel/node"
     }
-  ],
-    {
-      "src": "/server/app.js",
-      "use": "@vercel/node"
-    }
-  ],
+  },
   "routes": [
     {
       "src": "/api/(.*)",
