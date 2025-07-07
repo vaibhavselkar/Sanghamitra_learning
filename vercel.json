@@ -3,7 +3,6 @@
   "builds": [
     {
       "src": "package.json"
-      }
     },
     {
       "src": "/server/app.js",
