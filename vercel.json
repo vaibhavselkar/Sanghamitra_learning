@@ -34,10 +34,5 @@
       "status": 404,
       "dest": "/frontend/build/index.html"
     }
-  ],
-  "env": {
-    "DATABASE": "mongodb+srv://sanghamitralearn:sanghamitra%4007@platform.tzqhhat.mongodb.net/sanghamitralearning?retryWrites=true&w=majority&appName=Platform",
-    "SECRET_KEY": "SANGHAMITRAISBUILDINGLEARNINGPLATFORM",
-    "PORT": "4000"
-  }
+  ]
 }
