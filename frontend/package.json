@@ -25,7 +25,6 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "prebuild": "react-scripts --max_old_space_size=4096 build", 
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint . --ext .js,.jsx"
@@ -35,11 +34,12 @@
       "react-app",
       "react-app/jest"
     ],
-  "rules": {
-    "semi": "error",
-    "react-hooks/exhaustive-deps": "warn",  
-    "no-unused-vars": "warn" 
-    },
+    "rules": {
+      "semi": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "no-unused-vars": "warn"
+    }
+  },
   "browserslist": {
     "production": [
       ">0.2%",
