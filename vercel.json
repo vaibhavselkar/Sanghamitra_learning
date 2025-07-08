@@ -10,7 +10,7 @@
     },
     {
       "src": "server/app.js",
-      "use": "@vercel/node@3.0.4"
+      "use": "@vercel/node"
     }
   ],
   "routes": [
