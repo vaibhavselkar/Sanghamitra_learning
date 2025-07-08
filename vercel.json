@@ -19,8 +19,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/app.js",
-      "methods": ["GET", "POST", "PUT", "DELETE"]
+      "dest": "/server/app.js"
     },
     {
       "src": "/static/(.*)",
