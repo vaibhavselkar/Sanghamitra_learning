@@ -1,21 +1,22 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm install && CI=false npm run build",
-  "outputDirectory": "frontend/build",
-  "installCommand": "cd server && npm install",
-  "functions": {
-    "server/app.js": {
-      "runtime": "@vercel/node"
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    },
+    {
+      "src": "server/app.js",
+      "use": "@vercel/node@3.0.4"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/api/(.*)",
       "dest": "/server/app.js"
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "/frontend/build/static/$1"
     },
     {
       "src": "/(.*)",
