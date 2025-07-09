@@ -2,12 +2,12 @@
   "version": 2,
   "builds": [
     {
-      "src": "frontend/package.json",
+      "src": "package.json",  // Changed from frontend/package.json
       "use": "@vercel/static-build",
       "config": {
         "distDir": "build",
-        "installCommand": "cd frontend && npm install --legacy-peer-deps",
-        "buildCommand": "cd frontend && CI=false DISABLE_ESLINT_PLUGIN=true npm run build"
+        "installCommand": "npm install --legacy-peer-deps",
+        "buildCommand": "CI=false DISABLE_ESLINT_PLUGIN=true npm run build"
       }
     },
     {
@@ -22,11 +22,11 @@
     },
     {
       "src": "/static/(.*)",
-      "dest": "/frontend/build/static/$1"
+      "dest": "/build/static/$1"  // Changed from frontend/build
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/build/index.html"
+      "dest": "/build/index.html"  // Changed from frontend/build
     }
   ]
 }
