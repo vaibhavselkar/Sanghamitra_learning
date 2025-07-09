@@ -5,7 +5,9 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build"
+        "distDir": "build",
+        "installCommand": "npm install --legacy-peer-deps",
+        "buildCommand": "npm run build"
       }
     },
     {
@@ -13,26 +15,14 @@
       "use": "@vercel/node"
     }
   ],
-  "routes": [
+  "routes": 
+    {
+      "src": "/(.*)",
+      "dest": "frontend/build/index.html"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/server/app.js"
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "/frontend/build/static/$1"
-    },
-    {
-      "src": "/manifest.json",
-      "dest": "/frontend/build/manifest.json"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/frontend/build/favicon.ico"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/build/index.html"
     }
   ]
 }
