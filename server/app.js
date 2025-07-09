@@ -75,7 +75,7 @@ mongoose.connect(process.env.DATABASE, {
 app.use('/api', authRouter);
 app.use('/api', classroomRoutes);
 
-app.get('/', (req, res) => {
+app.get('/api/', (req, res) => {
     res.json({ message: 'Server is running!', port: process.env.PORT || 6000 });
 });
 
