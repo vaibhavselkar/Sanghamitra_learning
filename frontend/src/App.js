@@ -51,7 +51,7 @@ import PythonFunctions from "./pages/Programming/Python_Functions";
 function App() {
   return (
     <AuthProvider>
-      <Router basename="/">
+      <Router>
         <Header />
         <main>
           <Routes>
