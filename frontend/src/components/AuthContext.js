@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('https://sanghamitra-learning-server.vercel.app/api/check-auth', {
+      const response = await fetch('https://sanghamitra-learning.vercel.app/api/check-auth', {
         method: 'GET',
         credentials: 'include',
       });
@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('https://sanghamitra-learning-server.vercel.app/api/logout', {
+      await fetch('https://sanghamitra-learning.vercel.app/api/logout', {
         method: 'POST',
         credentials: 'include',
       });
