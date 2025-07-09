@@ -32,7 +32,7 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/frontend/build/index.html"
+      "destination": "/frontend/src/app.js"
     }
   ]
 }
