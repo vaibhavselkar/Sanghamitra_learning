@@ -11,7 +11,7 @@ const Navbar = () => {
     const confirmLogout = window.confirm("Do you really want to logout?");
     if (confirmLogout) {
       try {
-        await fetch('http://localhost:4000/api/logout', {
+        await fetch('https://sanghamitra-learning.vercel.app/api/logout', {
           method: 'GET',
           credentials: 'include',
         });
