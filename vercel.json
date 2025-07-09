@@ -5,9 +5,7 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build",
-        "installCommand": "cd frontend && npm install --legacy-peer-deps",
-        "buildCommand": "cd frontend && CI=false GENERATE_SOURCEMAP=false npm run build"
+        "distDir": "build"
       }
     },
     {
@@ -19,6 +17,18 @@
     {
       "src": "/api/(.*)",
       "dest": "/server/app.js"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/frontend/build/static/$1"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/frontend/build/manifest.json"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/frontend/build/favicon.ico"
     },
     {
       "src": "/(.*)",
