@@ -20,5 +20,9 @@
       "src": "/api/(.*)",
       "dest": "/server/app.js"
     }
+     {
+      "src": "/(.*)",
+      "dest": "/frontend/app.js"
+    }
   ]
 }
