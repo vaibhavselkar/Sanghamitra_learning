@@ -3,7 +3,7 @@
   "builds": [
     {
       "src": "frontend/package.json",
-      "use": "@vercel/react-scripts start"
+      "use": "@vercel/react-static build"
     }
   ]
 }
