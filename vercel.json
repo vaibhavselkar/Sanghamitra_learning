@@ -2,19 +2,8 @@
   "version": 2,
   "builds": [
     {
-      "src": "package.json",  
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build",
-        "installCommand": "npm install --legacy-peer-deps",
-        "buildCommand": "CI=false DISABLE_ESLINT_PLUGIN=true npm run build"
+      "src": "frontend"
       }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/build/index.html" 
     }
   ]
 }
