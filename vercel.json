@@ -28,11 +28,5 @@
       "src": "/(.*)",
       "dest": "/frontend/build/index.html"
     }
-  ],
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/frontend/src/app.js"
-    }
   ]
 }
