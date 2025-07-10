@@ -2,27 +2,19 @@
   "version": 2,
   "builds": [
     {
-      "src": "frontend/package.json", 
+      "src": "package.json",  // Now relative to the `frontend` folder
       "use": "@vercel/static-build",
       "config": {
         "distDir": "build",
-        "installCommand": "cd frontend && npm install --legacy-peer-deps",
-        "buildCommand": "cd frontend && CI=false GENERATE_SOURCEMAP=false npm start"
+        "installCommand": "npm install --legacy-peer-deps",
+        "buildCommand": "CI=false DISABLE_ESLINT_PLUGIN=true npm run build"
       }
-    },
-    {
-      "src": "server/app.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/server/app.js"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/frontend/app.js"
+      "dest": "/build/index.html"  // Path now relative to `frontend`
     }
   ]
 }
