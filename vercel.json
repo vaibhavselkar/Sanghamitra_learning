@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "package.json",  // Now relative to the `frontend` folder
+      "src": "package.json",  
       "use": "@vercel/static-build",
       "config": {
         "distDir": "build",
@@ -14,7 +14,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/build/index.html"  // Path now relative to `frontend`
+      "dest": "/build/index.html" 
     }
   ]
 }
