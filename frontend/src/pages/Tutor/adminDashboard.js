@@ -24,7 +24,7 @@ const TutorDashboard = () => {
       setError('');
       
       try {
-        const response = await fetch('https://sanghamitra-learning-server.vercel.app/api/classrooms', {
+        const response = await fetch('https://sanghamitra-learning.vercel.app/api/classrooms', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ const TutorDashboard = () => {
     setError('');
     
     try {
-      const response = await fetch(`https://sanghamitra-learning-server.vercel.app/api/classroom/${classroomId}`, {
+      const response = await fetch(`https://sanghamitra-learning.vercel.app/api/classroom/${classroomId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
