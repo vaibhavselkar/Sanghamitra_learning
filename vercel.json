@@ -6,7 +6,7 @@
   "framework": "create-react-app",
   "functions": {
     "server/app.js": {
-      "runtime": "nodejs20.x"
+      "runtime": "php@1.0.0"
     }
   },
   "rewrites": [
