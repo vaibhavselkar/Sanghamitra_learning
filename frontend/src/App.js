@@ -46,6 +46,7 @@ import PythonBasics from './pages/Programming/Python_Basics';
 import PythonConditionals from "./pages/Programming/Python_Conditionals";
 import PythonLoops from "./pages/Programming/Python_Loop";
 import PythonFunctions from "./pages/Programming/Python_Functions";
+import ProgrammingDiagnostic from './pages/Programming/ProgrammingDiagnostic';
 
 
 function App() {
@@ -99,6 +100,7 @@ function App() {
             <Route path="/programming/python-conditionals" element={<PythonConditionals />} />
             <Route path="/programming/python-loops" element={<PythonLoops/>} />
             <Route path="/programming/python-functions" element={<PythonFunctions />} />
+            <Route path="/programming/programming-diagnostic" element={<ProgrammingDiagnostic />} />
 
           </Routes>
         </main>
