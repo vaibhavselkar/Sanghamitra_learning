@@ -2,18 +2,20 @@
   "version": 2,
   "builds": [
     {
-      "src": "frontend",
+      "src": "/frontend",
       "use": "@vercel/static-build",
       "config": {
         "installCommand": "cd frontend && npm install",
-        "buildCommand": "cd frontend && npm start"          
+        "buildCommand": "cd frontend && npm start",  
+        "devCommand": "cd frontend && npm start",   
+        "outputDirectory": "frontend"             
       }
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/" 
+      "dest": "/"  // All paths route to the running dev server
     }
   ]
 }
