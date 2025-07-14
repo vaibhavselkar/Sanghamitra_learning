@@ -15,7 +15,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/"  // All paths route to the running dev server
+      "dest": "/" 
     }
   ]
 }
