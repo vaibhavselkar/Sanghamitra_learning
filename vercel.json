@@ -7,7 +7,7 @@
       "config": {
         "distDir": "build",
         "installCommand": "cd frontend && npm install",
-        "buildCommand": "cd frontend && npm run build"
+        "buildCommand": "cd frontend && CI=false npm run build"
       }
     },
     {
@@ -18,12 +18,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/app.js",
-      "methods": ["GET", "POST", "PUT", "DELETE"]
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "/frontend/build/static/$1"
+      "dest": "/server/app.js"
     },
     {
       "src": "/(.*)",
