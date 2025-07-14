@@ -6,7 +6,7 @@
   "framework": "create-react-app",
   "functions": {
     "server/app.js": {
-      "runtime": "php@1.0.0"
+      "runtime": "vercel/node@1.0.0"
     }
   },
   "rewrites": [
