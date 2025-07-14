@@ -3,7 +3,16 @@
   "outputDirectory": "frontend/build",
   "installCommand": "cd frontend && npm install",
   "framework": "create-react-app",
+  "functions": {
+    "server/app.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/server/app.js"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
