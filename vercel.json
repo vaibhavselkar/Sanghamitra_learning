@@ -1,26 +1,21 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    },
-    {
-      "src": "server/app.js",
-      "use": "@vercel/node"
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/build",
+  "installCommand": "cd frontend && npm install",
+  "framework": "create-react-app",
+  "functions": {
+    "server/app.js": {
+      "runtime": "@vercel/node@3.0.7"
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "server/app.js"
+      "source": "/api/(.*)",
+      "destination": "/server/app.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "frontend/build/$1"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
