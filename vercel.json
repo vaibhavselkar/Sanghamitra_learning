@@ -5,7 +5,7 @@
   "framework": "create-react-app",
   "functions": {
     "server/app.js": {
-      "runtime": "@vercel/node"
+      "runtime": "nodejs18.x"
     }
   },
   "rewrites": [
