@@ -1,9 +1,11 @@
 { 
-  "buildCommand": "cd frontend && npm run build",
-  "outputDirectory": "frontend/build",
-  "installCommand": "cd frontend && npm install",
-  "framework": "create-react-app",
-  "builds": [ {
+  "builds": [ { 
+      "buildCommand": "cd frontend && npm run build",
+      "outputDirectory": "frontend/build",
+      "installCommand": "cd frontend && npm install",
+      "framework": "create-react-app"
+    },
+    {
       "src": "server/app.js",
       "use": "@vercel/node"
     }
