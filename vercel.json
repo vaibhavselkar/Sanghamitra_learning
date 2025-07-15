@@ -3,6 +3,11 @@
   "outputDirectory": "frontend/build",
   "installCommand": "cd frontend && npm install",
   "framework": "create-react-app",
+  "builds": [ {
+      "src": "server/app.js",
+      "use": "@vercel/node"
+    }
+  ]
   "rewrites": [
     {
       "source": "/api/(.*)", 
