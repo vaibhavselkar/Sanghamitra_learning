@@ -7,7 +7,7 @@
       "src": "server/app.js",
       "use": "@vercel/node"
     }
-  ]
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)", 
