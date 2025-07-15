@@ -5,8 +5,7 @@
   "framework": "create-react-app",
   "functions": {
     "server/app.js": {
-      "memory": 3008,
-      "maxDuration": 30
+      "runtime": "@vercel/node@3.0.7"
     }
   },
   "rewrites": [
