@@ -8,42 +8,44 @@ const authRouter = require('./router/auth');
 const classroomRoutes = require('./router/classroom');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
-// CORS configuration
-const corsOptions = {
-    origin: [
-      'https://sanghamitra-learn.vercel.app'  // React default port    
-    ],
-    credentials: true,  // Important: allows cookies/credentials
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'Cookie',
-    'X-Requested-With',
-    'Accept',
-    'Origin'
-  ],
-    optionsSuccessStatus: 200 // For legacy browser support
-  };
-  
-  // Apply CORS middleware BEFORE your routes
-  app.use(cors(corsOptions));
 
 // Load environment variables
 dotenv.config({ path: './.env' });
 
-// CORS configuration - MUST be before other middleware
+// CORS configuration for local deployment
+const corsOptions = {
+    origin: [
+      'http://localhost:3000',  // React development
+      'http://3.111.49.131:4000',  // Same origin for production
+      `http://localhost:${process.env.PORT || 4000}` // Dynamic port
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'Cookie',
+      'X-Requested-With',
+      'Accept',
+      'Origin'
+    ],
+    optionsSuccessStatus: 200
+};
 
-// Cookie parser BEFORE session
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Cookie parser
 app.use(cookieParser());
 
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
-// Session configuration
+// Session configuration for local deployment
 app.use(session({
     name: 'sessionId',
     secret: process.env.SECRET_KEY || 'your-secret-key',
@@ -56,33 +58,42 @@ app.use(session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24,
         httpOnly: true,
-        secure: true,                    // HTTPS only
-        sameSite: 'none'
+        secure: true,  // Set to false for HTTP (change to true if using HTTPS)
+        sameSite: 'strict'  // Changed from 'none' for local deployment
     }
 }));
 
 // Connect to MongoDB
 mongoose.connect(process.env.DATABASE, {
     useNewUrlParser: true,
-    useUnifiedTopology: true,
-    useCreateIndex: true,
-    useFindAndModify: false
+    useUnifiedTopology: true
 }).then(() => {
     console.log("Connected to MongoDB");
 }).catch(err => console.error("MongoDB connection error:", err));
 
-// Routes
+// Serve static files from React build (PRODUCTION ONLY)
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, '../frontend/build')));
+}
+
+// API Routes
 app.use('/api', authRouter);
 app.use('/api', classroomRoutes);
 
 app.get('/api/', (req, res) => {
-    res.json({ message: 'Server is running!', port: process.env.PORT || 6000 });
+    res.json({ message: 'Server is running!', port: process.env.PORT || 4000 });
 });
 
-// Test route
 app.get('/api/test', (req, res) => {
     res.json({ message: 'CORS is working!', timestamp: new Date() });
 });
+
+// Serve React app for any non-API routes (PRODUCTION ONLY)
+if (process.env.NODE_ENV === 'production') {
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+    });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -93,7 +104,9 @@ app.use((err, req, res, next) => {
 // Start server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-    console.log(` Express server running on port ${PORT}`);
-    console.log(` API endpoints available at: http://localhost:${PORT}/api`);
-    console.log(` CORS enabled for: http://localhost:3000`);
+    console.log(`Express server running on port ${PORT}`);
+    console.log(`API endpoints available at: http://localhost:${PORT}/api`);
+    if (process.env.NODE_ENV === 'production') {
+        console.log(`Frontend served from: http://localhost:${PORT}`);
+    }
 });
