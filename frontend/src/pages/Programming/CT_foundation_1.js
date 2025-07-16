@@ -42,7 +42,7 @@ const CTFoundation = () => {
 
   const fetchSessionInfo = async () => {
     try {
-      const sessionResponse = await fetch('http://localhost:4000/api/session-info', { 
+      const sessionResponse = await fetch('http://3.111.49.131:4000/api/session-info', { 
         credentials: 'include' 
       });
       
@@ -71,7 +71,7 @@ const CTFoundation = () => {
 
   const initializeQuiz = async (email) => {
     try {
-      const response = await fetch('http://localhost:4000/api/CT_finger?topic=CT_foundation');
+      const response = await fetch('http://3.111.49.131:4000/api/CT_finger?topic=CT_foundation');
       
       if (!response.ok) {
         throw new Error('Failed to fetch quiz questions');
@@ -103,7 +103,7 @@ const CTFoundation = () => {
 
   const fetchPreviousAnswers = async (email) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/CT_finger_scores/${email}/CT_foundation`, {
+      const response = await fetch(`http://3.111.49.131:4000/api/CT_finger_scores/${email}/CT_foundation`, {
         credentials: 'include'
       });
       
@@ -233,7 +233,7 @@ const CTFoundation = () => {
         }]
       };
       
-      fetch('http://localhost:4000/api/CT_finger_scores', {
+      fetch('http://3.111.49.131:4000/api/CT_finger_scores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -264,7 +264,7 @@ const CTFoundation = () => {
         }))
       };
       
-      const response = await fetch('http://localhost:4000/api/CT_finger_scores', {
+      const response = await fetch('http://3.111.49.131:4000/api/CT_finger_scores', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
