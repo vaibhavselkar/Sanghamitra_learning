@@ -58,8 +58,8 @@ app.use(session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24,
         httpOnly: true,
-        secure: true,  // Set to false for HTTP (change to true if using HTTPS)
-        sameSite: 'strict'  // Changed from 'none' for local deployment
+        secure: false,  // Set to false for HTTP
+        sameSite: 'lax'  // Less restrictive for local deployment
     }
 }));
 
@@ -71,10 +71,8 @@ mongoose.connect(process.env.DATABASE, {
     console.log("Connected to MongoDB");
 }).catch(err => console.error("MongoDB connection error:", err));
 
-// Serve static files from React build (PRODUCTION ONLY)
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../frontend/build')));
-}
+// Serve static files from React build
+app.use(express.static(path.join(__dirname, '../frontend/build')));
 
 // API Routes
 app.use('/api', authRouter);
@@ -88,17 +86,15 @@ app.get('/api/test', (req, res) => {
     res.json({ message: 'CORS is working!', timestamp: new Date() });
 });
 
-// Serve React app for any non-API routes (PRODUCTION ONLY)
-if (process.env.NODE_ENV === 'production') {
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-    });
-}
-
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Error:', err.message);
     res.status(500).json({ error: 'Something went wrong!' });
+});
+
+// Serve React app for any non-API routes (MUST BE LAST)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 
 // Start server
@@ -106,7 +102,5 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Express server running on port ${PORT}`);
     console.log(`API endpoints available at: http://localhost:${PORT}/api`);
-    if (process.env.NODE_ENV === 'production') {
-        console.log(`Frontend served from: http://localhost:${PORT}`);
-    }
+    console.log(`Frontend served from: http://localhost:${PORT}`);
 });
