@@ -56,10 +56,7 @@ app.use(session({
         collectionName: 'sessions'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24,
-        httpOnly: true,
-        secure: false,  // Set to false for HTTP
-        sameSite: 'lax'  // Less restrictive for local deployment
+        maxAge: 1000 * 60 * 60 * 24
     }
 }));
 
