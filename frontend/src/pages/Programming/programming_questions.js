@@ -461,7 +461,7 @@ def get_captured_output():
 // Session and submission functions
 export const fetchSessionInfo = async () => {
     try {
-        const response = await fetch('http://localhost:4000/api/session-info', {
+        const response = await fetch('http://3.111.49.131:4000/api/session-info', {
             credentials: 'include'
         });
 
@@ -483,7 +483,7 @@ export const fetchSessionInfo = async () => {
 
 export const submitDiagnostic = async (userInfo, submissions) => {
     try {
-        const response = await fetch('http://localhost:4000/api/programming/submit', {
+        const response = await fetch('http://3.111.49.131:4000/api/programming/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
