@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/check-auth', {
+      const response = await fetch('https://3.111.49.131:4000/api/check-auth', {
         method: 'GET',
         credentials: 'include',
       });
@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('http://3.111.49.131:4000/api/logout', {
+      await fetch('https://3.111.49.131:4000/api/logout', {
         method: 'POST',
         credentials: 'include',
       });
