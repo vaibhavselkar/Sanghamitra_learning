@@ -6,7 +6,7 @@
  */
 export const checkAuth = async () => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/check-auth', {
+      const response = await fetch('https://3.111.49.131:4000/api/check-auth', {
         method: 'GET',
         credentials: 'include' // Include credentials for cross-origin requests
       });
@@ -32,7 +32,7 @@ export const checkAuth = async () => {
    */
   export const login = async (email, password, redirectPath = '/') => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/signin', {
+      const response = await fetch('https://3.111.49.131:4000/api/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -64,7 +64,7 @@ export const checkAuth = async () => {
    */
   export const logout = async () => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/logout', {
+      const response = await fetch('https://3.111.49.131:4000/api/logout', {
         method: 'GET',
         credentials: 'include'
       });
