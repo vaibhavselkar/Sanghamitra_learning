@@ -14,11 +14,21 @@ const app = express();
 // CORS configuration
 const corsOptions = {
     origin: [
-      'http://3.111.49.131:4000', 'https://sanghamitra-learn.vercel.app'
+      'http://3.111.49.131:4000',
+      'http://localhost:3000',  // Add this for development
+      'http://localhost:4000'   // Add this for same-origin
     ],
     credentials: true,  // Important: allows cookies/credentials
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token'],
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'Cookie',           // Important for sessions!
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'x-access-token'
+    ],
     optionsSuccessStatus: 200 // For legacy browser support
   };
   
@@ -48,10 +58,11 @@ app.use(session({
         collectionName: 'sessions'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24, // 1 day
+        maxAge: 1000 * 60 * 60 * 24,
         httpOnly: true,
-        secure: false, // Set to true in production with HTTPS
-        sameSite: 'lax'
+        secure: false,
+        sameSite: 'lax',
+        path: '/'
     }
 }));
 
