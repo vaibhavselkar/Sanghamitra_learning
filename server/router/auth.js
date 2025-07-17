@@ -293,19 +293,21 @@ router.post('/gre_writing_response', async (req, res) => {
 
 // Middleware to check for the JWT token
 router.get('/check-auth', (req, res) => {
-  if (req.session.userId) {
-      res.status(200).json({ 
-          authenticated: true,
-          user: {
-              id: req.session.userId,
-              email: req.session.email,
-              username: req.session.username,
-              name: req.session.name || req.session.username
-          }
-      });
-  } else {
-      res.status(200).json({ authenticated: false });
-  }
+    if (req.session.userId) {
+        res.status(200).json({ 
+            authenticated: true,
+            user: {
+                id: req.session.userId,
+                email: req.session.email,
+                name: req.session.name || req.session.username,
+                role: req.session.role,                    
+                classroomCode: req.session.classroomCode,    
+                hasClassroom: !!req.session.classroomCode
+            }
+        });
+    } else {
+        res.status(200).json({ authenticated: false });
+    }
 });
 
 
