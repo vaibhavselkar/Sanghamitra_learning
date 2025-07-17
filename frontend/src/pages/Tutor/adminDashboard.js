@@ -125,7 +125,7 @@ const TutorDashboard = () => {
     setError('');
     
     try {
-      const response = await fetch(`https://sanghamitra-learning.vercel.app/api/classroom/${classroomId}`, {
+      const response = await fetch(`http://3.111.49.131:4000/api/classroom/${classroomId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
