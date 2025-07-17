@@ -14,7 +14,7 @@ const Programming = () => {
   const fetchUserProgress = async () => {
     try {
       // Replace with your actual backend endpoint for user progress
-      const response = await fetch('http://3.111.49.131:4000/api/user/progress', {
+      const response = await fetch('https://3.111.49.131:4000/api/user/progress', {
         credentials: 'include'
       });
       
