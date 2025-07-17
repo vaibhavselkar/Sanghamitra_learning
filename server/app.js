@@ -8,6 +8,7 @@ const authRouter = require('./router/auth');
 const classroomRoutes = require('./router/classroom');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 // CORS configuration
