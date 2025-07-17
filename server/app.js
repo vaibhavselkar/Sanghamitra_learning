@@ -24,14 +24,7 @@ const corsOptions = {
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
-      'Cookie',
-      'X-Requested-With',
-      'Accept',
-      'Origin'
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token'],
     optionsSuccessStatus: 200
 };
 
@@ -43,27 +36,32 @@ app.use(cookieParser());
 
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Session configuration for local deployment
 app.use(session({
     name: 'sessionId',
     secret: process.env.SECRET_KEY || 'your-secret-key',
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     store: MongoStore.create({
         mongoUrl: process.env.DATABASE,
         collectionName: 'sessions'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24
+        maxAge: 1000 * 60 * 60 * 24,
+        httpOnly: true,
+        secure: false, // Set to true in production with HTTPS
+        sameSite: 'lax'
     }
 }));
 
 // Connect to MongoDB
 mongoose.connect(process.env.DATABASE, {
     useNewUrlParser: true,
-    useUnifiedTopology: true
+    useUnifiedTopology: true,
+    useCreateIndex: true,
+    useFindAndModify: false
 }).then(() => {
     console.log("Connected to MongoDB");
 }).catch(err => console.error("MongoDB connection error:", err));
