@@ -83,7 +83,7 @@ const RegisterPage = () => {
       setUiState(prev => ({ ...prev, validatingCode: true }));
       
       try {
-        const response = await fetch(`http://3.111.49.131:4000/api/classrooms/validate/${code}`);
+        const response = await fetch(`https://3.111.49.131:4000/api/classrooms/validate/${code}`);
         
         if (response.ok) {
           const classroom = await response.json();
@@ -161,7 +161,7 @@ const RegisterPage = () => {
         console.log('Sending registration data:', registrationData);
   
         // Make the API call
-        const response = await fetch('http://3.111.49.131:4000/api/register', {
+        const response = await fetch('https://3.111.49.131:4000/api/register', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
