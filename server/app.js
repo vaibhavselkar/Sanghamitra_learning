@@ -14,7 +14,7 @@ const app = express();
 // CORS configuration
 const corsOptions = {
     origin: [
-      'http://3.111.49.131:4000'
+      'http://3.111.49.131:4000', 'https://sanghamitra-learn.vercel.app'
     ],
     credentials: true,  // Important: allows cookies/credentials
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
