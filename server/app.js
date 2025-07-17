@@ -8,37 +8,35 @@ const authRouter = require('./router/auth');
 const classroomRoutes = require('./router/classroom');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const path = require('path');
 
 const app = express();
+// CORS configuration
+const corsOptions = {
+    origin: [
+      'http://15.206.212.147:3000'  // React default port    
+    ],
+    credentials: true,  // Important: allows cookies/credentials
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token'],
+    optionsSuccessStatus: 200 // For legacy browser support
+  };
+  
+  // Apply CORS middleware BEFORE your routes
+  app.use(cors(corsOptions));
 
 // Load environment variables
 dotenv.config({ path: './.env' });
 
-// CORS configuration for local deployment
-const corsOptions = {
-    origin: [
-      'http://localhost:3000',  // React development
-      'http://3.111.49.131:4000',  // Same origin for production
-      `http://localhost:${process.env.PORT || 4000}` // Dynamic port
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token'],
-    optionsSuccessStatus: 200
-};
+// CORS configuration - MUST be before other middleware
 
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Cookie parser
+// Cookie parser BEFORE session
 app.use(cookieParser());
 
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Session configuration for local deployment
+// Session configuration
 app.use(session({
     name: 'sessionId',
     secret: process.env.SECRET_KEY || 'your-secret-key',
@@ -49,7 +47,7 @@ app.use(session({
         collectionName: 'sessions'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24,
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
         httpOnly: true,
         secure: false, // Set to true in production with HTTPS
         sameSite: 'lax'
@@ -65,6 +63,7 @@ mongoose.connect(process.env.DATABASE, {
 }).then(() => {
     console.log("Connected to MongoDB");
 }).catch(err => console.error("MongoDB connection error:", err));
+
 
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, '../frontend/build')));
