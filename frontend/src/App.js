@@ -1,6 +1,6 @@
-// frontend/src/App.js
+// src/App.js
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./components/AuthContext";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -48,24 +48,46 @@ import PythonLoops from "./pages/Programming/Python_Loop";
 import PythonFunctions from "./pages/Programming/Python_Functions";
 import ProgrammingDiagnostic from './pages/Programming/ProgrammingDiagnostic';
 
+function Layout({ children }) {
+  const location = useLocation();
+  
+  // Routes that should not show Header and Footer
+  const routesWithoutLayout = ['/tutor/dashboard']; // Add new routes here if they shouldn't show Header/Footer
+  
+  const shouldShowLayout = !routesWithoutLayout.includes(location.pathname);
+  
+  return (
+    <>
+      {shouldShowLayout && <Header />}
+      <main>
+        {children}
+      </main>
+      {shouldShowLayout && <Footer />}
+    </>
+  );
+}
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <Header />
-        <main>
+        <Layout>
           <Routes>
+            {/* Tutor dashboard route */}
+            <Route path="/tutor/dashboard" element={<TutorDashboard />} />
+            
+            {/* Regular routes with Header and Footer */}
             <Route path="/" element={<><Hero /><Courses /><HomeAbout/></>} />
             <Route path="/english" element={<English />} />
+            
+            
             <Route path="/math" element={<><Math /></>} />
             <Route path="/programming" element={<><Programming /></>} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<Register />} />
             
             <Route path="/student/dashboard" element={<StudentDashboard />} />
-            <Route path="/tutor/dashboard" element={<TutorDashboard />} />
-
+            
             <Route path="/english/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
             <Route path="/english/vocabulary/guide" element={<VocabularyGuide />} />
@@ -84,11 +106,11 @@ function App() {
             <Route path="/math/arithmetic/addition" element={<Addition />} />
             <Route path="/math/arithmetic/subtraction" element={<Subtraction />} />
             <Route path="/math/arithmetic/multiplication" element={<Multiplication />}/>
-            <Route path="math/arithmetic/division" element={<Division />}/>
-            <Route path="math/arithmetic/decimals" element={<Decimals />}/>
-            <Route path="math/arithmetic/fractions" element={<Fractions />}/>
-            <Route path="math/arithmetic/dealingwithnegativesign" element={<DealingWithNegativeSign />}/>
-            <Route path="math/arithmetic/ratioproportionpercentage" element={<RatioProportionPercentage/>}/>
+            <Route path="/math/arithmetic/division" element={<Division />}/>
+            <Route path="/math/arithmetic/decimals" element={<Decimals />}/>
+            <Route path="/math/arithmetic/fractions" element={<Fractions />}/>
+            <Route path="/math/arithmetic/dealingwithnegativesign" element={<DealingWithNegativeSign />}/>
+            <Route path="/math/arithmetic/ratioproportionpercentage" element={<RatioProportionPercentage/>}/>
             <Route path="/math/arithmetic/pre-diagnostic-test" element={<PreDiagnosticTest />} />
             <Route path="/math/arithmetic/pre-diagnostic-results" element={<PreDiagnosticResults />} />
 
@@ -101,12 +123,10 @@ function App() {
             <Route path="/programming/python-loops" element={<PythonLoops/>} />
             <Route path="/programming/python-functions" element={<PythonFunctions />} />
             <Route path="/programming/programming-diagnostic" element={<ProgrammingDiagnostic />} />
-
           </Routes>
-        </main>
-        <Footer />
+        </Layout>
       </Router>
-      </AuthProvider>
+    </AuthProvider>
   );
 }
 
