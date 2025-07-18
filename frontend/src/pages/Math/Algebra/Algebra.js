@@ -18,7 +18,7 @@ const Algebra = () => {
       try {
         // Fetch session info
         const sessionResponse = await fetch(
-          "http://localhost:4000/api/session-info",
+          "http://3.111.49.131:4000/api/session-info",
           { credentials: 'include' }
         );
         
@@ -34,7 +34,7 @@ const Algebra = () => {
 
         // Fetch test attempts for algebra
         const testResponse = await fetch(
-          `http://localhost:4000/api/algebra-testresponses?email=${encodeURIComponent(email)}&all=true`,
+          `http://3.111.49.131:4000/api/algebra-testresponses?email=${encodeURIComponent(email)}&all=true`,
           { credentials: 'include' }
         );
         
@@ -64,7 +64,7 @@ const Algebra = () => {
         for (const topic of topics) {
           try {
             const response = await fetch(
-              `http://localhost:4000/api/algebra-scores?userEmail=${encodeURIComponent(email)}&operationType=${topic.id}`,
+              `http://3.111.49.131:4000/api/algebra-scores?userEmail=${encodeURIComponent(email)}&operationType=${topic.id}`,
               { credentials: 'include' }
             );
             
