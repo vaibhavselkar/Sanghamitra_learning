@@ -9,7 +9,7 @@ const Math = () => {
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" data-aos="fade">
+      <div className="page-title">
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -39,7 +39,7 @@ const Math = () => {
         <div className="container">
           <div className="row">
             {/* Algebra */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={algebraImg} className="img-fluid" alt="Algebra" />
                 <div className="course-content">
@@ -60,7 +60,7 @@ const Math = () => {
               </div>
             </div>
             {/* Arithmetic */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={arithmeticImg} className="img-fluid" alt="Arithmetic" />
                 <div className="course-content">
