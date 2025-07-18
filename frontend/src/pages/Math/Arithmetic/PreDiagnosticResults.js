@@ -11,7 +11,7 @@ const PreDiagnosticResults = () => {
   });
 
   // API endpoint
-  const RESULTS_API = 'http://localhost:4000/api/testresponses';
+  const RESULTS_API = 'http://3.111.49.131:4000/api/testresponses';
 
   useEffect(() => {
     const userEmail = searchParams.get('email');
