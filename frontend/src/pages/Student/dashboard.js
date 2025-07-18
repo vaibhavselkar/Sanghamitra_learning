@@ -5,12 +5,8 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
-import 'aos/dist/aos.css';
 import '../../assets/css/main.css';
 import '../../assets/css/breadcrumb.css';
-
-// Initialize AOS (Animate On Scroll) if needed
-import 'aos/dist/aos.css';
 
 // Initialize GLightbox if needed
 import 'glightbox/dist/css/glightbox.min.css';
@@ -47,7 +43,7 @@ const StudentDashboard = () => {
   // API Helper function
   const apiCall = async (url, options = {}) => {
     try {
-      const response = await fetch(`http://3.111.49.131:4000/api${url}`, {
+      const response = await fetch(`http://3.111.49.131:4000/${url}`, {
         ...options,
         credentials: 'include',
         headers: {
@@ -339,15 +335,15 @@ const StudentDashboard = () => {
   };
 
   const redirectToMath = () => {
-    window.location.href = "algebra/algebra.html";
+    window.location.href = "/math";
   };
 
   const redirectToRC = () => {
-    window.location.href = "english/RC_topics.html";
+    window.location.href = "/english/RC";
   };
 
   const redirectToProgramming = () => {
-    window.location.href = "coding/programming.html";
+    window.location.href = "/programming";
   };
 
   // Render vocabulary scores
