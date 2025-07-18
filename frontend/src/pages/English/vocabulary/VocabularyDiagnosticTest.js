@@ -204,7 +204,7 @@ const VocabularyDiagnosticTest = () => {
 }, []);
   const fetchSessionInfo = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/session-info', {
+      const response = await fetch('http://3.111.49.131:4000/api/session-info', {
         credentials: 'include'
       });
 
@@ -229,7 +229,7 @@ const VocabularyDiagnosticTest = () => {
 
     try {
       const fetchPromises = cefrLevels.map(level =>
-        fetch(`http://localhost:4000/api/vocab-questions?cefrLevel=${level}`)
+        fetch(`http://3.111.49.131:4000/api/vocab-questions?cefrLevel=${level}`)
           .then(response => {
             if (!response.ok) throw new Error(`Failed to fetch ${level} questions`);
             return response.json();
@@ -365,7 +365,7 @@ const VocabularyDiagnosticTest = () => {
 
   const postUserData = async (userData) => {
     try {
-      const response = await fetch('http://localhost:4000/api/vocabscoreadd', {
+      const response = await fetch('http://3.111.49.131:4000/api/vocabscoreadd', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
