@@ -21,7 +21,7 @@ const Arithmetic = () => {
       try {
         // Fetch session info
         const sessionResponse = await fetch(
-          "http://localhost:4000/api/session-info",
+          "http://3.111.49.131:4000/api/session-info",
           { credentials: 'include' }
         );
         
@@ -37,7 +37,7 @@ const Arithmetic = () => {
 
         // Fetch test attempts
         const testResponse = await fetch(
-          `http://localhost:4000/api/testresponses?email=${encodeURIComponent(email)}&all=true`,
+          `http://3.111.49.131:4000/api/testresponses?email=${encodeURIComponent(email)}&all=true`,
           { credentials: 'include' }
         );
         
@@ -71,7 +71,7 @@ const Arithmetic = () => {
         for (const topic of topics) {
           try {
             const response = await fetch(
-              `http://localhost:4000/api/arithmetic-scores?userEmail=${encodeURIComponent(email)}&operationType=${topic.id}`,
+              `http://3.111.49.131:4000/api/arithmetic-scores?userEmail=${encodeURIComponent(email)}&operationType=${topic.id}`,
               { credentials: 'include' }
             );
             
