@@ -460,11 +460,26 @@ const TutorDashboard = () => {
     
     // Also try to copy silently
     const textArea = document.createElement('textarea');
-    textArea.value = inviteLink;
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textArea);
+        textArea.value = inviteLink;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            if (successful) {
+                alert('✅ Link copied to clipboard!');
+            } else {
+                alert('❌ Auto-copy failed. Please copy the link manually from the previous dialog.');
+            }
+        } catch (err) {
+            document.body.removeChild(textArea);
+            alert('❌ Auto-copy failed. Please copy the link manually.');
+        }
+    }
 };
 
   const handleViewStudents = async (classroomId) => {
