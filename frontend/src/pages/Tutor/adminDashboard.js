@@ -455,52 +455,27 @@ const TutorDashboard = () => {
   const handleShareInvite = (joinCode) => {
     const inviteLink = `${window.location.origin}/register?code=${joinCode}`;
     
-    if (navigator.share) {
-      navigator.share({
-        title: 'Join My Classroom',
-        text: `Join my classroom using this link:`,
-        url: inviteLink,
-      }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(inviteLink).then(() => {
-        showSuccessMessage(`Invite link copied!`, inviteLink);
-      }).catch(() => {
-        const textArea = document.createElement('textarea');
-        textArea.value = inviteLink;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showSuccessMessage(`Invite link copied!`, inviteLink);
-      });
-    }
+    // Show prompt with the link for manual copying
+    const userMessage = `Share this invite link with students:\n\n${inviteLink}\n\nClick OK to close this dialog, then copy the link from above.`;
     
-    function showSuccessMessage(message, link) {
-      const messageDiv = document.createElement('div');
-      messageDiv.innerHTML = `
-        <div style="
-          position: fixed; 
-          top: 400px; 
-          right: 800px; 
-          background: #28a745; 
-          color: white; 
-          padding: 15px; 
-          border-radius: 5px; 
-          z-index: 1000;
-          max-width: 400px;
-          word-break: break-all;
-        ">
-          <strong>${message}</strong><br>
-          <small>${link}</small>
-        </div>
-      `;
-      document.body.appendChild(messageDiv);
-      
-      setTimeout(() => {
-        document.body.removeChild(messageDiv);
-      }, 3000);
+    if (window.confirm(userMessage)) {
+        // Try to copy automatically as backup
+        try {
+            const textArea = document.createElement('textarea');
+            textArea.value = inviteLink;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            alert('Link copied to clipboard!');
+        } catch (error) {
+            console.error('Copy failed:', error);
+        }
     }
-  };
+};
 
   const handleViewStudents = async (classroomId) => {
     setLoadingStudents(true);
