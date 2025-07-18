@@ -455,26 +455,16 @@ const TutorDashboard = () => {
   const handleShareInvite = (joinCode) => {
     const inviteLink = `${window.location.origin}/register?code=${joinCode}`;
     
-    // Show prompt with the link for manual copying
-    const userMessage = `Share this invite link with students:\n\n${inviteLink}\n\nClick OK to close this dialog, then copy the link from above.`;
+    // Just show the link for manual copying
+    alert(`Share this link with students:\n\n${inviteLink}`);
     
-    if (window.confirm(userMessage)) {
-        // Try to copy automatically as backup
-        try {
-            const textArea = document.createElement('textarea');
-            textArea.value = inviteLink;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            
-            alert('Link copied to clipboard!');
-        } catch (error) {
-            console.error('Copy failed:', error);
-        }
-    }
+    // Also try to copy silently
+    const textArea = document.createElement('textarea');
+    textArea.value = inviteLink;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
 };
 
   const handleViewStudents = async (classroomId) => {
