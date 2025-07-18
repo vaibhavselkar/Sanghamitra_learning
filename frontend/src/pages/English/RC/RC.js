@@ -8,7 +8,7 @@ const RC = () => {
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" data-aos="fade">
+      <div className="page-title">
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -39,7 +39,7 @@ const RC = () => {
         <div className="container">
           <div className="row">
             {/* Practice Section */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={rcPracticeImg} className="img-fluid" alt="RC Practice" />
                 <div className="course-content">
@@ -61,7 +61,7 @@ const RC = () => {
             </div>
 
             {/* RC Guide Section */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={rcGuideImg} className="img-fluid" alt="RC Guide" />
                 <div className="course-content">
