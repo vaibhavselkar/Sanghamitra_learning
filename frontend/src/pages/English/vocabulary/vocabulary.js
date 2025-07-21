@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import "../../../assets/css/main.css";
-import diagnosticTestImg from "../../../assets/img/DignosticVocabTest.png";
+import diagnosticTestImg from "../../../assets/img/DiagnosticVocabTest.png";
 import vocabGuideImg from "../../../assets/img/VocabGuide.png";
 import vocabJourneyImg from "../../../assets/img/VocabJourney.png";
 
