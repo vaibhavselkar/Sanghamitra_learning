@@ -248,7 +248,7 @@ const PreDiagnosticTest = () => {
   return (
     <>
       {/* Page Title */}
-      <div className="page-title" data-aos="fade" style={{marginBottom: '2rem'}}>
+      <div className="page-title" style={{marginBottom: '2rem'}}>
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -276,7 +276,7 @@ const PreDiagnosticTest = () => {
 
       {/* Quiz Section */}
       <section id="quiz" className="quiz py-5">
-        <div className="container" data-aos="fade-up">
+        <div className="container">
           <div className="row g-5">
             {/* Main Question Area */}
             <div className="col-lg-8">
