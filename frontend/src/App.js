@@ -7,7 +7,7 @@ import Footer from "./components/Footer";
 import Hero from "./components/Hero";
 import Courses from "./components/Courses";
 import English from "./pages/English/English";
-import Vocabulary from "./pages/English/vocabulary/vocabulary";
+import Vocabulary from "./pages/English/vocabulary";
 import RC from "./pages/English/RC/RC";
 import Writing from "./pages/English/writing/writing";
 import HomeAbout from "./components/HomeAbout";
