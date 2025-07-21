@@ -215,7 +215,7 @@ const CTFoundation4 = () => {
       const result = {
         email: userInfo.email,
         username: userInfo.username,
-        topic: 'CT_foundation_4',
+        topic: 'CT_foundation3',
         score: isCorrect ? 1 : 0,
         totalQuestions: 1,
         answers: [{
