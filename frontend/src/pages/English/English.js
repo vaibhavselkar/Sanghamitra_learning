@@ -10,7 +10,7 @@ const English = () => {
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" data-aos="fade">
+      <div className="page-title">
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -38,7 +38,7 @@ const English = () => {
         <div className="container">
           <div className="row">
             {/* Vocabulary */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" >
               <div className="course-item">
                 <img src={vocabularyImg} className="img-fluid" alt="Vocabulary" />
                 <div className="course-content">
@@ -60,7 +60,7 @@ const English = () => {
             </div>
 
             {/* Reading Comprehension */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={readingComprehensionImg} className="img-fluid" alt="Reading Comprehension" />
                 <div className="course-content">
@@ -82,7 +82,7 @@ const English = () => {
             </div>
 
             {/* Writing */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch mt-4 mt-md-0" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch mt-4 mt-md-0">
               <div className="course-item">
                 <img src={writingImg} className="img-fluid" alt="Writing" />
                 <div className="course-content">
