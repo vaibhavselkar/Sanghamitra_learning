@@ -43,7 +43,7 @@ const StudentDashboard = () => {
   // API Helper function
   const apiCall = async (url, options = {}) => {
     try {
-      const response = await fetch(`http://3.111.49.131:4000/${url}`, {
+      const response = await fetch(`http://3.111.49.131:4000${url}`, {
         ...options,
         credentials: 'include',
         headers: {
