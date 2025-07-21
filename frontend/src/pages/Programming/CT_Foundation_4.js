@@ -63,7 +63,7 @@ const CTFoundation4 = () => {
 
   const initializeQuiz = async (email) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/CT_finger?topic=CT_foundation_4');
+      const response = await fetch('http://3.111.49.131:4000/api/CT_finger?topic=CT_foundation3');
       
       if (!response.ok) {
         throw new Error('Failed to fetch quiz questions');
@@ -95,7 +95,7 @@ const CTFoundation4 = () => {
 
   const fetchPreviousAnswers = async (email) => {
     try {
-      const response = await fetch(`http://3.111.49.131:4000/api/CT_finger_scores/${email}/CT_foundation_4`, {
+      const response = await fetch(`http://3.111.49.131:4000/api/CT_finger_scores/${email}/CT_foundation3`, {
         credentials: 'include'
       });
       
