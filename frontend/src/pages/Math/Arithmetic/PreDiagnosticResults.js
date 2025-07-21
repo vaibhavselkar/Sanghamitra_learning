@@ -189,7 +189,7 @@ const PreDiagnosticResults = () => {
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" data-aos="fade" style={{ marginBottom: '2rem' }}>
+      <div className="page-title" style={{ marginBottom: '2rem' }}>
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -214,7 +214,7 @@ const PreDiagnosticResults = () => {
 
       {/* Results Section */}
       <section className="results-section py-5">
-        <div className="container" data-aos="fade-up">
+        <div className="container">
           {/* Summary Card */}
           <div className="summary-card card shadow-sm mb-4 border-0" style={{ borderRadius: '15px' }}>
             <div className="card-body p-4">
