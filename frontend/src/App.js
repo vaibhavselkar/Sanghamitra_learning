@@ -16,6 +16,7 @@ import NumberTheory from './pages/Math/Algebra/NumberTheory';
 import Units from './pages/Math/Algebra/Units';
 import Algebra from "./pages/Math/Algebra/Algebra";
 import Arithmetic from "./pages/Math/Arithmetic/Arithmetic"; // Add this import
+import ArithmeticAssessment from './pages/Math/Arithmetic/ArithmeticAssessment';
 import Addition from "./pages/Math/Arithmetic/Addition";
 import Subtraction from "./pages/Math/Arithmetic/Subtraction";
 import Multiplication from "./pages/Math/Arithmetic/Multiplication";
@@ -113,6 +114,7 @@ function App() {
             <Route path="/math/arithmetic/ratioproportionpercentage" element={<RatioProportionPercentage/>}/>
             <Route path="/math/arithmetic/pre-diagnostic-test" element={<PreDiagnosticTest />} />
             <Route path="/math/arithmetic/pre-diagnostic-results" element={<PreDiagnosticResults />} />
+            <Route path="/math/arithmetic/arithmetic-assessment" element={<ArithmeticAssessment />} />
 
             <Route path="/programming/ct_foundation_1" element={<CTFoundation1 />} />
             <Route path="/programming/ct-foundation-1" element={<CTFoundation2 />} />
