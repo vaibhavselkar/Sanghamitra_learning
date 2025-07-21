@@ -319,31 +319,31 @@ const StudentDashboard = () => {
   };
 
   const goToQuizAnalytics = (quizId) => {
-    window.location.href = `vocab_analytics.html?quizId=${encodeURIComponent(quizId)}`;
+    navigate(`/vocab-analytics/${encodeURIComponent(quizId)}`);
   };
-
+  
   const exploreTopic = (topicName) => {
-    window.location.href = `english/RC_dashboard.html?email=${userData.email}&topic=${topicName}`;
+    navigate(`/english/RC/${topicName}`, { state: { email: userData.email } });
   };
-
+  
   const viewProgrammingQuiz = (quizId) => {
-    window.location.href = `coding/programming_details.html?quizId=${quizId}`;
+    navigate(`/coding/${quizId}`);
   };
 
   const redirectToVocab = () => {
-    window.location.href = "/english/vocabulary";
+    navigate("/english/vocabulary");
   };
-
+  
   const redirectToMath = () => {
-    window.location.href = "/math";
+    navigate("/math");
   };
-
+  
   const redirectToRC = () => {
-    window.location.href = "/english/RC";
+    navigate("/english/RC");
   };
-
+  
   const redirectToProgramming = () => {
-    window.location.href = "/programming";
+    navigate("/programming");
   };
 
   // Render vocabulary scores
