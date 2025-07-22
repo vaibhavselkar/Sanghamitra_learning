@@ -663,73 +663,8 @@ _capture = FastCapture()
   color: #333;
 }
 
-.page-title {
-  background: linear-gradient(135deg, #28a745 0%,100%);
-  color: white;
-  padding: 60px 0;
-  text-align: center;
-}
 
-.page-title h1 {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  font-weight: 700;
-}
 
-.page-title p {
-  font-size: 1.2rem;
-  opacity: 0.9;
-}
-
-.breadcrumbs {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 15px 0;
-  margin-top: 20px;
-}
-
-.breadcrumbs ol {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  justify-content: center;
-}
-
-.breadcrumbs li {
-  margin: 0 5px;
-}
-
-.breadcrumbs li::after {
-  content: '>';
-  margin-left: 10px;
-  opacity: 0.7;
-}
-
-.breadcrumbs li:last-child::after {
-  display: none;
-}
-
-.breadcrumbs a {
-  color: white;
-  text-decoration: none;
-  opacity: 0.8;
-  transition: opacity 0.3s;
-}
-
-.breadcrumbs a:hover {
-  opacity: 1;
-}
-
-.breadcrumbs .current {
-  color: white;
-  font-weight: 500;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
 
 .loading-indicator {
   background: #fff3cd;

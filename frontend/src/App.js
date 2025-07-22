@@ -114,7 +114,7 @@ function App() {
             <Route path="/math/arithmetic/pre-diagnostic-test" element={<PreDiagnosticTest />} />
             <Route path="/math/arithmetic/pre-diagnostic-results" element={<PreDiagnosticResults />} />
 
-            <Route path="/programming/ct_foundation_1" element={<CTFoundation1 />} />
+            <Route path="/programming/ct_foundation" element={<CTFoundation1 />} />
             <Route path="/programming/ct-foundation-1" element={<CTFoundation2 />} />
             <Route path="/programming/ct-foundation-2" element={<CTFoundation3 />} />
             <Route path="/programming/ct-foundation-3" element={<CTFoundation4/>} />

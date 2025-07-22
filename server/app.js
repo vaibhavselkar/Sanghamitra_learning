@@ -8,27 +8,16 @@ const authRouter = require('./router/auth');
 const classroomRoutes = require('./router/classroom');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const path = require('path');
 
 const app = express();
 // CORS configuration
 const corsOptions = {
     origin: [
-      'http://3.111.49.131:4000',
-      'http://localhost:3000',  // Add this for development
-      'http://localhost:4000'   // Add this for same-origin
+      'http://localhost:3000'  // React default port    
     ],
     credentials: true,  // Important: allows cookies/credentials
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
-      'Cookie',           // Important for sessions!
-      'X-Requested-With',
-      'Accept',
-      'Origin',
-      'x-access-token'
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token'],
     optionsSuccessStatus: 200 // For legacy browser support
   };
   
@@ -58,11 +47,10 @@ app.use(session({
         collectionName: 'sessions'
     }),
     cookie: {
-        maxAge: 1000 * 60 * 60 * 24,
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
         httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
-        path: '/'
+        secure: false, // Set to true in production with HTTPS
+        sameSite: 'lax'
     }
 }));
 
@@ -76,18 +64,15 @@ mongoose.connect(process.env.DATABASE, {
     console.log("Connected to MongoDB");
 }).catch(err => console.error("MongoDB connection error:", err));
 
-
-// Serve static files from React build
-app.use(express.static(path.join(__dirname, '../frontend/build')));
-
-// API Routes
+// Routes
 app.use('/api', authRouter);
 app.use('/api', classroomRoutes);
 
-app.get('/api/', (req, res) => {
-    res.json({ message: 'Server is running!', port: process.env.PORT || 4000 });
+app.get('/', (req, res) => {
+    res.json({ message: 'Server is running!', port: process.env.PORT || 6000 });
 });
 
+// Test route
 app.get('/api/test', (req, res) => {
     res.json({ message: 'CORS is working!', timestamp: new Date() });
 });
@@ -98,15 +83,10 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// Serve React app for any non-API routes (MUST BE LAST)
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-});
-
 // Start server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-    console.log(`Express server running on port ${PORT}`);
-    console.log(`API endpoints available at: http://localhost:${PORT}/api`);
-    console.log(`Frontend served from: http://localhost:${PORT}`);
+    console.log(` Express server running on port ${PORT}`);
+    console.log(` API endpoints available at: http://localhost:${PORT}/api`);
+    console.log(` CORS enabled for: http://localhost:3000`);
 });

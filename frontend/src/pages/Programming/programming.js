@@ -1,41 +1,36 @@
-// src/pages/Programming/ProgrammingCourses.js
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 const Programming = () => {
-  const [progress, setProgress] = useState({});
+  const [userInfo, setUserInfo] = useState({
+    username: null,
+    email: null
+  });
+  const [topicProgress, setTopicProgress] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    // Fetch user progress data
-    fetchUserProgress();
-  }, []);
-
-  const fetchUserProgress = async () => {
-    try {
-      // Replace with your actual backend endpoint for user progress
-      const response = await fetch('http://3.111.49.131:4000/api/user/progress', {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const progressData = await response.json();
-        setProgress(progressData);
-      }
-    } catch (error) {
-      console.error('Error fetching progress:', error);
-    }
+  // Topic mapping similar to your HTML version
+  const topicMapping = {
+    "Python Basics": "python_basics",
+    "Python Conditionals": "python_conditionals", 
+    "Python Loops": "python_loops",
+    "Python Functions": "python_functions",
+    "Programming Diagnostic": "programming_diagnostic"
   };
 
-  const getProgressInfo = (progressId) => {
-    const userProgress = progress[progressId] || { completed: 0, total: 20 };
-    const percentage = userProgress.total > 0 ? Math.round((userProgress.completed / userProgress.total) * 100) : 0;
-    return {
-      percentage,
-      text: `${userProgress.completed}/${userProgress.total} Complete`
-    };
-  };
+  const ctTopics = [
+    "CT_foundation",
+    "CT_foundation_1", 
+    "CT_foundation_2",
+    "CT_foundation_3"
+  ];
 
+  const MAX_QUESTIONS = 20; // For Python topics
+  const CT_QUESTIONS_PER_TOPIC = 30; // For CT topics
+
+  // Define all courses with their configurations
   const courses = [
     {
       icon: "bi-clipboard-check",
@@ -43,47 +38,52 @@ const Programming = () => {
       desc: "Regular evaluations to track your learning progress",
       bg: "bg-warning",
       href: "/programming/weekly-assessments",
-      progressId: "weekly_assessments"
+      type: "special"
     },
     {
       icon: "bi-cpu",
       title: "CT Foundation",
       desc: "Develop problem-solving skills using computational methods",
       bg: "bg-primary",
-      href: "/programming/ct_foundation_1",
-      progressId: "CT_foundation"
+      href: "/programming/ct_foundation",
+      topicId: "CT_foundation",
+      type: "ct"
     },
     {
-      icon: "bi-cpu-fill",
+      icon: "bi-cpu-fill", 
       title: "CT Foundation 1",
       desc: "Advance your computational thinking skills",
       bg: "bg-primary",
-      href: "/programming/ct-foundation-1",
-      progressId: "CT_foundation_1"
+      href: "/programming/ct-foundation-1", 
+      topicId: "CT_foundation_1",
+      type: "ct"
     },
     {
       icon: "bi-layers",
-      title: "CT Foundation 2",
+      title: "CT Foundation 2", 
       desc: "Master complex computational problem-solving",
       bg: "bg-primary",
       href: "/programming/ct-foundation-2",
-      progressId: "CT_foundation_2"
+      topicId: "CT_foundation_2", 
+      type: "ct"
     },
     {
       icon: "bi-arrow-repeat",
       title: "CT Foundation 3",
-      desc: "Advanced computational problem-solving techniques",
+      desc: "Advanced computational problem-solving techniques", 
       bg: "bg-primary",
       href: "/programming/ct-foundation-3",
-      progressId: "CT_foundation_3"
+      topicId: "CT_foundation_3",
+      type: "ct"
     },
     {
       icon: "bi-code-slash",
       title: "Python Basics",
       desc: "Master fundamental Python syntax and concepts",
-      bg: "bg-success",
+      bg: "bg-success", 
       href: "/programming/python-basics",
-      progressId: "python_basics"
+      topicId: "python_basics",
+      type: "python"
     },
     {
       icon: "bi-diagram-3",
@@ -91,34 +91,310 @@ const Programming = () => {
       desc: "Implement decision-making in your code",
       bg: "bg-success",
       href: "/programming/python-conditionals",
-      progressId: "python_conditionals"
+      topicId: "python_conditionals", 
+      type: "python"
     },
     {
       icon: "bi-arrow-repeat",
-      title: "Python Loops",
+      title: "Python Loops", 
       desc: "Automate repetitive tasks efficiently",
       bg: "bg-success",
       href: "/programming/python-loops",
-      progressId: "python_loops"
+      topicId: "python_loops",
+      type: "python"
     },
     {
       icon: "bi-box",
       title: "Python Functions",
-      desc: "Create reusable code components",
+      desc: "Create reusable code components", 
       bg: "bg-success",
       href: "/programming/python-functions",
-      progressId: "python_functions"
+      topicId: "python_functions",
+      type: "python"
     },
     {
       icon: "bi-clipboard-check",
       title: "Programming Diagnostic",
       desc: "Assess your programming knowledge and identify areas for improvement",
-      bg: "bg-info",
+      bg: "bg-info", 
       href: "/programming/programming-diagnostic",
-      progressId: "programming_diagnostic",
-      isSpecial: true
+      topicId: "programming_diagnostic",
+      type: "diagnostic"
     }
   ];
+
+  useEffect(() => {
+    initializeProgressTracking();
+  }, []);
+
+  // Debug effect to log topicProgress changes
+  useEffect(() => {
+    console.log('Topic Progress State Updated:', topicProgress);
+  }, [topicProgress]);
+
+  const initializeProgressTracking = async () => {
+    try {
+      console.log('=== Starting initialization ===');
+      
+      // First, get session info and wait for it to complete
+      const sessionData = await fetchSessionInfo();
+      console.log('Session data received:', sessionData);
+      
+      if (sessionData) {
+        console.log('=== Starting progress fetch ===');
+        
+        // Test with just one topic first
+        console.log('Testing CT_foundation fetch...');
+        await fetchCTProgress('CT_foundation', sessionData.email);
+        
+        console.log('Testing python_basics fetch...');
+        await fetchPythonProgress('python_basics', sessionData.email);
+        
+        // Now fetch all progress
+        const progressPromises = [
+          ...ctTopics.map(topic => fetchCTProgress(topic, sessionData.email)),
+          ...Object.values(topicMapping).map(topic => fetchPythonProgress(topic, sessionData.email))
+        ];
+        
+        console.log('Starting all progress fetches...');
+        await Promise.all(progressPromises);
+        console.log('All progress fetches completed');
+      }
+      
+      setIsLoading(false);
+      console.log('=== Initialization completed ===');
+    } catch (error) {
+      console.error('Initialization error:', error);
+      setError('Failed to initialize progress tracking');
+      setIsLoading(false);
+    }
+  };
+
+  const fetchSessionInfo = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/session-info', {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Session expired');
+      }
+      
+      const data = await response.json();
+      const sessionData = {
+        email: data.email,
+        username: data.username
+      };
+      
+      setUserInfo(sessionData);
+      return sessionData; // Return the session data for immediate use
+    } catch (error) {
+      console.error('Session error:', error);
+      // Redirect to login - adjust path as needed
+      window.location.href = '/user_login.html';
+      throw error;
+    }
+  };
+
+  const fetchCTProgress = async (topic, email) => {
+    try {
+      console.log(`Fetching CT progress for ${topic} with email: ${email}`);
+      const response = await fetch(
+        `http://localhost:4000/api/CT_finger_scores/${email}/${topic}`,
+        { credentials: 'include' }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`CT Data received for ${topic}:`, data);
+        const progress = calculateCTProgress(data);
+        console.log(`CT Progress calculated for ${topic}:`, progress);
+        setTopicProgress(prev => ({
+          ...prev,
+          [topic]: progress
+        }));
+      } else {
+        console.log(`No CT data found for ${topic}, status: ${response.status}`);
+        // Set default progress for topics with no data
+        setTopicProgress(prev => ({
+          ...prev,
+          [topic]: { completed: 0, total: CT_QUESTIONS_PER_TOPIC, score: 0, percentage: 0 }
+        }));
+      }
+    } catch (error) {
+      console.error(`CT Progress fetch failed for ${topic}:`, error);
+      setTopicProgress(prev => ({
+        ...prev,
+        [topic]: { completed: 0, total: CT_QUESTIONS_PER_TOPIC, score: 0, percentage: 0 }
+      }));
+    }
+  };
+
+  const fetchPythonProgress = async (topic, email) => {
+    try {
+      console.log(`Fetching Python progress for ${topic} with email: ${email}`);
+      const response = await fetch(
+        `http://localhost:4000/api/finger-exercise?email=${email}&topic=${topic}`,
+        { credentials: 'include' }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Python Data received for ${topic}:`, data);
+        const progress = calculatePythonProgress(data);
+        console.log(`Python Progress calculated for ${topic}:`, progress);
+        setTopicProgress(prev => ({
+          ...prev,
+          [topic]: progress
+        }));
+      } else {
+        console.log(`No Python data found for ${topic}, status: ${response.status}`);
+        setTopicProgress(prev => ({
+          ...prev,
+          [topic]: { completed: 0, total: MAX_QUESTIONS, score: 0, percentage: 0 }
+        }));
+      }
+    } catch (error) {
+      console.error(`Python Progress fetch failed for ${topic}:`, error);
+      setTopicProgress(prev => ({
+        ...prev,
+        [topic]: { completed: 0, total: MAX_QUESTIONS, score: 0, percentage: 0 }
+      }));
+    }
+  };
+
+  const calculateCTProgress = (data) => {
+    try {
+      console.log('Calculating CT progress with data:', data);
+      
+      if (!data || !data.quizzes || data.quizzes.length === 0) {
+        console.log('No quizzes found in CT data');
+        return { completed: 0, total: CT_QUESTIONS_PER_TOPIC, score: 0, percentage: 0 };
+      }
+      
+      // Count unique answered questions (latest attempt for each question)
+      const answeredQuestions = new Map();
+      let correctAnswers = 0;
+
+      // Sort by date (latest first) and process answers
+      const sortedQuizzes = data.quizzes.sort((a, b) => 
+        new Date(b.date) - new Date(a.date)
+      );
+
+      console.log('Sorted quizzes:', sortedQuizzes);
+
+      sortedQuizzes.forEach(quiz => {
+        if (quiz.answers && Array.isArray(quiz.answers)) {
+          quiz.answers.forEach(answer => {
+            if (!answeredQuestions.has(answer.questionId)) {
+              answeredQuestions.set(answer.questionId, answer);
+              if (answer.isCorrect) {
+                correctAnswers++;
+              }
+            }
+          });
+        }
+      });
+
+      const completed = answeredQuestions.size;
+      const percentage = Math.round((completed / CT_QUESTIONS_PER_TOPIC) * 100);
+      
+      const result = {
+        completed,
+        total: CT_QUESTIONS_PER_TOPIC,
+        score: correctAnswers,
+        percentage
+      };
+      
+      console.log('CT Progress result:', result);
+      return result;
+    } catch (error) {
+      console.error('CT progress calculation error:', error);
+      return { completed: 0, total: CT_QUESTIONS_PER_TOPIC, score: 0, percentage: 0 };
+    }
+  };
+
+  const calculatePythonProgress = (data) => {
+    try {
+      console.log('Calculating Python progress with data:', data);
+      
+      if (!data || !data.submissions) {
+        console.log('No submissions found in Python data');
+        return { completed: 0, total: MAX_QUESTIONS, score: 0, percentage: 0 };
+      }
+      
+      console.log('Submissions:', data.submissions);
+      
+      // Count unique correct question IDs
+      const uniqueCorrect = new Set(
+        data.submissions
+          .filter(s => s.isCorrect)
+          .map(s => s.questionId)
+      );
+      
+      console.log('Unique correct questions:', uniqueCorrect);
+      
+      const completed = uniqueCorrect.size;
+      const percentage = Math.round((completed / MAX_QUESTIONS) * 100);
+      
+      const result = {
+        completed,
+        total: MAX_QUESTIONS,
+        score: completed, // For Python, completed = score since we only count correct ones
+        percentage
+      };
+      
+      console.log('Python Progress result:', result);
+      return result;
+    } catch (error) {
+      console.error('Python progress calculation error:', error);
+      return { completed: 0, total: MAX_QUESTIONS, score: 0, percentage: 0 };
+    }
+  };
+
+  const getProgressInfo = (course) => {
+    if (course.type === 'special' || course.type === 'diagnostic') {
+      return { percentage: 0, text: course.type === 'diagnostic' ? 'Assessment Available' : 'Available' };
+    }
+    
+    const progress = topicProgress[course.topicId] || { completed: 0, total: course.type === 'ct' ? 30 : 20, percentage: 0 };
+    console.log(`Getting progress for ${course.title} (${course.topicId}):`, progress);
+    
+    return {
+      percentage: progress.percentage,
+      text: `${progress.completed}/${progress.total} Complete`
+    };
+  };
+
+  if (isLoading) {
+    return (
+      <div className="main">
+        <div className="container">
+          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+            <div className="text-center">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="mt-3">Loading your progress...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="main">
+        <div className="container">
+          <div className="alert alert-danger mt-3">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="main">
@@ -149,11 +425,21 @@ const Programming = () => {
         </nav>
       </div>
 
-      {/* Course List */}
       <div className="container">
+        {/* User Welcome */}
+        {userInfo.username && (
+          <div className="alert alert-info border-0 shadow-sm mb-4">
+            <h5 className="alert-heading mb-2">
+              <i className="bi bi-person-circle me-2"></i>
+              Welcome back, {userInfo.username}! 👋
+            </h5>
+            <p className="mb-0">Continue your programming journey and track your progress below.</p>
+          </div>
+        )}
+
         {/* Special Diagnostic Section */}
         <div className="mb-4">
-          <div className="alert alert-info border-0 shadow-sm">
+          <div className="alert alert-warning border-0 shadow-sm">
             <div className="row align-items-center">
               <div className="col-md-8">
                 <h5 className="alert-heading mb-2">
@@ -166,7 +452,7 @@ const Programming = () => {
                 </p>
               </div>
               <div className="col-md-4 text-end">
-                <Link to="/programming/programming-diagnostic" className="btn btn-info">
+                <Link to="/programming/programming-diagnostic" className="btn btn-warning">
                   <i className="bi bi-play-circle me-2"></i>
                   Take Diagnostic Test
                 </Link>
@@ -175,33 +461,37 @@ const Programming = () => {
           </div>
         </div>
 
-        <div className="course-list">
-          {courses.map(({ icon, title, desc, bg, href, progressId, isSpecial }) => {
-            const progressInfo = getProgressInfo(progressId);
+        {/* Course List */}
+        <div className="course-list" style={{ maxWidth: '900px', margin: '0 auto' }}>
+          {courses.map((course) => {
+            const progressInfo = getProgressInfo(course);
+            const isSpecial = course.type === 'special' || course.type === 'diagnostic';
             
             return (
-              <div key={title} className={`course-item mb-3 ${isSpecial ? 'border-info' : ''}`}>
-                <div className={`card course-card h-100 border-0 shadow-sm hover-shadow ${isSpecial ? 'border-2' : ''}`}>
+              <div key={course.title} className="course-item mb-3">
+                <div className="card course-card h-100 border-0 shadow-sm hover-shadow">
                   <div className="card-body p-3">
                     <div className="row align-items-center">
                       <div className="col-lg-1 col-md-2 text-center">
-                        <div className={`icon-box ${bg} text-white rounded-circle p-2 d-flex align-items-center justify-content-center`} 
-                             style={{ width: 40, height: 40 }}>
-                          <i className={`bi ${icon} fs-5`}></i>
+                        <div 
+                          className={`icon-box ${course.bg} text-white rounded-circle p-2 d-flex align-items-center justify-content-center`} 
+                          style={{ width: 40, height: 40 }}
+                        >
+                          <i className={`bi ${course.icon} fs-5`}></i>
                         </div>
                       </div>
                       <div className="col-lg-7 col-md-6">
                         <h4 className="mb-1 fs-5">
-                          {title}
-                          {isSpecial && <span className="badge bg-info ms-2 fs-7">Assessment</span>}
+                          {course.title}
+                          {course.type === 'diagnostic' && <span className="badge bg-info ms-2" style={{ fontSize: '0.7rem' }}>Assessment</span>}
                         </h4>
-                        <p className="text-muted mb-2 fs-6">{desc}</p>
+                        <p className="text-muted mb-2 fs-6">{course.desc}</p>
                         
                         {!isSpecial && (
                           <>
                             <div className="progress" style={{ height: 6 }}>
                               <div 
-                                className={`progress-bar ${bg}`} 
+                                className={`progress-bar ${course.bg.replace('bg-', 'bg-')}`} 
                                 role="progressbar" 
                                 style={{ width: `${progressInfo.percentage}%` }}
                                 aria-valuenow={progressInfo.percentage} 
@@ -209,20 +499,24 @@ const Programming = () => {
                                 aria-valuemax="100"
                               ></div>
                             </div>
-                            <small className="text-muted fs-7">{progressInfo.text}</small>
+                            <small className="text-muted" style={{ fontSize: '0.85rem' }}>{progressInfo.text}</small>
                           </>
                         )}
                         
-                        {isSpecial && (
-                          <small className="text-info fs-7">
+                        {course.type === 'diagnostic' && (
+                          <small className="text-info" style={{ fontSize: '0.85rem' }}>
                             <i className="bi bi-info-circle me-1"></i>
                             Evaluate your skills and get personalized recommendations
                           </small>
                         )}
                       </div>
                       <div className="col-lg-4 col-md-4 text-end">
-                        <Link to={href} className={`btn ${bg} btn-sm`}>
-                          <span>{isSpecial ? 'Start Assessment' : 'Continue'}</span>
+                        <Link 
+                          to={course.href} 
+                          className={`btn ${course.bg} btn-sm d-inline-flex align-items-center justify-content-between`}
+                          style={{ minWidth: '120px', padding: '0.4rem 1rem' }}
+                        >
+                          <span>{course.type === 'diagnostic' ? 'Start Assessment' : 'Continue'}</span>
                           <i className="bi bi-arrow-right ms-2"></i>
                         </Link>
                       </div>
@@ -234,47 +528,19 @@ const Programming = () => {
           })}
         </div>
 
-        {/* Additional Information */}
-        <div className="row mt-5">
-          <div className="col-md-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center">
-                <i className="bi bi-trophy text-warning fs-1 mb-3"></i>
-                <h5>Track Progress</h5>
-                <p className="text-muted">Monitor your learning journey with detailed progress tracking and achievements.</p>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center">
-                <i className="bi bi-code-square text-primary fs-1 mb-3"></i>
-                <h5>Interactive Coding</h5>
-                <p className="text-muted">Practice with hands-on coding exercises and real-time feedback.</p>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center">
-                <i className="bi bi-people text-success fs-1 mb-3"></i>
-                <h5>Community Support</h5>
-                <p className="text-muted">Connect with fellow learners and get help from our supportive community.</p>
-              </div>
-            </div>
-          </div>
-        </div>
+       
       </div>
 
       <style>{`
         .hover-shadow:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
-          transition: all 0.3s ease;
+          transform: translateY(-3px) !important;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important;
+          transition: all 0.3s ease !important;
         }
         
         .course-card {
           transition: all 0.3s ease;
+          border-radius: 12px !important;
         }
         
         .icon-box {
@@ -285,8 +551,18 @@ const Programming = () => {
           transform: scale(1.1);
         }
         
-        .border-info {
-          border-color: #0dcaf0 !important;
+        .progress {
+          background-color: #f0f0f0 !important;
+        }
+        
+        .btn {
+          border-radius: 8px !important;
+        }
+        
+        .course-list {
+          max-width: 900px;
+          margin: 0 auto;
+          padding: 0 15px;
         }
       `}</style>
     </main>
