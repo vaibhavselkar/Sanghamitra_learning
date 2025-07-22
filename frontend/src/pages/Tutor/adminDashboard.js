@@ -186,27 +186,71 @@ const TutorDashboard = () => {
         let totalQuestions = 0;
         let correctAnswers = 0;
         let lastActivity = "No Activity";
-
+        
+        // Topic analysis
+        let topicPerformance = {};
+        let topicCounts = {};
+  
         if (user.assessments.length > 0) {
           lastActivity = new Date(
             Math.max(...user.assessments.map(a => new Date(a.date)))
           ).toLocaleDateString();
         }
-
+  
         user.assessments.forEach(assessment => {
           totalQuestions += assessment.questions.length;
           correctAnswers += assessment.questions.filter(q => q.is_correct).length;
+          
+          // Process topics
+          assessment.questions.forEach(question => {
+            const topic = question.topic || 'uncategorized';
+            
+            if (!topicPerformance[topic]) {
+              topicPerformance[topic] = {
+                total: 0,
+                correct: 0,
+                percentage: 0
+              };
+            }
+            
+            topicPerformance[topic].total += 1;
+            if (question.is_correct) {
+              topicPerformance[topic].correct += 1;
+            }
+            
+            // Count topic frequency
+            topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+          });
         });
-
+  
+        // Calculate topic percentages
+        Object.keys(topicPerformance).forEach(topic => {
+          const perf = topicPerformance[topic];
+          perf.percentage = perf.total > 0 ? ((perf.correct / perf.total) * 100).toFixed(1) : 0;
+        });
+  
+        // Get top 3 topics by frequency
+        const topTopics = Object.entries(topicCounts)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 3)
+          .map(([topic, count]) => ({
+            name: topic,
+            count: count,
+            performance: topicPerformance[topic]?.percentage || 0
+          }));
+  
         let averagePercentage = totalQuestions > 0 ? ((correctAnswers / totalQuestions) * 100).toFixed(2) : "N/A";
-
+  
         return {
           username: user.username,
           lastActivity,
           totalAssessments,
           totalQuestions,
           correctAnswers,
-          averagePercentage
+          averagePercentage,
+          topicPerformance, // Full topic breakdown
+          topTopics, // Top 3 topics
+          totalTopics: Object.keys(topicPerformance).length
         };
       });
       
@@ -215,6 +259,7 @@ const TutorDashboard = () => {
       console.error('Error fetching vocabulary data:', error);
     }
   };
+
 
   const fetchAlgebraData = async (studentEmails) => {
     try {
@@ -453,55 +498,19 @@ const TutorDashboard = () => {
   };
 
   const handleShareInvite = (joinCode) => {
-    const inviteLink = `${window.location.origin}/register?code=${joinCode}`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: 'Join My Classroom',
-        text: `Join my classroom using this link:`,
-        url: inviteLink,
-      }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(inviteLink).then(() => {
-        showSuccessMessage(`Invite link copied!`, inviteLink);
-      }).catch(() => {
-        const textArea = document.createElement('textarea');
-        textArea.value = inviteLink;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showSuccessMessage(`Invite link copied!`, inviteLink);
-      });
-    }
-    
-    function showSuccessMessage(message, link) {
-      const messageDiv = document.createElement('div');
-      messageDiv.innerHTML = `
-        <div style="
-          position: fixed; 
-          top: 400px; 
-          right: 800px; 
-          background: #28a745; 
-          color: white; 
-          padding: 15px; 
-          border-radius: 5px; 
-          z-index: 1000;
-          max-width: 400px;
-          word-break: break-all;
-        ">
-          <strong>${message}</strong><br>
-          <small>${link}</small>
-        </div>
-      `;
-      document.body.appendChild(messageDiv);
+      const inviteLink = `${window.location.origin}/register?code=${joinCode}`;
       
-      setTimeout(() => {
-        document.body.removeChild(messageDiv);
-      }, 3000);
-    }
+      // Just show the link for manual copying
+      alert(`Share this link with students:\n\n${inviteLink}`);
+      
+      // Also try to copy silently
+      const textArea = document.createElement('textarea');
+      textArea.value = inviteLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
   };
-
   const handleViewStudents = async (classroomId) => {
     setLoadingStudents(true);
     setError('');
@@ -739,43 +748,160 @@ const TutorDashboard = () => {
         <div className="row mb-4">
           <div className="col-12">
             <div className="card">
-              <div className="card-header">
-                <h5 className="mb-0">Vocabulary Assessment</h5>
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">
+                  <i className="bi bi-book me-2"></i>Vocabulary Assessment
+                </h5>
+                <small className="text-muted">
+                  {vocabularyData.length} students with vocabulary data
+                </small>
               </div>
               <div className="card-body">
                 <div className="table-responsive">
-                  <table className="table table-striped">
-                    <thead>
+                  <table className="table table-hover">
+                    <thead className="table-light">
                       <tr>
+                        <th style={{ width: '40px' }}></th>
                         <th>Username</th>
                         <th>Last Activity</th>
-                        <th>Total Assessments</th>
-                        <th>Total Questions</th>
-                        <th>Correct Answers</th>
-                        <th>Average Score (%)</th>
+                        <th>Assessments</th>
+                        <th>Questions</th>
+                        <th>Correct</th>
+                        <th>Average (%)</th>
+                        <th>Topics Covered</th>
+                        <th>Top Topics</th>
                       </tr>
                     </thead>
                     <tbody>
                       {vocabularyData.slice(0, showMoreVocab ? vocabularyData.length : 5).map((user, index) => (
-                        <tr key={index}>
-                          <td>{user.username}</td>
-                          <td>{user.lastActivity}</td>
-                          <td>{user.totalAssessments}</td>
-                          <td>{user.totalQuestions}</td>
-                          <td>{user.correctAnswers}</td>
-                          <td>{user.averagePercentage}</td>
-                        </tr>
+                        <React.Fragment key={index}>
+                          <tr>
+                            <td>
+                              <button
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => {
+                                  const newExpandedRows = new Set(expandedVocabRows);
+                                  if (newExpandedRows.has(index)) {
+                                    newExpandedRows.delete(index);
+                                  } else {
+                                    newExpandedRows.add(index);
+                                  }
+                                  setExpandedVocabRows(newExpandedRows);
+                                }}
+                                title="Show topic breakdown"
+                              >
+                                <i className={`bi bi-chevron-${expandedVocabRows.has(index) ? 'up' : 'down'}`}></i>
+                              </button>
+                            </td>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <div className="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '32px', height: '32px' }}>
+                                  <i className="bi bi-person"></i>
+                                </div>
+                                <strong>{user.username}</strong>
+                              </div>
+                            </td>
+                            <td>{user.lastActivity}</td>
+                            <td>
+                              <span className="badge bg-info">{user.totalAssessments}</span>
+                            </td>
+                            <td>{user.totalQuestions}</td>
+                            <td>{user.correctAnswers}</td>
+                            <td>
+                              <span className={`fw-bold ${
+                                parseFloat(user.averagePercentage) >= 80 ? 'text-success' :
+                                parseFloat(user.averagePercentage) >= 60 ? 'text-warning' : 'text-danger'
+                              }`}>
+                                {user.averagePercentage}%
+                              </span>
+                            </td>
+                            <td>
+                              <span className="badge bg-secondary">{user.totalTopics} topics</span>
+                            </td>
+                            <td>
+                              <div className="d-flex flex-wrap gap-1">
+                                {user.topTopics.slice(0, 2).map((topic, idx) => (
+                                  <span 
+                                    key={idx} 
+                                    className="badge bg-light text-dark border"
+                                    title={`${topic.count} questions, ${topic.performance}% correct`}
+                                  >
+                                    {topic.name.split('-').map(word => 
+                                      word.charAt(0).toUpperCase() + word.slice(1)
+                                    ).join(' ')}
+                                  </span>
+                                ))}
+                                {user.topTopics.length > 2 && (
+                                  <span className="badge bg-light text-muted border">
+                                    +{user.topTopics.length - 2} more
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                          
+                          {/* Expanded row showing detailed topic breakdown */}
+                          {expandedVocabRows.has(index) && (
+                            <tr>
+                              <td></td>
+                              <td colSpan="8">
+                                <div className="bg-light p-3 rounded">
+                                  <h6 className="mb-3">Topic Performance Breakdown</h6>
+                                  <div className="row">
+                                    {Object.entries(user.topicPerformance)
+                                      .sort(([,a], [,b]) => b.total - a.total)
+                                      .map(([topic, performance]) => (
+                                        <div key={topic} className="col-md-6 col-lg-4 mb-3">
+                                          <div className="card border-0 bg-white">
+                                            <div className="card-body p-3">
+                                              <div className="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 className="card-title mb-1 text-capitalize">
+                                                  {topic.split('-').map(word => 
+                                                    word.charAt(0).toUpperCase() + word.slice(1)
+                                                  ).join(' ')}
+                                                </h6>
+                                                <span className={`badge ${
+                                                  performance.percentage >= 80 ? 'bg-success' :
+                                                  performance.percentage >= 60 ? 'bg-warning' : 'bg-danger'
+                                                }`}>
+                                                  {performance.percentage}%
+                                                </span>
+                                              </div>
+                                              <div className="text-muted small">
+                                                <div>{performance.correct}/{performance.total} correct</div>
+                                                <div className="progress mt-1" style={{ height: '4px' }}>
+                                                  <div 
+                                                    className={`progress-bar ${
+                                                      performance.percentage >= 80 ? 'bg-success' :
+                                                      performance.percentage >= 60 ? 'bg-warning' : 'bg-danger'
+                                                    }`}
+                                                    style={{ width: `${performance.percentage}%` }}
+                                                  ></div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                
                 {vocabularyData.length > 5 && (
-                  <div className="text-center">
+                  <div className="text-center mt-3">
                     <button 
-                      className="btn btn-secondary"
+                      className="btn btn-outline-secondary"
                       onClick={() => setShowMoreVocab(!showMoreVocab)}
                     >
-                      {showMoreVocab ? 'Show Less' : 'Show More'}
+                      <i className={`bi bi-chevron-${showMoreVocab ? 'up' : 'down'} me-1`}></i>
+                      {showMoreVocab ? 'Show Less' : `Show ${vocabularyData.length - 5} More Students`}
                     </button>
                   </div>
                 )}
@@ -784,27 +910,6 @@ const TutorDashboard = () => {
           </div>
         </div>
       )}
-
-      {/* Show message when no vocabulary data */}
-      {vocabularyData.length === 0 && allStudents.length > 0 && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="card">
-              <div className="card-header">
-                <h5 className="mb-0">Vocabulary Assessment</h5>
-              </div>
-              <div className="card-body">
-                <div className="text-center py-4">
-                  <i className="bi bi-book fs-1 text-muted"></i>
-                  <h6 className="mt-3 text-muted">No Vocabulary Data</h6>
-                  <p className="text-muted">No vocabulary assessment data available for your students yet.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Algebra Scores */}
       {algebraData.length > 0 && (
         <div className="row mb-4">

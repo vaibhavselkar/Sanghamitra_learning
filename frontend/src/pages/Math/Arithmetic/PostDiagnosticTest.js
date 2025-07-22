@@ -1,9 +1,9 @@
-// src/components/PreDiagnosticTest.js
+// src/components/PostDiagnosticTest.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom'; // Add useNavigate import
 
 
-const PreDiagnosticTest = () => {
+const PostDiagnosticTest = () => {
 
   const navigate = useNavigate(); // Add navigation hook
 
@@ -253,7 +253,7 @@ const PreDiagnosticTest = () => {
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
               <div className="col-lg-8">
-                <h1>Pre-Diagnostic Test</h1>
+                <h1>Post-Diagnostic Test</h1>
                 <p className="mb-0">
                   Welcome to our arithmetic Learning Hub. Enhance your arithmetic skills with our comprehensive resources and interactive lessons. 
                   Join our community and embark on an enriching journey towards mastering arithmetic.
@@ -268,7 +268,7 @@ const PreDiagnosticTest = () => {
               <li><a href="../index.html">Home</a></li>
               <li><a href="../math.html">Math</a></li>
               <li><a href="arithmetic.html">Arithmetic</a></li>
-              <li className="current">Pre-Diagnostic Test</li>
+              <li className="current">Post-Diagnostic Test</li>
             </ol>
           </div>
         </nav>
@@ -506,4 +506,4 @@ const PreDiagnosticTest = () => {
   );
 };
 
-export default PreDiagnosticTest;
+export default PostDiagnosticTest;

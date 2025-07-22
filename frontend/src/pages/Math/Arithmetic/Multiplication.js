@@ -9,7 +9,7 @@ const Multiplication = () => {
     <div className="multiplication-container">
       <main className="main">
         {/* Page Title */}
-        <div className="page-title" data-aos="fade" style={{marginBottom: '2rem'}}>
+        <div className="page-title" style={{marginBottom: '2rem'}}>
           <div className="heading">
             <div className="container">
               <div className="row d-flex justify-content-center text-center">

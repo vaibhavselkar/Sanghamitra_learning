@@ -14,6 +14,7 @@ const Arithmetic = () => {
     negativeSigns: 0,
     ratioPercentage: 0,
     decimals: 0,
+    fractions: 0,
   });
 
   useEffect(() => {
@@ -62,6 +63,7 @@ const Arithmetic = () => {
           { id: "dealing-with-negative-sign", total: 34, progressKey: "negativeSigns" },
           { id: "ratio-proportion-percentage", total: 30, progressKey: "ratioPercentage" },
           { id: "decimals", total: 30, progressKey: "decimals" },
+          { id: "fractions", total: 30, progressKey: "fractions" }
 
         ];
 
@@ -112,7 +114,7 @@ const Arithmetic = () => {
       description: "Assess your current arithmetic skills",
       icon: "bi-clipboard-check",
       color: "info",
-      link: "/math/arithmetic/pre-diagnostic-test", // ← UPDATED ROUTE
+      link: "/math/arithmetic/pre-diagnostic-test",
       isTest: true
     },
     {
@@ -161,6 +163,15 @@ const Arithmetic = () => {
       progress: progressData.decimals
     },
     {
+      id: "fractions",
+      title: "Fractions",
+      description: "Understand fractions concepts and methods",
+      icon: "bi-slash",
+      color: "primary",
+      link: "/math/arithmetic/fractions",
+      progress: progressData.fractions
+    },
+    {
       id: "dealingwithnegativesign",
       title: "Dealing With Negative Signs",
       description: "Master positive and negative number operations",
@@ -178,12 +189,30 @@ const Arithmetic = () => {
       link: "/math/arithmetic/ratioproportionpercentage",
       progress: progressData.ratioPercentage
     },
+    {
+      id: "post-diagnostic",
+      title: "PostDiagnosticTest",
+      description: "Assess your current arithmetic skills",
+      icon: "bi-clipboard-check",
+      color: "info",
+      link: "/math/arithmetic/post-diagnostic-test",
+      isTest: true
+    },
+    {
+      id: "arithmetic-assessment",
+      title: "Let's Practice!!!",
+      description: "Sharpen your skills!",
+      icon: "bi-clipboard-check",
+      color: "success",
+      link: "/math/arithmetic/arithmetic-assessment",
+      hideProgress: true // This flag hides progress bar and details
+    }
   ];
 
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" data-aos="fade" style={{ marginBottom: "2rem" }}>
+      <div className="page-title" style={{ marginBottom: "2rem" }}>
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -244,6 +273,7 @@ const Arithmetic = () => {
                     <h4 className="mb-1 fs-5">{course.title}</h4>
                     <p className="text-muted mb-2 fs-6">{course.description}</p>
                     {course.isTest ? (
+                      // Show test status for tests
                       <div id="test-status-container">
                         <span
                           className={`test-status ${
@@ -270,7 +300,11 @@ const Arithmetic = () => {
                           {testStatus}
                         </span>
                       </div>
+                    ) : course.hideProgress ? (
+                      // Show nothing for items with hideProgress flag (Let's Practice)
+                      <div style={{ height: "20px" }}></div>
                     ) : (
+                      // Show progress bar for regular courses
                       <>
                         <div 
                           className="progress" 
@@ -300,7 +334,7 @@ const Arithmetic = () => {
                   <div className="col-lg-4 col-md-4 text-end">
                     <Link
                       to={course.link}
-                      className="btn btn-primary btn-sm"
+                      className={`btn btn-${course.color} btn-sm`}
                       style={{
                         minWidth: "120px",
                         padding: "0.4rem 1rem",
@@ -310,7 +344,10 @@ const Arithmetic = () => {
                         justifyContent: "space-between"
                       }}
                     >
-                      <span>{course.isTest ? "Start Test" : "Continue"}</span>
+                      <span>
+                        {course.isTest ? "Start Test" : 
+                         course.hideProgress ? "Start Practice" : "Continue"}
+                      </span>
                       <i className="bi bi-arrow-right ms-2"></i>
                     </Link>
                   </div>

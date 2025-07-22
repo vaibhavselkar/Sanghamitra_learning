@@ -14,6 +14,8 @@ const { Topic, WritingResponse } = require('../model/writingSchema');
 const FractionQuestion = require('../model/MathData');
 const AlgebraQuestion = require('../model/algebraSchema');
 const AlgebraScores = require('../model/algebraScoreAdd');
+const ArithmeticQuestion = require('../model/arithmetic-questions.schema');
+const ArithmeticScore = require('../model/arithmetic-scores.schema');
 const ReadingPassages = require('../model/readingPassages');
 const RC_Guide = require('../model/readingcomprehensionguide');
 const ReadingComprehensionScore = require('../model/readingcomprehensionscore');
@@ -308,6 +310,84 @@ router.get('/check-auth', (req, res) => {
     } else {
         res.status(200).json({ authenticated: false });
     }
+});
+
+// Get questions by operation type (GET)
+router.get('/arithmeticQuestionsDatabase', async (req, res) => {
+  try {
+    const questions = await ArithmeticQuestion.find({
+        operationType: req.query.operationType
+    }).select('questionText options correctOption explanation difficultyLevel arithmeticCategory coreSkills commonErrors foundationalRequirements gradeLevel');
+    
+    res.json({ questions });
+} catch (error) {
+    res.status(500).json({ error: error.message });
+}
+});
+
+
+// Store arithmetic score
+router.post('/arithmetic-scores', async (req, res) => {
+  try {
+    const scoreData = {
+        userEmail: req.body.userEmail,
+        username: req.body.username,
+        operationType: req.body.operationType,
+        $inc: {
+            totalQuestions: req.body.totalQuestions,
+            correctAnswers: req.body.correctAnswers
+        },
+        $push: {
+            questionsAttempted: {
+                $each: req.body.questionsAttempted
+            }
+        },
+        timeTaken: req.body.timeTaken,
+        $setOnInsert: {
+            weaknesses: [],
+            createdAt: new Date()
+        }
+    };
+
+    const updatedScore = await ArithmeticScore.findOneAndUpdate(
+        { 
+            userEmail: req.body.userEmail,
+            operationType: req.body.operationType 
+        },
+        scoreData,
+        { 
+            upsert: true,
+            new: true,
+            setDefaultsOnInsert: true 
+        }
+    );
+
+    res.status(200).json(updatedScore);
+} catch (error) {
+    res.status(500).json({ error: error.message });
+}
+});
+
+// Get scores for user and operation type
+router.get('/arithmetic-scores', async (req, res) => {
+  try {
+    const scores = await ArithmeticScore.findOne({
+        userEmail: req.query.userEmail,
+        operationType: req.query.operationType
+    }).populate({
+        path: 'questionsAttempted.questionId',
+        select: 'questionText options correctOption explanation'
+    });
+
+    res.json(scores || {
+        questionsAttempted: [],
+        totalQuestions: 0,
+        correctAnswers: 0,
+        timeTaken: 0
+    });
+} catch (error) {
+    res.status(500).json({ error: error.message });
+}
 });
 
 
