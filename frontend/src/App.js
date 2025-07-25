@@ -89,7 +89,7 @@ function App() {
             
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             
-            <Route path="/english/vocabulary" element={<Vocabulary />} />
+            <Route path="/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
             <Route path="/english/vocabulary/guide" element={<VocabularyGuide />} />
             <Route path="/english/vocabulary/main-page" element={<VocabularyEndeavourMain />} />
