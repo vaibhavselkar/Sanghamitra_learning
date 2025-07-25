@@ -59,7 +59,7 @@ const English = () => {
               </div>
             </div>
 
-            {/* Reading Comprehension */}
+          {/* 
             <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={readingComprehensionImg} className="img-fluid" alt="Reading Comprehension" />
@@ -81,7 +81,7 @@ const English = () => {
               </div>
             </div>
 
-            {/* Writing */}
+        
             <div className="col-lg-4 col-md-6 d-flex align-items-stretch mt-4 mt-md-0">
               <div className="course-item">
                 <img src={writingImg} className="img-fluid" alt="Writing" />
@@ -101,8 +101,8 @@ const English = () => {
                   </div>
                 </div>
               </div>
-            </div>
-
+            </div>  */}
+            
           </div>
         </div>
       </section>
