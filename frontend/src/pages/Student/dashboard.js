@@ -836,7 +836,7 @@ const StudentDashboard = () => {
                   </div>
                 </div>
 
-                {/* Full-Width Reading Comprehension Section */}
+                {/* Full-Width Reading Comprehension Section
                 <div className="row">
                   <div className="col-12">
                     <div className="card-custom" style={{
@@ -852,7 +852,7 @@ const StudentDashboard = () => {
                       </div>
                     </div>
                   </div>
-                </div>
+                </div>    */}
                 
                 {/* Modified Programming Progress Section */}
                 <div className="row mt-4">
