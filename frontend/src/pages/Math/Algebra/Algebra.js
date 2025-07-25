@@ -99,15 +99,6 @@ const Algebra = () => {
   }, []);
 
   const courses = [
-     {/*    {
-      id: "pre-diagnostic",
-      title: "PreDiagnosticTest",
-      description: "Assess your current algebra skills",
-      icon: "bi-clipboard-check",
-      color: "info",
-      link: "/math/algebra/pre-diagnostic-test",
-      isTest: true
-    },    */}
     {
       id: "numbertheory",
       title: "NumberTheory",
@@ -125,8 +116,7 @@ const Algebra = () => {
       color: "success",
       link: "/math/algebra/units",
       progress: progressData.Units
-    },
-    
+    },  
   ];
 
   return (
