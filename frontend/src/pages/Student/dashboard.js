@@ -382,14 +382,14 @@ const StudentDashboard = () => {
                 <td>{assessment.assess_topic || 'N/A'}</td>
                 <td>{new Date(assessment.date).toLocaleDateString()}</td>
                 <td>{percentage}%</td>
-                <td>
+                {/*<td>
                   <button 
                     className="btn btn-primary"
                     onClick={() => goToQuizAnalytics(assessment.date)}
                   >
                     Analytics
                   </button>
-                </td>
+                </td> */}
               </tr>
             );
           })}
@@ -580,14 +580,6 @@ const StudentDashboard = () => {
                   <td>{quizDate}</td>
                   <td>{(quiz.score/20*100).toFixed(0)}</td>
                   <td>{passedQuestions}</td>
-                  <td>
-                    <button 
-                      className="btn btn-primary"
-                      onClick={() => viewProgrammingQuiz(quiz._id)}
-                    >
-                      View Details
-                    </button>
-                  </td>
                 </tr>
               );
             })}
