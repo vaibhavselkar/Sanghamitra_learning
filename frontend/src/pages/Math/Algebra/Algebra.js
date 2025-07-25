@@ -99,7 +99,7 @@ const Algebra = () => {
   }, []);
 
   const courses = [
-    {
+     {/*    {
       id: "pre-diagnostic",
       title: "PreDiagnosticTest",
       description: "Assess your current algebra skills",
@@ -107,7 +107,7 @@ const Algebra = () => {
       color: "info",
       link: "/math/algebra/pre-diagnostic-test",
       isTest: true
-    },
+    },    */}
     {
       id: "numbertheory",
       title: "NumberTheory",
