@@ -708,7 +708,7 @@ const StudentDashboard = () => {
             <div className="card shadow-sm mb-4 bg-light">
               <div className="card-header text-black d-flex justify-content-between align-items-center" style={{backgroundColor: '#3498db'}}>
               <div className="classroom-info" style={{ width: '100%', marginTop: '10px' }}>
-                  <h3><strong>Classroom:</strong> {classroomName || 'Not enrolled in any classroom'}</h3>
+                  <h3><strong>Classroom:</strong> {classroomName || 'Personal Classroom'}</h3>
                   
                 </div>
               </div>
