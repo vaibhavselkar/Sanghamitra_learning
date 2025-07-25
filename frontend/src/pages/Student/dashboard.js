@@ -766,7 +766,7 @@ const StudentDashboard = () => {
                       fontSize: '18px',
                       color: '#000000',
                       fontWeight: 'bold'
-                    }}>Current Streak</div>
+                    }}>Current Days Streak</div>
                     <div className="streak-circle" style={{
                       width: '80px',
                       height: '80px',
