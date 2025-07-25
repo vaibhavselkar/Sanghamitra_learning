@@ -107,7 +107,6 @@ const VocabularyEndeavourMain = () => {
               <h2>{cat.title}</h2>
               <div className="buttons">
                 <Link to={`/english/vocabulary/${cat.slug}`}>Learn</Link>
-                <Link to={`/english/vocabulary/${cat.slug}-assess`}>Assess</Link>
               </div>
             </div>
           ))}
