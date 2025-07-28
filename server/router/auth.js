@@ -16,6 +16,8 @@ const AlgebraQuestion = require('../model/algebraSchema');
 const AlgebraScores = require('../model/algebraScoreAdd');
 const ArithmeticQuestion = require('../model/arithmetic-questions.schema');
 const ArithmeticScore = require('../model/arithmetic-scores.schema');
+const MathematicsDiagnosticQuestion = require('../model/mathematicsDiagnosticQuestionsSchema');
+const MathematicsDiagnosticScore = require('../model/mathematicsDiagnosticScoresSchema');
 const ReadingPassages = require('../model/readingPassages');
 const RC_Guide = require('../model/readingcomprehensionguide');
 const ReadingComprehensionScore = require('../model/readingcomprehensionscore');
@@ -371,23 +373,133 @@ router.post('/arithmetic-scores', async (req, res) => {
 // Get scores for user and operation type
 router.get('/arithmetic-scores', async (req, res) => {
   try {
-    const scores = await ArithmeticScore.findOne({
-        userEmail: req.query.userEmail,
-        operationType: req.query.operationType
-    }).populate({
-        path: 'questionsAttempted.questionId',
-        select: 'questionText options correctOption explanation'
+    const { userEmail, operationType } = req.query;
+
+    // Build dynamic query object
+    const query = {};
+    if (userEmail) query.userEmail = userEmail;
+    if (operationType) query.operationType = operationType;
+
+    const scores = await ArithmeticScore.find(query).populate({
+      path: 'questionsAttempted.questionId',
+      select: 'questionText options correctOption explanation'
     });
 
-    res.json(scores || {
-        questionsAttempted: [],
-        totalQuestions: 0,
-        correctAnswers: 0,
-        timeTaken: 0
-    });
-} catch (error) {
+    res.json(scores);
+
+  } catch (error) {
     res.status(500).json({ error: error.message });
-}
+  }
+});
+
+router.get('/mathematicsDiagnosticQuestionsDatabase', async (req, res) => {
+  try {
+    const { 
+      topicArea, 
+      difficulty, 
+      topic, 
+      limit = 60 
+    } = req.query;
+
+    // Build query object - only add filters if provided
+    let query = {};
+    
+    if (topicArea) {
+      query.questionTopicArea = topicArea;
+    }
+    
+    if (difficulty) {
+      query.questionDifficulty = difficulty;
+    }
+    
+    if (topic) {
+      query.questionTopic = topic;
+    }
+
+    // Since no query parameters are sent from React, query = {}
+    // This will fetch ALL questions from the collection
+    const questions = await MathematicsDiagnosticQuestion
+      .find(query)  // Empty query {} fetches all documents
+      .limit(parseInt(limit))
+      .sort({ questionTopic: 1, questionDifficulty: 1, gradeLevel: 1 })
+      .lean();
+
+    if (!questions || questions.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No questions found for the specified criteria' 
+      });
+    }
+
+    console.log(`Fetched ${questions.length} questions for topic area: ${topicArea}`);
+    res.status(200).json(questions);
+
+  } catch (error) {
+    console.error('Error fetching pre-test questions:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error while fetching questions',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// POST route for diagnostic test submissions
+router.post('/mathematicsDiagnosticScores', async (req, res) => {
+  try {    
+    // Log each expected field
+    const expectedFields = [
+      'email', 'username', 'testType', 'topicArea', 'testPhase',
+      'totalQuestions', 'totalCorrect', 'totalScore', 
+      'totalTimeSpent', 'averageTimePerQuestion', 'testDuration',
+      'easyQuestions', 'mediumQuestions', 'hardQuestions', 'topicPerformance'
+    ];
+    
+    expectedFields.forEach(field => {
+      const value = req.body[field];
+      const type = typeof value;
+      const exists = value !== undefined && value !== null;
+    });
+    
+    // Check if all required fields are present
+    const missingFields = expectedFields.filter(field => 
+      req.body[field] === undefined || req.body[field] === null
+    );
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields from frontend',
+        missingFields: missingFields,
+        receivedFields: Object.keys(req.body)
+      });
+    }
+    
+    
+    // Try to create the document
+    const diagnosticScore = new MathematicsDiagnosticScore(req.body);
+    
+    // Log the created document before saving
+    const savedScore = await diagnosticScore.save();
+    res.status(201).json({
+      success: true,
+      message: 'Diagnostic test submitted successfully',
+      data: {
+        _id: savedScore._id,
+        email: savedScore.email,
+        testType: savedScore.testType,
+        totalScore: savedScore.totalScore
+      }
+    });
+    
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: 'Backend processing error',
+      error: error.message,
+      details: error.errors || null
+    });
+  }
 });
 
 
