@@ -12,6 +12,8 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 
+
+
 // Register Chart.js components
 ChartJS.register(
   CategoryScale,
@@ -21,6 +23,7 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
 
 const TutorDashboard = () => {
   const { user, logout } = useAuth();
@@ -46,9 +49,27 @@ const TutorDashboard = () => {
   const [readingComprehensionData, setReadingComprehensionData] = useState([]);
   const [rcTopics, setRcTopics] = useState([]);
   
+  // Programming states
+  const [ctData, setCTData] = useState([]);
+  const [pythonFingerData, setPythonFingerData] = useState([]);
+  const [pythonTopics, setPythonTopics] = useState([]);
+  const [selectedPythonTopic, setSelectedPythonTopic] = useState('');
+  const [diagnosticsData, setDiagnosticsData] = useState([]);
+  
+  //Math states
+  const [arithmeticData, setArithmeticData] = useState([]);
+  const [selectedArithmeticOperation, setSelectedArithmeticOperation] = useState('');
+  const [loadingArithmetic, setLoadingArithmetic] = useState(false);
+
+  const arithmeticOperations = [
+    'addition', 'subtraction', 'multiplication', 
+    'division', 'mixed-operations', 'word-problems'
+  ];
+
   // Chart data states
   const [englishChartData, setEnglishChartData] = useState(null);
   const [algebraChartData, setAlgebraChartData] = useState(null);
+  const [pythonChartData, setPythonChartData] = useState(null);
 
   // Get all students from tutor's classrooms
   const getAllTutorStudents = () => {
@@ -147,8 +168,35 @@ const TutorDashboard = () => {
       // Fetch Reading Comprehension Data
       await fetchReadingComprehensionData(studentEmails);
       
+      // Fetch Programming Data
+      await fetchCTData(studentEmails);
+      await fetchPythonFingerData(studentEmails);
+      await fetchDiagnosticsData(studentEmails);
+
+      // Fetch Arithmetic Data
+      await fetchArithmeticData(studentEmails);
+      
     } catch (error) {
       console.error('Error fetching analytics data:', error);
+    }
+  };
+
+
+  const fetchArithmeticData = async (studentEmails) => {
+    setLoadingArithmetic(true);
+    try {
+      // Use your existing endpoint with optional userEmail filter
+      const url = studentEmails.length > 0
+        ? `http://3.111.49.131:4000/api/arithmetic-scores?${studentEmails.map(email => `userEmail=${email}`).join('&')}`
+        : 'http://3.111.49.131:4000/api/arithmetic-scores';
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      setArithmeticData(data);
+    } catch (error) {
+      console.error('Error fetching arithmetic data:', error);
+    } finally {
+      setLoadingArithmetic(false);
     }
   };
 
@@ -186,71 +234,27 @@ const TutorDashboard = () => {
         let totalQuestions = 0;
         let correctAnswers = 0;
         let lastActivity = "No Activity";
-        
-        // Topic analysis
-        let topicPerformance = {};
-        let topicCounts = {};
-  
+
         if (user.assessments.length > 0) {
           lastActivity = new Date(
             Math.max(...user.assessments.map(a => new Date(a.date)))
           ).toLocaleDateString();
         }
-  
+
         user.assessments.forEach(assessment => {
           totalQuestions += assessment.questions.length;
           correctAnswers += assessment.questions.filter(q => q.is_correct).length;
-          
-          // Process topics
-          assessment.questions.forEach(question => {
-            const topic = question.topic || 'uncategorized';
-            
-            if (!topicPerformance[topic]) {
-              topicPerformance[topic] = {
-                total: 0,
-                correct: 0,
-                percentage: 0
-              };
-            }
-            
-            topicPerformance[topic].total += 1;
-            if (question.is_correct) {
-              topicPerformance[topic].correct += 1;
-            }
-            
-            // Count topic frequency
-            topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-          });
         });
-  
-        // Calculate topic percentages
-        Object.keys(topicPerformance).forEach(topic => {
-          const perf = topicPerformance[topic];
-          perf.percentage = perf.total > 0 ? ((perf.correct / perf.total) * 100).toFixed(1) : 0;
-        });
-  
-        // Get top 3 topics by frequency
-        const topTopics = Object.entries(topicCounts)
-          .sort(([,a], [,b]) => b - a)
-          .slice(0, 3)
-          .map(([topic, count]) => ({
-            name: topic,
-            count: count,
-            performance: topicPerformance[topic]?.percentage || 0
-          }));
-  
+
         let averagePercentage = totalQuestions > 0 ? ((correctAnswers / totalQuestions) * 100).toFixed(2) : "N/A";
-  
+
         return {
           username: user.username,
           lastActivity,
           totalAssessments,
           totalQuestions,
           correctAnswers,
-          averagePercentage,
-          topicPerformance, // Full topic breakdown
-          topTopics, // Top 3 topics
-          totalTopics: Object.keys(topicPerformance).length
+          averagePercentage
         };
       });
       
@@ -259,7 +263,6 @@ const TutorDashboard = () => {
       console.error('Error fetching vocabulary data:', error);
     }
   };
-
 
   const fetchAlgebraData = async (studentEmails) => {
     try {
@@ -346,6 +349,145 @@ const TutorDashboard = () => {
     } catch (error) {
       console.error('Error fetching reading comprehension data:', error);
     }
+  };
+
+  const fetchCTData = async (studentEmails) => {
+    try {
+      const response = await fetch('http://3.111.49.131:4000/api/CT_finger_scores');
+      if (!response.ok) throw new Error('Failed to fetch CT data');
+      
+      const data = await response.json();
+      // Filter data to only include students from tutor's classrooms
+      const filteredData = data.filter(student => 
+        studentEmails.includes(student.email) || studentEmails.includes(student.username)
+      );
+      
+      setCTData(filteredData);
+    } catch (error) {
+      console.error('Error fetching CT data:', error);
+    }
+  };
+
+  const fetchPythonFingerData = async (studentEmails) => {
+    try {
+      const response = await fetch('http://3.111.49.131:4000/api/finger-exercise');
+      if (!response.ok) throw new Error('Failed to fetch Python finger data');
+      
+      const data = await response.json();
+      // Filter data to only include students from tutor's classrooms
+      const filteredData = data.filter(student => 
+        studentEmails.includes(student.email) || studentEmails.includes(student.username)
+      );
+      
+      // Process topics
+      const topics = new Set();
+      const userMap = new Map();
+
+      filteredData.forEach(user => {
+        if (!userMap.has(user.username)) {
+          userMap.set(user.username, {});
+        }
+        
+        user.topics.forEach(topic => {
+          topics.add(topic.topicName);
+          const correct = topic.submissions.filter(s => s.isCorrect).length;
+          const total = topic.submissions.length;
+          
+          userMap.get(user.username)[topic.topicName] = {
+            correct: correct,
+            total: total
+          };
+        });
+      });
+
+      setPythonFingerData(userMap);
+      const topicsArray = Array.from(topics);
+      setPythonTopics(topicsArray);
+      
+      // Set default topic
+      const defaultTopic = topicsArray.includes('python_basics') ? 'python_basics' : topicsArray[0];
+      if (defaultTopic) {
+        setSelectedPythonTopic(defaultTopic);
+        preparePythonChartData(userMap, defaultTopic);
+      }
+    } catch (error) {
+      console.error('Error fetching Python finger data:', error);
+    }
+  };
+
+  const fetchDiagnosticsData = async (studentEmails) => {
+    try {
+      const response = await fetch('http://3.111.49.131:4000/api/programming');
+      if (!response.ok) throw new Error('Failed to fetch diagnostics data');
+      
+      const data = await response.json();
+      // Filter data to only include students from tutor's classrooms
+      const filteredData = data.filter(student => 
+        studentEmails.includes(student.email) || studentEmails.includes(student.username)
+      );
+      
+      const processedData = filteredData.map(user => {
+        const lastAttempt = getLastAttempt(user.quizzes);
+        if (!lastAttempt) return null;
+
+        const totalQuestions = lastAttempt.submissions.length;
+        const score = lastAttempt.score;
+        const successRate = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
+
+        return {
+          username: user.username,
+          lastAttempt: new Date(lastAttempt.datetime).toLocaleDateString(),
+          totalQuestions,
+          score,
+          successRate: successRate.toFixed(1)
+        };
+      }).filter(user => user !== null);
+      
+      setDiagnosticsData(processedData);
+    } catch (error) {
+      console.error('Error fetching diagnostics data:', error);
+    }
+  };
+
+  const getLastAttempt = (quizzes) => {
+    if (!quizzes || quizzes.length === 0) return null;
+    return quizzes.reduce((latest, current) => {
+      const currentDate = new Date(current.datetime);
+      const latestDate = new Date(latest.datetime);
+      return currentDate > latestDate ? current : latest;
+    });
+  };
+
+  const preparePythonChartData = (userMap, selectedTopic) => {
+    const labels = Array.from(userMap.keys());
+    const attemptedData = [];
+    const correctData = [];
+
+    labels.forEach(username => {
+      const stats = userMap.get(username)[selectedTopic] || { correct: 0, total: 0 };
+      attemptedData.push(stats.total);
+      correctData.push(stats.correct);
+    });
+
+    setPythonChartData({
+      labels: labels,
+      datasets: [
+        {
+          label: 'Attempted Questions',
+          data: attemptedData,
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Correct Questions',
+          data: correctData,
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }
+      ]
+    });
   };
 
   const prepareEnglishChartData = (data) => {
@@ -437,6 +579,40 @@ const TutorDashboard = () => {
     });
   };
 
+  // Helper function to calculate user stats
+  const getArithmeticStats = (email) => {
+    const userScores = arithmeticData.filter(score => score.userEmail === email);
+    const totalQuestions = userScores.reduce((sum, score) => sum + score.totalQuestions, 0);
+    const correctAnswers = userScores.reduce((sum, score) => sum + score.correctAnswers, 0);
+    const accuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+  
+    return {
+      totalQuestions,
+      correctAnswers,
+      accuracy,
+      operations: userScores.map(score => ({
+        type: score.operationType,
+        questions: score.totalQuestions,
+        correct: score.correctAnswers,
+        timeTaken: score.timeTaken,
+        date: score.createdAt
+      }))
+    };
+  };
+  
+  const filteredArithmeticData = selectedArithmeticOperation 
+    ? arithmeticData.filter(score => score.operationType === selectedArithmeticOperation)
+    : arithmeticData;
+  
+  const arithmeticUsers = [...new Set(filteredArithmeticData.map(score => score.userEmail))].map(email => {
+    const userData = filteredArithmeticData.find(score => score.userEmail === email);
+    return {
+      email,
+      username: userData?.username || email,
+      ...getArithmeticStats(email)
+    };
+  });
+
   // Handle topic change for algebra chart
   const handleTopicChange = (e) => {
     const topic = e.target.value;
@@ -444,6 +620,21 @@ const TutorDashboard = () => {
     if (topic && algebraData.length > 0) {
       prepareAlgebraChartData(algebraData, topic);
     }
+  };
+
+  // Handle Python topic change
+  const handlePythonTopicChange = (e) => {
+    const topic = e.target.value;
+    setSelectedPythonTopic(topic);
+    if (topic && pythonFingerData.size > 0) {
+      preparePythonChartData(pythonFingerData, topic);
+    }
+  };
+
+  const formatTopicName = (topic) => {
+    return topic.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
   };
 
   // Chart options
@@ -487,6 +678,47 @@ const TutorDashboard = () => {
     }
   };
 
+  const pythonChartOptions = {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: {
+        display: true,
+        text: `Python Performance in ${formatTopicName(selectedPythonTopic)}`
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.dataset.label;
+            const value = context.parsed.x;
+            if (label === 'Correct Questions') {
+              const attempts = context.chart.data.datasets[0].data[context.dataIndex];
+              const percentage = attempts > 0 
+                ? ((value / attempts) * 100).toFixed(1) + '%'
+                : '0%';
+              return `${label}: ${value} (${percentage})`;
+            }
+            return `${label}: ${value}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: { 
+        beginAtZero: true,
+        ticks: {
+          callback: function(value) {
+            return value + ' Q';
+          }
+        }
+      },
+      y: {
+        ticks: { font: { size: 14 }, autoSkip: false }
+      }
+    }
+  };
+
   // Existing functions
   const handleLogout = async () => {
     try {
@@ -498,19 +730,20 @@ const TutorDashboard = () => {
   };
 
   const handleShareInvite = (joinCode) => {
-      const inviteLink = `${window.location.origin}/register?code=${joinCode}`;
-      
-      // Just show the link for manual copying
-      alert(`Share this link with students:\n\n${inviteLink}`);
-      
-      // Also try to copy silently
-      const textArea = document.createElement('textarea');
-      textArea.value = inviteLink;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
+    const inviteLink = `${window.location.origin}/register?code=${joinCode}`;
+    
+    // Just show the link for manual copying
+    alert(`Share this link with students:\n\n${inviteLink}`);
+    
+    // Also try to copy silently
+    const textArea = document.createElement('textarea');
+    textArea.value = inviteLink;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
   };
+
   const handleViewStudents = async (classroomId) => {
     setLoadingStudents(true);
     setError('');
@@ -592,7 +825,7 @@ const TutorDashboard = () => {
         </div>
       )}
 
-      {/* Classrooms Section - Moved to top */}
+      {/* Classrooms Section */}
       <div className="row mb-4">
         <div className="col-12">
           <div className="card">
@@ -631,7 +864,7 @@ const TutorDashboard = () => {
                                 ))}
                               </span>
                             ) : (
-                              <span className="text-muted ms-2">No subjects assigned</span>
+                              <span className="text-muted ms-2">English, Math and Programming</span>
                             )}
                           </p>
                           <div className="d-flex gap-2">
@@ -657,386 +890,586 @@ const TutorDashboard = () => {
               )}
             </div>
           </div>
+
           {/* Student List Modal/View */}
-      {selectedClassroom && (
-        <div className="row mt-4">
-          <div className="col-12">
-            <div className="card">
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
-                  <i className="bi bi-people me-2"></i>Students in {selectedClassroom.name}
-                </h5>
-                <button 
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={handleCloseStudentView}
-                >
-                  <i className="bi bi-x"></i> Close
-                </button>
+          {selectedClassroom && (
+            <div className="row mt-4">
+              <div className="col-12">
+                <div className="card">
+                  <div className="card-header d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">
+                      <i className="bi bi-people me-2"></i>Students in {selectedClassroom.name}
+                    </h5>
+                    <button 
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={handleCloseStudentView}
+                    >
+                      <i className="bi bi-x"></i> Close
+                    </button>
+                  </div>
+                  <div className="card-body">
+                    {loadingStudents ? (
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-primary" role="status">
+                          <span className="visually-hidden">Loading students...</span>
+                        </div>
+                        <p className="mt-2">Loading students...</p>
+                      </div>
+                    ) : studentList.length === 0 ? (
+                      <div className="text-center py-4">
+                        <i className="bi bi-person-plus fs-1 text-muted"></i>
+                        <h6 className="mt-3 text-muted">No Students Enrolled</h6>
+                        <p className="text-muted">Share the join code <strong>{selectedClassroom.joinCode}</strong> to invite students.</p>
+                      </div>
+                    ) : (
+                      <div className="table-responsive">
+                        <table className="table table-hover">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Email</th>
+                              <th>Status</th>
+                              <th>Last Active</th>
+                              <th>Joined Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {studentList.map((student, index) => (
+                              <tr key={student._id || index}>
+                                <td>
+                                  <div className="d-flex align-items-center">
+                                    <div className="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
+                                      <i className="bi bi-person"></i>
+                                    </div>
+                                    <strong>{student.name}</strong>
+                                  </div>
+                                </td>
+                                <td>{student.email}</td>
+                                <td>
+                                  <span className={`badge ${student.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
+                                    {student.status || 'Active'}
+                                  </span>
+                                </td>
+                                <td>{student.lastActive && student.lastActive !== 'Recently' && student.lastActive !== 'Never' ? 
+                                  new Date(student.lastActive).toLocaleDateString('en-GB', {
+                                    year: 'numeric',
+                                    month: 'numeric', 
+                                    day: 'numeric'
+                                  }) : student.lastActive || 'Recently'}</td>
+                                <td>{student.date ? new Date(student.date).toLocaleDateString('en-GB', {
+                                  year: 'numeric',
+                                  month: 'numeric', 
+                                  day: 'numeric'
+                                }) : 'N/A'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="card-body">
-                {loadingStudents ? (
-                  <div className="text-center py-4">
-                    <div className="spinner-border text-primary" role="status">
-                      <span className="visually-hidden">Loading students...</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ENGLISH SECTION */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm" style={{border: '1px solid #d4edda'}}>
+            <div className="card-header text-dark" style={{backgroundColor: '#d4edda', borderBottom: '1px solid #c3e6cb'}}>
+              <h4 className="mb-0">
+                <i className="bi bi-book me-2"></i>English Performance
+              </h4>
+            </div>
+            <div className="card-body">
+              
+              {/* English Diagnostic Chart */}
+              {englishDiagnosticData.length > 0 && englishChartData && (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">English Diagnostic Scores</h5>
+                      </div>
+                      <div className="card-body">
+                        <Bar data={englishChartData} options={englishChartOptions} />
+                      </div>
                     </div>
-                    <p className="mt-2">Loading students...</p>
                   </div>
-                ) : studentList.length === 0 ? (
-                  <div className="text-center py-4">
-                    <i className="bi bi-person-plus fs-1 text-muted"></i>
-                    <h6 className="mt-3 text-muted">No Students Enrolled</h6>
-                    <p className="text-muted">Share the join code <strong>{selectedClassroom.joinCode}</strong> to invite students.</p>
+                </div>
+              )}
+
+              {/* Vocabulary Assessment */}
+              {vocabularyData.length > 0 ? (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Vocabulary Assessment</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="table-responsive">
+                          <table className="table table-striped">
+                            <thead>
+                              <tr>
+                                <th>Username</th>
+                                <th>Last Activity</th>
+                                <th>Total Assessments</th>
+                                <th>Total Questions</th>
+                                <th>Correct Answers</th>
+                                <th>Average Score (%)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {vocabularyData.slice(0, showMoreVocab ? vocabularyData.length : 5).map((user, index) => (
+                                <tr key={index}>
+                                  <td>{user.username}</td>
+                                  <td>{user.lastActivity}</td>
+                                  <td>{user.totalAssessments}</td>
+                                  <td>{user.totalQuestions}</td>
+                                  <td>{user.correctAnswers}</td>
+                                  <td>{user.averagePercentage}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {vocabularyData.length > 5 && (
+                          <div className="text-center">
+                            <button 
+                              className="btn btn-secondary"
+                              onClick={() => setShowMoreVocab(!showMoreVocab)}
+                            >
+                              {showMoreVocab ? 'Show Less' : 'Show More'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="table-responsive">
-                    <table className="table table-hover">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Email</th>
-                          <th>Status</th>
-                          <th>Last Active</th>
-                          <th>Joined Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {studentList.map((student, index) => (
-                          <tr key={student._id || index}>
-                            <td>
-                              <div className="d-flex align-items-center">
-                                <div className="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
-                                  <i className="bi bi-person"></i>
-                                </div>
-                                <strong>{student.name}</strong>
-                              </div>
-                            </td>
-                            <td>{student.email}</td>
-                            <td>
-                              <span className={`badge ${student.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
-                                {student.status || 'Active'}
-                              </span>
-                            </td>
-                            <td>{student.lastActive && student.lastActive !== 'Recently' && student.lastActive !== 'Never' ? 
-                              new Date(student.lastActive).toLocaleDateString('en-GB', {
-                                year: 'numeric',
-                                month: 'numeric', 
-                                day: 'numeric'
-                              }) : student.lastActive || 'Recently'}</td>
-                            <td>{student.date ? new Date(student.date).toLocaleDateString('en-GB', {
-                              year: 'numeric',
-                              month: 'numeric', 
-                              day: 'numeric'
-                            }) : 'N/A'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                </div>
+              ) : allStudents.length > 0 && (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Vocabulary Assessment</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="text-center py-4">
+                          <i className="bi bi-book fs-1 text-muted"></i>
+                          <h6 className="mt-3 text-muted">No Vocabulary Data</h6>
+                          <p className="text-muted">No vocabulary assessment data available for your students yet.</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      )}
-        </div>
       </div>
-       
-      
 
-      {/* Vocabulary Assessment */}
-      {vocabularyData.length > 0 && (
+      {/* MATH SECTION */}
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card">
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
-                  <i className="bi bi-book me-2"></i>Vocabulary Assessment
-                </h5>
-                <small className="text-muted">
-                  {vocabularyData.length} students with vocabulary data
-                </small>
+            <div className="card shadow-sm" style={{border: '1px solid #bee5eb'}}>
+              <div className="card-header text-dark" style={{backgroundColor: '#bee5eb', borderBottom: '1px solid #a6d9e0'}}>
+                <h4 className="mb-0">
+                  <i className="bi bi-calculator me-2"></i>Math Performance
+                </h4>
               </div>
               <div className="card-body">
-                <div className="table-responsive">
-                  <table className="table table-hover">
-                    <thead className="table-light">
-                      <tr>
-                        <th style={{ width: '40px' }}></th>
-                        <th>Username</th>
-                        <th>Last Activity</th>
-                        <th>Assessments</th>
-                        <th>Questions</th>
-                        <th>Correct</th>
-                        <th>Average (%)</th>
-                        <th>Topics Covered</th>
-                        <th>Top Topics</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {vocabularyData.slice(0, showMoreVocab ? vocabularyData.length : 5).map((user, index) => (
-                        <React.Fragment key={index}>
-                          <tr>
-                            <td>
-                              <button
-                                className="btn btn-sm btn-outline-secondary"
-                                onClick={() => {
-                                  const newExpandedRows = new Set(expandedVocabRows);
-                                  if (newExpandedRows.has(index)) {
-                                    newExpandedRows.delete(index);
-                                  } else {
-                                    newExpandedRows.add(index);
-                                  }
-                                  setExpandedVocabRows(newExpandedRows);
-                                }}
-                                title="Show topic breakdown"
-                              >
-                                <i className={`bi bi-chevron-${expandedVocabRows.has(index) ? 'up' : 'down'}`}></i>
-                              </button>
-                            </td>
-                            <td>
-                              <div className="d-flex align-items-center">
-                                <div className="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '32px', height: '32px' }}>
-                                  <i className="bi bi-person"></i>
-                                </div>
-                                <strong>{user.username}</strong>
-                              </div>
-                            </td>
-                            <td>{user.lastActivity}</td>
-                            <td>
-                              <span className="badge bg-info">{user.totalAssessments}</span>
-                            </td>
-                            <td>{user.totalQuestions}</td>
-                            <td>{user.correctAnswers}</td>
-                            <td>
-                              <span className={`fw-bold ${
-                                parseFloat(user.averagePercentage) >= 80 ? 'text-success' :
-                                parseFloat(user.averagePercentage) >= 60 ? 'text-warning' : 'text-danger'
-                              }`}>
-                                {user.averagePercentage}%
-                              </span>
-                            </td>
-                            <td>
-                              <span className="badge bg-secondary">{user.totalTopics} topics</span>
-                            </td>
-                            <td>
-                              <div className="d-flex flex-wrap gap-1">
-                                {user.topTopics.slice(0, 2).map((topic, idx) => (
-                                  <span 
-                                    key={idx} 
-                                    className="badge bg-light text-dark border"
-                                    title={`${topic.count} questions, ${topic.performance}% correct`}
-                                  >
-                                    {topic.name.split('-').map(word => 
-                                      word.charAt(0).toUpperCase() + word.slice(1)
-                                    ).join(' ')}
-                                  </span>
-                                ))}
-                                {user.topTopics.length > 2 && (
-                                  <span className="badge bg-light text-muted border">
-                                    +{user.topTopics.length - 2} more
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                          
-                          {/* Expanded row showing detailed topic breakdown */}
-                          {expandedVocabRows.has(index) && (
-                            <tr>
-                              <td></td>
-                              <td colSpan="8">
-                                <div className="bg-light p-3 rounded">
-                                  <h6 className="mb-3">Topic Performance Breakdown</h6>
-                                  <div className="row">
-                                    {Object.entries(user.topicPerformance)
-                                      .sort(([,a], [,b]) => b.total - a.total)
-                                      .map(([topic, performance]) => (
-                                        <div key={topic} className="col-md-6 col-lg-4 mb-3">
-                                          <div className="card border-0 bg-white">
-                                            <div className="card-body p-3">
-                                              <div className="d-flex justify-content-between align-items-start mb-2">
-                                                <h6 className="card-title mb-1 text-capitalize">
-                                                  {topic.split('-').map(word => 
-                                                    word.charAt(0).toUpperCase() + word.slice(1)
-                                                  ).join(' ')}
-                                                </h6>
-                                                <span className={`badge ${
-                                                  performance.percentage >= 80 ? 'bg-success' :
-                                                  performance.percentage >= 60 ? 'bg-warning' : 'bg-danger'
-                                                }`}>
-                                                  {performance.percentage}%
-                                                </span>
-                                              </div>
-                                              <div className="text-muted small">
-                                                <div>{performance.correct}/{performance.total} correct</div>
-                                                <div className="progress mt-1" style={{ height: '4px' }}>
-                                                  <div 
-                                                    className={`progress-bar ${
-                                                      performance.percentage >= 80 ? 'bg-success' :
-                                                      performance.percentage >= 60 ? 'bg-warning' : 'bg-danger'
-                                                    }`}
-                                                    style={{ width: `${performance.percentage}%` }}
-                                                  ></div>
-                                                </div>
-                                              </div>
-                                            </div>
+                {/* Arithmetic Scores Table */}
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0">Arithmetic Performance</h5>
+                        <select 
+                          className="form-select w-auto"
+                          value={selectedArithmeticOperation}
+                          onChange={(e) => setSelectedArithmeticOperation(e.target.value)}
+                        >
+                          <option value="">All Operations</option>
+                          {arithmeticOperations.map(op => (
+                            <option key={op} value={op}>
+                              {op.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="card-body">
+                        {loadingArithmetic ? (
+                          <div className="text-center py-4">
+                            <div className="spinner-border text-primary" role="status">
+                              <span className="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading arithmetic data...</p>
+                          </div>
+                        ) : (
+                          <div className="table-responsive">
+                            <table className="table table-striped">
+                              <thead>
+                                <tr>
+                                  <th>Student</th>
+                                  <th>Overall Accuracy</th>
+                                  <th>Operations</th>
+                                  <th>Last Activity</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {arithmeticUsers.map((user, index) => (
+                                  <tr key={index}>
+                                    <td>
+                                      <strong>{user.username}</strong>
+                                      <br />
+                                      <small className="text-muted">{user.email}</small>
+                                    </td>
+                                    <td>
+                                      <div className="d-flex align-items-center">
+                                        <span className="me-2">{Math.round(user.accuracy)}%</span>
+                                        <div className="progress flex-grow-1" style={{height: '8px'}}>
+                                          <div 
+                                            className={`progress-bar ${user.accuracy >= 80 ? 'bg-success' : user.accuracy >= 50 ? 'bg-warning' : 'bg-danger'}`}
+                                            style={{ width: `${Math.round(user.accuracy)}%` }}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      {user.operations.map((op, i) => (
+                                        <div key={i} className="mb-2">
+                                          <strong>
+                                            {op.type.split('-').map(w => 
+                                              w.charAt(0).toUpperCase() + w.slice(1)
+                                            ).join(' ')}
+                                          </strong>
+                                          <div className="d-flex align-items-center">
+                                            <i className="bi bi-check-circle-fill text-success me-1"></i>
+                                            <span>{op.correct}/{op.questions}</span>
+                                            <i className="bi bi-clock-fill text-secondary ms-2 me-1"></i>
+                                            <span>{(op.timeTaken / op.questions).toFixed(1)}s/q</span>
                                           </div>
                                         </div>
                                       ))}
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+                                    </td>
+                                    <td>
+                                      {new Date(Math.max(...user.operations.map(op => new Date(op.date)))).toLocaleDateString()}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
-                {vocabularyData.length > 5 && (
-                  <div className="text-center mt-3">
-                    <button 
-                      className="btn btn-outline-secondary"
-                      onClick={() => setShowMoreVocab(!showMoreVocab)}
-                    >
-                      <i className={`bi bi-chevron-${showMoreVocab ? 'up' : 'down'} me-1`}></i>
-                      {showMoreVocab ? 'Show Less' : `Show ${vocabularyData.length - 5} More Students`}
-                    </button>
+                {/* Algebra Scores */}
+              {algebraData.length > 0 ? (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Algebra Scores by Topic</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="mb-3">
+                          <select 
+                            className="form-select"
+                            value={selectedTopic}
+                            onChange={handleTopicChange}
+                          >
+                            <option value="" disabled>Select Topic</option>
+                            {availableTopics.map((topic, index) => (
+                              <option key={index} value={topic}>
+                                {topic.charAt(0).toUpperCase() + topic.slice(1)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {algebraChartData && selectedTopic ? (
+                          <Bar data={algebraChartData} options={algebraChartOptions} />
+                        ) : (
+                          <div className="text-center py-4">
+                            <i className="bi bi-graph-up fs-1 text-muted"></i>
+                            <p className="text-muted mt-3">
+                              {availableTopics.length > 0 ? 'Select a topic to view the chart' : 'Loading topics...'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Algebra Scores */}
-      {algebraData.length > 0 && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="card">
-              <div className="card-header">
-                <h5 className="mb-0">Algebra Scores by Topic</h5>
-              </div>
-              <div className="card-body">
-                <div className="mb-3">
-                  <select 
-                    className="form-select"
-                    value={selectedTopic}
-                    onChange={handleTopicChange}
-                  >
-                    <option value="" disabled>Select Topic</option>
-                    {availableTopics.map((topic, index) => (
-                      <option key={index} value={topic}>
-                        {topic.charAt(0).toUpperCase() + topic.slice(1)}
-                      </option>
-                    ))}
-                  </select>
                 </div>
-                {algebraChartData && selectedTopic ? (
-                  <Bar data={algebraChartData} options={algebraChartOptions} />
-                ) : (
-                  <div className="text-center py-4">
-                    <i className="bi bi-graph-up fs-1 text-muted"></i>
-                    <p className="text-muted mt-3">
-                      {availableTopics.length > 0 ? 'Select a topic to view the chart' : 'Loading topics...'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Show message when no algebra data */}
-      {algebraData.length === 0 && allStudents.length > 0 && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="card">
-              <div className="card-header">
-                <h5 className="mb-0">Algebra Scores by Topic</h5>
-              </div>
-              <div className="card-body">
+              ) : allStudents.length > 0 ? (
                 <div className="text-center py-4">
                   <i className="bi bi-calculator fs-1 text-muted"></i>
-                  <h6 className="mt-3 text-muted">No Algebra Data</h6>
-                  <p className="text-muted">No algebra assessment data available for your students yet.</p>
+                  <h6 className="mt-3 text-muted">No Math Data Available</h6>
+                  <p className="text-muted">No math assessment data available for your students yet.</p>
                 </div>
-              </div>
+              ) : null}
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Reading Comprehension */}
-      {readingComprehensionData.length > 0 && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="card">
-              <div className="card-header">
-                <h5 className="mb-0">Reading Comprehension</h5>
-              </div>
-              <div className="card-body">
-                <div className="table-responsive">
-                  <table className="table table-striped">
-                    <thead>
-                      <tr>
-                        <th>User Email</th>
-                        <th>Total Passages</th>
-                        <th>Overall Score (%)</th>
-                        {rcTopics.map((topic, index) => (
-                          <React.Fragment key={index}>
-                            <th>{topic} (Passages)</th>
-                            <th>{topic} (%)</th>
-                          </React.Fragment>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {readingComprehensionData.map((user, index) => (
-                        <tr key={index}>
-                          <td>{user.email}</td>
-                          <td>{user.totalPassages}</td>
-                          <td>{user.avgOverallScore}%</td>
-                          {rcTopics.map((topic, topicIndex) => (
-                            <React.Fragment key={topicIndex}>
-                              <td>{user.topicScores[topic]?.passages || 0}</td>
-                              <td>{user.topicScores[topic]?.avgScore || 0}</td>
-                            </React.Fragment>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+      {/* PROGRAMMING SECTION */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm" style={{border: '1px solid #fdeaa7'}}>
+            <div className="card-header text-dark" style={{backgroundColor: '#fdeaa7', borderBottom: '1px solid #fce38a'}}>
+              <h4 className="mb-0">
+                <i className="bi bi-code-slash me-2"></i>Programming Performance
+              </h4>
             </div>
-          </div>
-        </div>
-      )}
+            <div className="card-body">
+              
+              {/* Computational Thinking Section */}
+              {ctData.length > 0 ? (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Computational Thinking Foundation Progress</h5>
+                        <small className="text-muted">30 Questions per Topic</small>
+                      </div>
+                      <div className="card-body">
+                        <div className="table-responsive">
+                          <table className="table table-striped">
+                            <thead>
+                              <tr>
+                                <th>Username</th>
+                                <th>CT Foundation<br/><small className="text-muted">(out of 30)</small></th>
+                                <th>CT Foundation 1<br/><small className="text-muted">(out of 30)</small></th>
+                                <th>CT Foundation 2<br/><small className="text-muted">(out of 30)</small></th>
+                                <th>Total Solved<br/><small className="text-muted">(out of 90)</small></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ctData.map((user, index) => {
+                                const topicScores = {
+                                  'CT_foundation': 0,
+                                  'CT_foundation_1': 0,
+                                  'CT_foundation_2': 0
+                                };
 
-      {/* Show message when no reading comprehension data */}
-      {readingComprehensionData.length === 0 && allStudents.length > 0 && (
-        <div className="row mb-4">
-          <div className="col-12">
-            <div className="card">
-              <div className="card-header">
-                <h5 className="mb-0">Reading Comprehension</h5>
-              </div>
-              <div className="card-body">
+                                user.quizzes.forEach(quiz => {
+                                  if (topicScores.hasOwnProperty(quiz.topic)) {
+                                    topicScores[quiz.topic] += quiz.score;
+                                  }
+                                });
+
+                                const totalSolved = Object.values(topicScores).reduce((a, b) => a + b, 0);
+
+                                return (
+                                  <tr key={index}>
+                                    <td>{user.username}</td>
+                                    <td>
+                                      {topicScores.CT_foundation}
+                                      <br/>
+                                      <small className="text-success">
+                                        ({Math.round((topicScores.CT_foundation/30)*100)}%)
+                                      </small>
+                                    </td>
+                                    <td>
+                                      {topicScores['CT_foundation_1']}
+                                      <br/>
+                                      <small className="text-success">
+                                        ({Math.round((topicScores['CT_foundation_1']/30)*100)}%)
+                                      </small>
+                                    </td>
+                                    <td>
+                                      {topicScores['CT_foundation_2']}
+                                      <br/>
+                                      <small className="text-success">
+                                        ({Math.round((topicScores['CT_foundation_2']/30)*100)}%)
+                                      </small>
+                                    </td>
+                                    <td>
+                                      <strong>{totalSolved}</strong>
+                                      <br/>
+                                      <small className="text-success">
+                                        ({Math.round((totalSolved/90)*100)}%)
+                                      </small>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : allStudents.length > 0 && (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Computational Thinking Foundation Progress</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="text-center py-4">
+                          <i className="bi bi-gear fs-1 text-muted"></i>
+                          <h6 className="mt-3 text-muted">No CT Data Available</h6>
+                          <p className="text-muted">No computational thinking data available for your students yet.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Python Finger Exercise Section */}
+              {pythonFingerData.size > 0 ? (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Python Finger Exercise Progress</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="mb-3">
+                          <select 
+                            className="form-select"
+                            value={selectedPythonTopic}
+                            onChange={handlePythonTopicChange}
+                          >
+                            <option value="" disabled>Select Python Topic</option>
+                            {pythonTopics.map((topic, index) => (
+                              <option key={index} value={topic}>
+                                {formatTopicName(topic)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {pythonChartData && selectedPythonTopic ? (
+                          <div style={{ height: '400px' }}>
+                            <Bar data={pythonChartData} options={pythonChartOptions} />
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <i className="bi bi-graph-up fs-1 text-muted"></i>
+                            <p className="text-muted mt-3">
+                              {pythonTopics.length > 0 ? 'Select a topic to view the chart' : 'Loading topics...'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : allStudents.length > 0 && (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Python Finger Exercise Progress</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="text-center py-4">
+                          <i className="bi bi-code fs-1 text-muted"></i>
+                          <h6 className="mt-3 text-muted">No Python Exercise Data Available</h6>
+                          <p className="text-muted">No Python finger exercise data available for your students yet.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Programming Diagnostics Section */}
+              {diagnosticsData.length > 0 ? (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Programming Diagnostic Test Scores</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="table-responsive">
+                          <table className="table table-striped">
+                            <thead>
+                              <tr>
+                                <th>Username</th>
+                                <th>Last Attempt Date</th>
+                                <th>Total Questions</th>
+                                <th>Score</th>
+                                <th>Success Rate</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {diagnosticsData.map((user, index) => (
+                                <tr key={index}>
+                                  <td>{user.username}</td>
+                                  <td>{user.lastAttempt}</td>
+                                  <td>{user.totalQuestions}</td>
+                                  <td>{user.score}</td>
+                                  <td>
+                                    <div className="d-flex align-items-center">
+                                      <span className="me-2">{user.successRate}%</span>
+                                      <div className="progress flex-grow-1" style={{height: '8px'}}>
+                                        <div 
+                                          className="progress-bar" 
+                                          style={{
+                                            width: `${user.successRate}%`,
+                                            backgroundColor: 
+                                              parseFloat(user.successRate) < 40 ? '#dc3545' :
+                                              parseFloat(user.successRate) < 70 ? '#ffc107' : '#28a745'
+                                          }}
+                                        ></div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : allStudents.length > 0 && (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Programming Diagnostic Test Scores</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="text-center py-4">
+                          <i className="bi bi-clipboard-check fs-1 text-muted"></i>
+                          <h6 className="mt-3 text-muted">No Diagnostic Data Available</h6>
+                          <p className="text-muted">No programming diagnostic test data available for your students yet.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show message when no programming data at all */}
+              {ctData.length === 0 && pythonFingerData.size === 0 && diagnosticsData.length === 0 && allStudents.length > 0 && (
                 <div className="text-center py-4">
-                  <i className="bi bi-journal-text fs-1 text-muted"></i>
-                  <h6 className="mt-3 text-muted">No Reading Comprehension Data</h6>
-                  <p className="text-muted">No reading comprehension data available for your students yet.</p>
+                  <i className="bi bi-code-slash fs-1 text-muted"></i>
+                  <h6 className="mt-3 text-muted">No Programming Data Available</h6>
+                  <p className="text-muted">No programming assessment data available for your students yet.</p>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
-      )}
-
-      
+      </div>
     </div>
   );
 };
