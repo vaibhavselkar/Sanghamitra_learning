@@ -5,7 +5,10 @@ import "../../../assets/css/main.css";
 
 const Arithmetic = () => {
   const [userData, setUserData] = useState({ email: null });
-  const [testStatus, setTestStatus] = useState("Loading status...");
+  const [testStatus, setTestStatus] = useState({
+    preTest: "Loading...",
+    postTest: "Loading..."
+  });
   const [progressData, setProgressData] = useState({
     addition: 0,
     subtraction: 0,
@@ -37,22 +40,37 @@ const Arithmetic = () => {
         if (!email) return;
 
         // Fetch test attempts
-        const testResponse = await fetch(
-          `http://3.111.49.131:4000/api/testresponses?email=${encodeURIComponent(email)}&all=true`,
-          { credentials: 'include' }
-        );
-        
-        if (!testResponse.ok) {
-          throw new Error("Failed to fetch test attempts");
-        }
-        
-        const testData = await testResponse.json();
-        const attempts = testData.length;
-        setTestStatus(
-          attempts > 0
-            ? `${attempts} attempt${attempts > 1 ? "s" : ""} completed`
-            : "Not yet attempted"
-        );
+      const testResponse = await fetch(
+        `http://3.111.49.131:4000/api/mathematicsDiagnosticsAnalytics?email=${encodeURIComponent(email)}&topicArea=arithmetic`,
+        { credentials: 'include' }
+      );
+
+      if (!testResponse.ok) {
+        throw new Error("Failed to fetch test attempts");
+      }
+
+      const responseData = await testResponse.json();
+
+      // Extract the actual test data from the response
+      const testData = responseData.data || [];
+
+      // Count pre and post test attempts
+      const preTestAttempts = testData.filter(test => 
+        test.testType === "arithmeticPre"
+      ).length;
+
+      const postTestAttempts = testData.filter(test => 
+        test.testType === "arithmeticPost"
+      ).length;
+
+      setTestStatus({
+        preTest: preTestAttempts > 0
+          ? `${preTestAttempts} attempt${preTestAttempts > 1 ? "s" : ""} completed`
+          : "Not yet attempted",
+        postTest: postTestAttempts > 0
+          ? `${postTestAttempts} attempt${postTestAttempts > 1 ? "s" : ""} completed`
+          : "Not yet attempted"
+      });
 
         // Topic configuration with mapping to progressData keys
         const topics = [
@@ -64,7 +82,6 @@ const Arithmetic = () => {
           { id: "ratio-proportion-percentage", total: 30, progressKey: "ratioPercentage" },
           { id: "decimals", total: 30, progressKey: "decimals" },
           { id: "fractions", total: 30, progressKey: "fractions" }
-
         ];
 
         const progressUpdates = {};
@@ -83,7 +100,6 @@ const Arithmetic = () => {
               const progressPercentage = topic.total > 0 ? 
                 Math.round((attempted / topic.total) * 100) : 0;
               
-              // Use the mapped progressKey instead of the topic id
               progressUpdates[topic.progressKey] = progressPercentage;
             } else {
               progressUpdates[topic.progressKey] = 0;
@@ -100,7 +116,10 @@ const Arithmetic = () => {
         }));
       } catch (error) {
         console.error("Initialization error:", error);
-        setTestStatus("Status unavailable");
+        setTestStatus({
+          preTest: "Status unavailable",
+          postTest: "Status unavailable"
+        });
       }
     };
 
@@ -115,7 +134,8 @@ const Arithmetic = () => {
       icon: "bi-clipboard-check",
       color: "info",
       link: "/math/arithmetic/pre-diagnostic-test",
-      isTest: true
+      isTest: true,
+      testType: "preTest"
     },
     {
       id: "addition",
@@ -196,7 +216,8 @@ const Arithmetic = () => {
       icon: "bi-clipboard-check",
       color: "info",
       link: "/math/arithmetic/post-diagnostic-test",
-      isTest: true
+      isTest: true,
+      testType: "postTest"
     },
     {
       id: "arithmetic-assessment",
@@ -205,14 +226,14 @@ const Arithmetic = () => {
       icon: "bi-clipboard-check",
       color: "success",
       link: "/math/arithmetic/arithmetic-assessment",
-      hideProgress: true // This flag hides progress bar and details
+      hideProgress: true
     }
   ];
 
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" style={{ marginBottom: "2rem" }}>
+      <div className="page-title" data-aos="fade" style={{ marginBottom: "2rem" }}>
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -273,11 +294,10 @@ const Arithmetic = () => {
                     <h4 className="mb-1 fs-5">{course.title}</h4>
                     <p className="text-muted mb-2 fs-6">{course.description}</p>
                     {course.isTest ? (
-                      // Show test status for tests
                       <div id="test-status-container">
                         <span
                           className={`test-status ${
-                            testStatus.includes("completed")
+                            testStatus[course.testType].includes("completed")
                               ? "status-taken"
                               : "status-not-taken"
                           }`}
@@ -286,25 +306,23 @@ const Arithmetic = () => {
                             padding: "0.25rem 0.75rem",
                             borderRadius: "20px",
                             display: "inline-block",
-                            backgroundColor: testStatus.includes("completed")
+                            backgroundColor: testStatus[course.testType].includes("completed")
                               ? "#e7f4e4"
                               : "#f8f9fa",
-                            color: testStatus.includes("completed")
+                            color: testStatus[course.testType].includes("completed")
                               ? "#2a7a1b"
                               : "#6c757d",
-                            border: testStatus.includes("completed")
+                            border: testStatus[course.testType].includes("completed")
                               ? "1px solid #c3e6cb"
                               : "1px solid #dee2e6"
                           }}
                         >
-                          {testStatus}
+                          {testStatus[course.testType]}
                         </span>
                       </div>
                     ) : course.hideProgress ? (
-                      // Show nothing for items with hideProgress flag (Let's Practice)
                       <div style={{ height: "20px" }}></div>
                     ) : (
-                      // Show progress bar for regular courses
                       <>
                         <div 
                           className="progress" 
