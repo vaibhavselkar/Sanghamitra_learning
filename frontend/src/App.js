@@ -26,6 +26,7 @@ import RatioProportionPercentage from "./pages/Math/Arithmetic/RatioProportionPe
 import Fractions from "./pages/Math/Arithmetic/Fractions";
 import Decimals from "./pages/Math/Arithmetic/Decimals";
 import PreDiagnosticTest from './pages/Math/Arithmetic/PreDiagnosticTest';
+import PostDiagnosticTest from './pages/Math/Arithmetic/PostDiagnosticTest';
 import PreDiagnosticResults from './pages/Math/Arithmetic/PreDiagnosticResults';
 import LoginPage from './pages/loginPage';
 import Register from './pages/register';
@@ -115,6 +116,7 @@ function App() {
             <Route path="/math/arithmetic/pre-diagnostic-test" element={<PreDiagnosticTest />} />
             <Route path="/math/arithmetic/pre-diagnostic-results" element={<PreDiagnosticResults />} />
             <Route path="/math/arithmetic/arithmetic-assessment" element={<ArithmeticAssessment />} />
+            <Route path="/math/arithmetic/post-diagnostic-test" element={<PostDiagnosticTest />} />
 
             <Route path="/programming/ct_foundation" element={<CTFoundation1 />} />
             <Route path="/programming/ct-foundation-1" element={<CTFoundation2 />} />
