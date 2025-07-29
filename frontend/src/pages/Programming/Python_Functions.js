@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const PythonFunctions = () => {
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // State management
   const [userInfo, setUserInfo] = useState({ username: null, email: null });
   const [quizState, setQuizState] = useState({
@@ -17,28 +22,32 @@ const PythonFunctions = () => {
     allTestsPassed: false
   });
 
-  // Pyodide instance
-  const [pyodide, setPyodide] = useState(null);
+  // Refs for performance optimization
+  const pyodideRef = useRef(null);
   const [pyodideLoading, setPyodideLoading] = useState(true);
-
-  // Refs for CodeMirror instances
   const codeEditorsRef = useRef([]);
   const quizCodeEditorRef = useRef(null);
+  const executionQueue = useRef([]);
+  const isExecuting = useRef(false);
 
   // Initialize component
   useEffect(() => {
     initializePyodide();
     loadCodeMirror();
+    fetchSessionInfo();
   }, []);
 
-  // Initialize Pyodide with better UX and optimization
+  // Initialize Pyodide with better performance
   const initializePyodide = async () => {
+    if (pyodideRef.current) {
+      setPyodideLoading(false);
+      return;
+    }
+
     try {
-      // Check if Pyodide is already loaded globally
       if (window.pyodide) {
-        setPyodide(window.pyodide);
+        pyodideRef.current = window.pyodide;
         setPyodideLoading(false);
-        console.log('Using existing Pyodide instance');
         return;
       }
 
@@ -46,19 +55,15 @@ const PythonFunctions = () => {
       script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
       script.onload = async () => {
         try {
-          console.log('Loading Pyodide... This may take 15-30 seconds on first load.');
-          
           const pyodideInstance = await window.loadPyodide({
             indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/',
-            fullStdLib: false, // Only load essential packages for faster loading
+            fullStdLib: false,
           });
           
-          // Setup minimal output capture for better performance
           pyodideInstance.runPython(`
 import sys
 from io import StringIO
 
-# Lightweight output capture
 class FastCapture:
     def __init__(self):
         self.stdout = StringIO()
@@ -78,22 +83,18 @@ class FastCapture:
 _capture = FastCapture()
           `);
           
-          // Store globally to reuse across components
+          pyodideRef.current = pyodideInstance;
           window.pyodide = pyodideInstance;
-          setPyodide(pyodideInstance);
           setPyodideLoading(false);
-          console.log('Pyodide loaded successfully!');
         } catch (error) {
           console.error('Error loading Pyodide:', error);
           setPyodideLoading(false);
-          alert('Python interpreter failed to load. Code examples will not work. Please refresh the page to try again.');
         }
       };
       
       script.onerror = () => {
         console.error('Failed to load Pyodide script');
         setPyodideLoading(false);
-        alert('Failed to load Python interpreter. Please check your internet connection and refresh.');
       };
       
       document.head.appendChild(script);
@@ -103,47 +104,26 @@ _capture = FastCapture()
     }
   };
 
-  // Reinitialize editors when content changes
-  useEffect(() => {
-    if (window.CodeMirror && !pyodideLoading) {
-      const timer = setTimeout(() => {
-        initCodeEditors();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [pyodideLoading]);
+  // Optimized CodeMirror initialization
+  const initQuizCodeEditor = useCallback(() => {
+    if (!window.CodeMirror || quizCodeEditorRef.current) return;
 
-  // Update quiz editor when current question changes
-  useEffect(() => {
-    if (quizState.questions.length > 0 && window.CodeMirror && quizCodeEditorRef.current) {
-      const currentQuestion = quizState.questions[quizState.currentQuizIndex];
-      if (currentQuestion) {
-        quizCodeEditorRef.current.setValue('');
-        quizCodeEditorRef.current.setValue(currentQuestion.starter_code || '');
-      }
-    }
-  }, [quizState.currentQuizIndex, quizState.questions]);
+    const quizTextarea = document.getElementById('quiz-code-editor');
+    if (!quizTextarea) return;
 
-  // Cleanup CodeMirror instances on unmount
-  useEffect(() => {
-    return () => {
-      if (quizCodeEditorRef.current) {
-        quizCodeEditorRef.current.toTextArea();
-        quizCodeEditorRef.current = null;
-      }
-      
-      codeEditorsRef.current.forEach(editor => {
-        if (editor && editor.toTextArea) {
-          try {
-            editor.toTextArea();
-          } catch (e) {
-            console.warn('Error cleaning up CodeMirror editor:', e);
-          }
-        }
-      });
-      codeEditorsRef.current = [];
-    };
-  }, []);
+    quizCodeEditorRef.current = window.CodeMirror.fromTextArea(quizTextarea, {
+      mode: "python",
+      theme: "dracula",
+      lineNumbers: true,
+      indentUnit: 4,
+      lineWrapping: true
+    });
+
+    const currentQuestion = quizState.questions[quizState.currentQuizIndex];
+    if (currentQuestion) {
+      quizCodeEditorRef.current.setValue(currentQuestion.starter_code || '');
+    }
+  }, [quizState.questions, quizState.currentQuizIndex]);
 
   // Load CodeMirror library
   const loadCodeMirror = () => {
@@ -154,7 +134,10 @@ _capture = FastCapture()
         const pythonScript = document.createElement('script');
         pythonScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js';
         pythonScript.onload = () => {
-          setTimeout(() => initCodeEditors(), 100);
+          setTimeout(() => {
+            initCodeEditors();
+            initQuizCodeEditor();
+          }, 100);
         };
         document.head.appendChild(pythonScript);
       };
@@ -170,258 +153,96 @@ _capture = FastCapture()
       themeLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.css';
       document.head.appendChild(themeLink);
     } else {
-      setTimeout(() => initCodeEditors(), 100);
+      setTimeout(() => {
+        initCodeEditors();
+        initQuizCodeEditor();
+      }, 100);
     }
   };
 
-  // Initialize CodeMirror editors
+  // Initialize regular code editors
   const initCodeEditors = () => {
     if (!window.CodeMirror) return;
 
-    setTimeout(() => {
-      const textareas = document.querySelectorAll("textarea.codeInput");
-      textareas.forEach((textarea, index) => {
-        if (textarea.style.display === 'none' || textarea.nextSibling?.classList?.contains('CodeMirror')) {
-          return;
-        }
+    const textareas = document.querySelectorAll("textarea.codeInput");
+    textareas.forEach((textarea, index) => {
+      if (textarea.style.display === 'none' || textarea.nextSibling?.classList?.contains('CodeMirror')) {
+        return;
+      }
 
-        const originalValue = textarea.value;
-        
-        const editor = window.CodeMirror.fromTextArea(textarea, {
-          mode: "python",
-          theme: "dracula",
-          lineNumbers: true,
-          indentUnit: 4,
-          matchBrackets: true,
-          viewportMargin: Infinity,
-        });
-
-        editor.setValue(originalValue);
-        editor.setSize("100%", "auto");
-        editor.on("change", function(cm) {
-          let lines = cm.lineCount();
-          let newHeight = Math.min(30 + lines * 20, 200);
-          cm.setSize("100%", newHeight + "px");
-        });
-
-        codeEditorsRef.current[index] = editor;
+      const editor = window.CodeMirror.fromTextArea(textarea, {
+        mode: "python",
+        theme: "dracula",
+        lineNumbers: true,
+        indentUnit: 4,
+        matchBrackets: true,
+        viewportMargin: Infinity,
       });
-    }, 200);
+
+      editor.setValue(textarea.value);
+      editor.setSize("100%", "auto");
+      editor.on("change", function(cm) {
+        let lines = cm.lineCount();
+        let newHeight = Math.min(30 + lines * 20, 200);
+        cm.setSize("100%", newHeight + "px");
+      });
+
+      codeEditorsRef.current[index] = editor;
+    });
   };
 
-  // Initialize quiz code editor with advanced features
-  const initQuizCodeEditor = () => {
-    if (!window.CodeMirror) return;
-    
-    setTimeout(() => {
-      const quizTextarea = document.getElementById('quiz-code-editor');
-      if (quizTextarea && quizTextarea.style.display !== 'none') {
-        if (quizCodeEditorRef.current) {
-          try {
-            quizCodeEditorRef.current.toTextArea();
-          } catch (e) {
-            console.warn('Error cleaning up existing quiz editor:', e);
-          }
-          quizCodeEditorRef.current = null;
-        }
-        
-        const originalValue = quizTextarea.value;
-        
-        try {
-          const editor = window.CodeMirror.fromTextArea(quizTextarea, {
-            mode: "python",
-            theme: "dracula",
-            lineNumbers: false,
-            indentUnit: 4,
-            matchBrackets: true,
-            viewportMargin: Infinity,
-            lineWrapping: true,
-            autoRefresh: true
-          });
-          
-          editor.setValue(originalValue);
-          editor.setSize("100%", "250px");
-          
-          // Add auto-resize functionality
-          editor.on("change", function() {
-            const lines = editor.lineCount();
-            const lineHeight = editor.defaultTextHeight();
-            const padding = 20;
-            const newHeight = Math.max(150, Math.min(600, (lines * lineHeight) + padding));
-            const currentHeight = editor.getScrollInfo().clientHeight;
-            
-            if (Math.abs(currentHeight - newHeight) > 30) {
-              editor.setSize(null, newHeight + 'px');
-            }
-          });
-          
-          quizCodeEditorRef.current = editor;
-          setQuizCodeEditor(editor);
-        } catch (e) {
-          console.error('Error creating quiz editor:', e);
-        }
-      }
-    }, 100);
-  };
+  // Optimized question navigation
+  const goToNextQuestion = useCallback(() => {
+    if (quizState.currentQuizIndex >= quizState.questions.length - 1) return;
 
-  // Optimized Python code execution
-  const executePythonCode = async (code, testCases = null) => {
-    if (!pyodide) {
-      return { 
-        error: 'Python interpreter not loaded yet. Please wait for initialization to complete...',
-        loading: true 
-      };
+    setQuizState(prev => ({
+      ...prev,
+      currentQuizIndex: prev.currentQuizIndex + 1,
+      showOutput: false,
+      showHint: false,
+      showResult: false,
+      output: '',
+      allTestsPassed: false
+    }));
+
+    if (quizCodeEditorRef.current) {
+      const nextQuestion = quizState.questions[quizState.currentQuizIndex + 1];
+      quizCodeEditorRef.current.setValue(nextQuestion.starter_code || '');
     }
+  }, [quizState.questions, quizState.currentQuizIndex]);
 
-    try {
-      // Reset and capture output
-      pyodide.runPython('_capture.reset()');
-      pyodide.runPython('_capture.capture()');
-      
-      let result = { output: '', error: null };
-      
-      try {
-        // Execute the user code
-        const output = pyodide.runPython(code);
-        const capturedOutput = pyodide.runPython('_capture.get_output()');
-        pyodide.runPython('_capture.restore()');
-        
-        // Process output
-        let finalOutput = '';
-        if (capturedOutput && capturedOutput.trim()) {
-          finalOutput = capturedOutput.trim();
-        } else if (output !== undefined && output !== null) {
-          finalOutput = String(output);
-        }
-        
-        result.output = finalOutput;
-        result.raw_output = finalOutput;
-        
-        // Handle test cases if provided (simplified for better performance)
-        if (testCases && testCases.length > 0) {
-          result.results = [];
-          
-          for (let i = 0; i < Math.min(testCases.length, 5); i++) { // Limit to 5 test cases for performance
-            const testCase = testCases[i];
-            try {
-              pyodide.runPython('_capture.reset()');
-              pyodide.runPython('_capture.capture()');
-              
-              const testOutput = pyodide.runPython(code);
-              const testCapturedOutput = pyodide.runPython('_capture.get_output()');
-              pyodide.runPython('_capture.restore()');
-              
-              let actualOutput = '';
-              if (testCapturedOutput && testCapturedOutput.trim()) {
-                actualOutput = testCapturedOutput.trim();
-              } else if (testOutput !== undefined && testOutput !== null) {
-                actualOutput = String(testOutput);
-              }
-              
-              result.results.push({
-                input: testCase.input || {},
-                expected: testCase.expected,
-                output: actualOutput,
-                passed: String(actualOutput).trim() === String(testCase.expected).trim()
-              });
-              
-            } catch (testError) {
-              result.results.push({
-                input: testCase.input || {},
-                expected: testCase.expected,
-                output: `Error: ${testError.message}`,
-                passed: false
-              });
-            }
-          }
-        }
-        
-      } catch (executeError) {
-        pyodide.runPython('_capture.restore()');
-        result.error = executeError.message;
-      }
-      
-      return result;
-      
-    } catch (error) {
-      return { error: error.message };
+  // Previous question navigation
+  const goToPrevQuestion = useCallback(() => {
+    if (quizState.currentQuizIndex <= 0) return;
+
+    setQuizState(prev => ({
+      ...prev,
+      currentQuizIndex: prev.currentQuizIndex - 1,
+      showOutput: false,
+      showHint: false,
+      showResult: false,
+      output: '',
+      allTestsPassed: false
+    }));
+
+    if (quizCodeEditorRef.current) {
+      const prevQuestion = quizState.questions[quizState.currentQuizIndex - 1];
+      quizCodeEditorRef.current.setValue(prevQuestion.starter_code || '');
     }
-  };
+  }, [quizState.questions, quizState.currentQuizIndex]);
 
-  // Run regular code examples with better UX
-  const runCode = async (buttonElement) => {
-    try {
-      const container = buttonElement.closest('.code-body') || buttonElement.parentElement;
-      if (!container) return;
-
-      const codeMirrorElement = container.querySelector('.CodeMirror');
-      if (!codeMirrorElement || !codeMirrorElement.CodeMirror) return;
-
-      const cmInstance = codeMirrorElement.CodeMirror;
-      const code = cmInstance.getValue();
-      
-      let outputDiv = buttonElement.nextElementSibling;
-      if (!outputDiv || !outputDiv.classList.contains('output')) {
-        outputDiv = container.querySelector('.output');
-      }
-      
-      if (!outputDiv) return;
-
-      // Show loading state
-      outputDiv.style.display = "block";
-      buttonElement.disabled = true;
-      buttonElement.textContent = 'Running...';
-
-      if (pyodideLoading) {
-        outputDiv.innerHTML = '<span style="color: #666;">⏳ Waiting for Python interpreter to load... This may take a moment on first visit.</span>';
-        buttonElement.disabled = false;
-        buttonElement.textContent = 'Run Code';
-        return;
-      }
-
-      if (!pyodide) {
-        outputDiv.innerHTML = '<span style="color: #dc3545;">❌ Python interpreter failed to load. Please refresh the page to try again.</span>';
-        buttonElement.disabled = false;
-        buttonElement.textContent = 'Run Code';
-        return;
-      }
-
-      const result = await executePythonCode(code);
-      
-      if (result.loading) {
-        outputDiv.innerHTML = '<span style="color: #666;">⏳ Python interpreter is still loading...</span>';
-      } else if (result.error) {
-        outputDiv.innerHTML = `<span style="color: #dc3545;">❌ Error: ${result.error}</span>`;
-      } else {
-        outputDiv.innerHTML = `<span style="color: #28a745;">✅ Output:</span><br/>${result.output || '<em>Code executed successfully (no output)</em>'}`;
-      }
-      
-      buttonElement.disabled = false;
-      buttonElement.textContent = 'Run Code';
-    } catch (error) {
-      console.error('Error running code:', error);
-      buttonElement.disabled = false;
-      buttonElement.textContent = 'Run Code';
-    }
-  };
-
-  // Quiz functions
+  // Queue-based code execution
   const runQuizCode = async () => {
-    if (!quizCodeEditorRef.current || quizState.questions.length === 0) return;
-    
-    if (pyodideLoading) {
-      setQuizState(prev => ({ ...prev, showOutput: true, output: 'Python interpreter is still loading. Please wait...' }));
+    if (!quizCodeEditorRef.current || isExecuting.current) {
       return;
     }
 
-    const currentQuestion = quizState.questions[quizState.currentQuizIndex];
-    if (!currentQuestion) return;
-
-    const code = quizCodeEditorRef.current.getValue();
-    
+    isExecuting.current = true;
     setQuizState(prev => ({ ...prev, showOutput: true, output: 'Running your code...' }));
     
     try {
+      const currentQuestion = quizState.questions[quizState.currentQuizIndex];
+      const code = quizCodeEditorRef.current.getValue();
       const result = await executePythonCode(code, currentQuestion.test_cases || []);
       
       if (result.error) {
@@ -477,9 +298,170 @@ _capture = FastCapture()
         output: `Error running code: ${error.message}`,
         allTestsPassed: false
       }));
+    } finally {
+      isExecuting.current = false;
+      if (executionQueue.current.length > 0) {
+        const next = executionQueue.current.shift();
+        next();
+      }
     }
   };
 
+  // Execute Python code with fallback to server
+  const executePythonCode = async (code, testCases = null) => {
+    if (!pyodideRef.current) {
+      try {
+        const endpoint = testCases ? 'http://localhost:4000/test' : 'http://localhost:4000/run-python';
+        const payload = testCases ? { code, test_cases: testCases } : { code };
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (serverError) {
+        console.error('Server execution failed:', serverError);
+        return { 
+          error: 'Python interpreter not loaded and server execution failed. Please wait for initialization to complete...',
+          loading: true 
+        };
+      }
+    }
+
+    try {
+      pyodideRef.current.runPython('_capture.reset()');
+      pyodideRef.current.runPython('_capture.capture()');
+      
+      let result = { output: '', error: null };
+      
+      try {
+        const output = pyodideRef.current.runPython(code);
+        const capturedOutput = pyodideRef.current.runPython('_capture.get_output()');
+        pyodideRef.current.runPython('_capture.restore()');
+        
+        let finalOutput = '';
+        if (capturedOutput && capturedOutput.trim()) {
+          finalOutput = capturedOutput.trim();
+        } else if (output !== undefined && output !== null) {
+          finalOutput = String(output);
+        }
+        
+        result.output = finalOutput;
+        result.raw_output = finalOutput;
+        
+        if (testCases && testCases.length > 0) {
+          result.results = [];
+          
+          for (let i = 0; i < Math.min(testCases.length, 5); i++) {
+            const testCase = testCases[i];
+            try {
+              pyodideRef.current.runPython('_capture.reset()');
+              pyodideRef.current.runPython('_capture.capture()');
+              
+              const testOutput = pyodideRef.current.runPython(code);
+              const testCapturedOutput = pyodideRef.current.runPython('_capture.get_output()');
+              pyodideRef.current.runPython('_capture.restore()');
+              
+              let actualOutput = '';
+              if (testCapturedOutput && testCapturedOutput.trim()) {
+                actualOutput = testCapturedOutput.trim();
+              } else if (testOutput !== undefined && testOutput !== null) {
+                actualOutput = String(testOutput);
+              }
+              
+              result.results.push({
+                input: testCase.input || {},
+                expected: testCase.expected,
+                output: actualOutput,
+                passed: String(actualOutput).trim() === String(testCase.expected).trim()
+              });
+              
+            } catch (testError) {
+              result.results.push({
+                input: testCase.input || {},
+                expected: testCase.expected,
+                output: `Error: ${testError.message}`,
+                passed: false
+              });
+            }
+          }
+        }
+        
+      } catch (executeError) {
+        pyodideRef.current.runPython('_capture.restore()');
+        result.error = executeError.message;
+      }
+      
+      return result;
+      
+    } catch (error) {
+      return { error: error.message };
+    }
+  };
+
+  // Run regular code examples
+  const runCode = async (buttonElement) => {
+    try {
+      const container = buttonElement.closest('.code-body') || buttonElement.parentElement;
+      if (!container) return;
+
+      const codeMirrorElement = container.querySelector('.CodeMirror');
+      if (!codeMirrorElement || !codeMirrorElement.CodeMirror) return;
+
+      const cmInstance = codeMirrorElement.CodeMirror;
+      const code = cmInstance.getValue();
+      
+      let outputDiv = buttonElement.nextElementSibling;
+      if (!outputDiv || !outputDiv.classList.contains('output')) {
+        outputDiv = container.querySelector('.output');
+      }
+      
+      if (!outputDiv) return;
+
+      outputDiv.style.display = "block";
+      buttonElement.disabled = true;
+      buttonElement.textContent = 'Running...';
+
+      if (pyodideLoading) {
+        outputDiv.innerHTML = '<span style="color: #666;">⏳ Waiting for Python interpreter to load... This may take a moment on first visit.</span>';
+        buttonElement.disabled = false;
+        buttonElement.textContent = 'Run Code';
+        return;
+      }
+
+      if (!pyodideRef.current) {
+        outputDiv.innerHTML = '<span style="color: #dc3545;">❌ Python interpreter failed to load. Please refresh the page to try again.</span>';
+        buttonElement.disabled = false;
+        buttonElement.textContent = 'Run Code';
+        return;
+      }
+
+      const result = await executePythonCode(code);
+      
+      if (result.loading) {
+        outputDiv.innerHTML = '<span style="color: #666;">⏳ Python interpreter is still loading...</span>';
+      } else if (result.error) {
+        outputDiv.innerHTML = `<span style="color: #dc3545;">❌ Error: ${result.error}</span>`;
+      } else {
+        outputDiv.innerHTML = `<span style="color: #28a745;">✅ Output:</span><br/>${result.output || '<em>Code executed successfully (no output)</em>'}`;
+      }
+      
+      buttonElement.disabled = false;
+      buttonElement.textContent = 'Run Code';
+    } catch (error) {
+      console.error('Error running code:', error);
+      buttonElement.disabled = false;
+      buttonElement.textContent = 'Run Code';
+    }
+  };
+
+  // Submit quiz answer
   const submitQuizAnswer = async () => {
     if (!quizCodeEditorRef.current || quizState.questions.length === 0) return;
 
@@ -501,24 +483,64 @@ _capture = FastCapture()
         isCorrect = true;
       }
 
-      // For demo purposes - in real app, submit to backend
-      // const submitResponse = await fetch('API_ENDPOINT', { ... });
-
-      if (isCorrect) {
-        setQuizState(prev => ({
-          ...prev,
-          answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
-          showResult: true,
-          resultType: 'success',
-          resultMessage: 'Correct! Great job! Your solution is working perfectly.'
-        }));
-      } else {
-        setQuizState(prev => ({
-          ...prev,
-          showResult: true,
-          resultType: 'warning',
-          resultMessage: 'Keep Trying! Your solution is not quite right yet.'
-        }));
+      try {
+        const submitResponse = await fetch('http://localhost:4000/api/finger-exercise/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: userInfo.username,
+            email: userInfo.email,
+            topic: 'python_functions',
+            questionId: currentQuestion.id,
+            userAnswer: userCode,
+            isCorrect
+          })
+        });
+        
+        if (!submitResponse.ok) {
+          throw new Error(`Server responded with status: ${submitResponse.status}`);
+        }
+        
+        const responseData = await submitResponse.json();
+        console.log('Answer submitted successfully to server:', responseData);
+        
+        if (isCorrect) {
+          setQuizState(prev => ({
+            ...prev,
+            answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
+            showResult: true,
+            resultType: 'success',
+            resultMessage: `✅ Correct! Great job! Your solution has been saved to the server. (Question ID: ${currentQuestion.id})`
+          }));
+        } else {
+          setQuizState(prev => ({
+            ...prev,
+            showResult: true,
+            resultType: 'warning',
+            resultMessage: `📝 Keep Trying! Your attempt has been recorded on the server, but it's not quite right yet. (Question ID: ${currentQuestion.id})`
+          }));
+        }
+        
+      } catch (submitError) {
+        console.error('Error submitting to server:', submitError);
+        
+        if (isCorrect) {
+          setQuizState(prev => ({
+            ...prev,
+            answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
+            showResult: true,
+            resultType: 'success',
+            resultMessage: 'Correct! Great job! (Note: Server submission failed, but your answer is correct)'
+          }));
+        } else {
+          setQuizState(prev => ({
+            ...prev,
+            showResult: true,
+            resultType: 'warning',
+            resultMessage: 'Keep Trying! Your solution is not quite right yet. (Note: Server submission failed)'
+          }));
+        }
       }
     } catch (error) {
       setQuizState(prev => ({
@@ -530,82 +552,218 @@ _capture = FastCapture()
     }
   };
 
-  const goToNextQuestion = () => {
-    if (quizState.currentQuizIndex < quizState.questions.length - 1) {
-      const nextIndex = quizState.currentQuizIndex + 1;
+  const toggleQuizHint = () => {
+    setQuizState(prev => ({ ...prev, showHint: !prev.showHint }));
+  };
+
+  // Reset all questions
+  const resetAllQuestions = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/finger-exercise/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: userInfo.email,
+          topic: 'python_functions'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to reset questions: ${response.status}`);
+      }
       
       setQuizState(prev => ({
         ...prev,
-        currentQuizIndex: nextIndex,
+        answeredQuestionIds: [],
+        currentQuizIndex: 0,
         showOutput: false,
         showHint: false,
         showResult: false,
         output: '',
         allTestsPassed: false
       }));
+      
+      await fetchUserAnsweredQuestions(userInfo.email);
+      
+    } catch (error) {
+      console.error('Error resetting questions:', error);
+      alert(`Failed to reset questions: ${error.message}`);
     }
   };
 
-  const toggleQuizHint = () => {
-    setQuizState(prev => ({ ...prev, showHint: !prev.showHint }));
+  // Fetch session information
+  const fetchSessionInfo = async () => {
+    try {
+      const sessionResponse = await fetch('http://localhost:4000/api/session-info', { 
+        credentials: 'include' 
+      });
+      
+      if (sessionResponse.ok) {
+        const sessionData = await sessionResponse.json();
+        setUserInfo({
+          email: sessionData.email,
+          username: sessionData.username
+        });
+        
+        await fetchUserAnsweredQuestions(sessionData.email);
+      } else {
+        setUserInfo({
+          email: 'demo@example.com',
+          username: 'demo_user'
+        });
+        await fetchUserAnsweredQuestions('demo@example.com');
+      }
+    } catch (error) {
+      console.error('Error fetching session info:', error);
+      setUserInfo({
+        email: 'demo@example.com',
+        username: 'demo_user'
+      });
+      await fetchUserAnsweredQuestions('demo@example.com');
+    }
   };
 
-  // Enhanced quiz system with better functionality
-  const [quizCodeEditor, setQuizCodeEditor] = useState(null);
-
-  // Mock quiz data for demo - enhanced for functions with more comprehensive examples
-  const mockQuestions = [
-    {
-      id: 1,
-      title: "Simple Function",
-      description: "Write a function called 'greet' that takes a name parameter and prints 'Hello, [name]!'",
-      starter_code: "def greet(name):\n    # Write your code here\n    pass\n\n# Test your function\ngreet('Alice')",
-      hint: "Use print() inside the function and concatenate strings with +",
-      test_cases: [
-        { input: { name: "Alice" }, expected: "Hello, Alice!" }
-      ]
-    },
-    {
-      id: 2,
-      title: "Function with Return",
-      description: "Write a function called 'add_numbers' that takes two parameters and returns their sum.",
-      starter_code: "def add_numbers(a, b):\n    # Write your code here\n    pass\n\n# Test your function\nresult = add_numbers(5, 3)\nprint(result)",
-      hint: "Use the 'return' keyword to return the sum of a and b",
-      test_cases: [
-        { input: { a: 5, b: 3 }, expected: "8" }
-      ]
-    },
-    {
-      id: 3,
-      title: "Default Parameters",
-      description: "Write a function called 'power' that calculates base^exponent. The exponent should default to 2.",
-      starter_code: "def power(base, exponent=2):\n    # Write your code here\n    pass\n\n# Test your function\nprint(power(3))\nprint(power(3, 4))",
-      hint: "Use ** for exponentiation and set exponent=2 as the default parameter",
-      test_cases: [
-        { input: {}, expected: "9\n81" }
-      ]
-    },
-    {
-      id: 4,
-      title: "Advanced Function",
-      description: "Write a function called 'calculate_average' that takes a list of numbers and returns the average.",
-      starter_code: "def calculate_average(numbers):\n    # Write your code here\n    pass\n\n# Test your function\nscores = [85, 90, 78, 92, 88]\nprint(calculate_average(scores))",
-      hint: "Use sum(numbers) / len(numbers) to calculate the average",
-      test_cases: [
-        { input: { numbers: [85, 90, 78, 92, 88] }, expected: "86.6" }
-      ]
+  // Fetch user's answered questions
+  const fetchUserAnsweredQuestions = async (email) => {
+    try {
+      if (!email) {
+        await initPracticeQuiz([]);
+        return;
+      }
+      
+      const response = await fetch(`http://localhost:4000/api/finger-exercise?email=${email}&topic=python_functions`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        await initPracticeQuiz([]);
+        return;
+      }
+      
+      const answeredData = await response.json();
+      
+      const answeredIds = (answeredData.submissions || [])
+        .map(sub => String(sub.questionId));
+      
+      setQuizState(prev => ({ ...prev, answeredQuestionIds: answeredIds }));
+      await initPracticeQuiz(answeredIds);
+      
+    } catch (error) {
+      console.error('Error fetching user answered questions:', error);
+      await initPracticeQuiz([]);
     }
-  ];
+  };
 
-  useEffect(() => {
-    setQuizState(prev => ({
-      ...prev,
-      questions: mockQuestions,
-      isLoading: false
-    }));
-    
-    setTimeout(() => initQuizCodeEditor(), 500);
-  }, []);
+  // Initialize practice quiz
+  const initPracticeQuiz = async (answeredIds) => {
+    try {
+      setQuizState(prev => ({ ...prev, isLoading: true }));
+      
+      const response = await fetch('http://localhost:4000/api/finger-questions?topic=python_functions', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch questions: ${response.status}`);
+      }
+      
+      const allQuestions = await response.json();
+      
+      const answeredSet = new Set(answeredIds);
+      const unansweredQuestions = allQuestions.filter(q => 
+        !answeredSet.has(String(q.id))
+      );
+      
+      setQuizState(prev => ({
+        ...prev,
+        questions: unansweredQuestions,
+        isLoading: false
+      }));
+      
+      if (unansweredQuestions.length > 0) {
+        setTimeout(() => initQuizCodeEditor(), 500);
+      }
+    } catch (error) {
+      console.error('Error initializing practice quiz:', error);
+      
+      const mockQuestions = [
+        {
+          id: 1,
+          title: "Simple Function",
+          description: "Write a function called 'greet' that takes a name parameter and prints 'Hello, [name]!'",
+          starter_code: "def greet(name):\n    # Write your code here\n    pass\n\n# Test your function\ngreet('Alice')",
+          hint: "Use print() inside the function and concatenate strings with +",
+          test_cases: [
+            { input: { name: "Alice" }, expected: "Hello, Alice!" }
+          ]
+        },
+        {
+          id: 2,
+          title: "Function with Return",
+          description: "Write a function called 'add_numbers' that takes two parameters and returns their sum.",
+          starter_code: "def add_numbers(a, b):\n    # Write your code here\n    pass\n\n# Test your function\nresult = add_numbers(5, 3)\nprint(result)",
+          hint: "Use the 'return' keyword to return the sum of a and b",
+          test_cases: [
+            { input: { a: 5, b: 3 }, expected: "8" }
+          ]
+        },
+        {
+          id: 3,
+          title: "Default Parameters",
+          description: "Write a function called 'power' that calculates base^exponent. The exponent should default to 2.",
+          starter_code: "def power(base, exponent=2):\n    # Write your code here\n    pass\n\n# Test your function\nprint(power(3))\nprint(power(3, 4))",
+          hint: "Use ** for exponentiation and set exponent=2 as the default parameter",
+          test_cases: [
+            { input: {}, expected: "9\n81" }
+          ]
+        },
+        {
+          id: 4,
+          title: "Advanced Function",
+          description: "Write a function called 'calculate_average' that takes a list of numbers and returns the average.",
+          starter_code: "def calculate_average(numbers):\n    # Write your code here\n    pass\n\n# Test your function\nscores = [85, 90, 78, 92, 88]\nprint(calculate_average(scores))",
+          hint: "Use sum(numbers) / len(numbers) to calculate the average",
+          test_cases: [
+            { input: { numbers: [85, 90, 78, 92, 88] }, expected: "86.6" }
+          ]
+        },
+        {
+          id: 5,
+          title: "String Function",
+          description: "Write a function called 'reverse_string' that takes a string and returns it reversed.",
+          starter_code: "def reverse_string(text):\n    # Write your code here\n    pass\n\n# Test your function\nprint(reverse_string('hello'))",
+          hint: "Use slicing with [::-1] to reverse a string",
+          test_cases: [
+            { input: { text: "hello" }, expected: "olleh" }
+          ]
+        },
+        {
+          id: 6,
+          title: "List Function",
+          description: "Write a function called 'find_max' that takes a list of numbers and returns the maximum value.",
+          starter_code: "def find_max(numbers):\n    # Write your code here\n    pass\n\n# Test your function\nprint(find_max([3, 7, 2, 9, 1]))",
+          hint: "Use the max() function or write a loop to compare values",
+          test_cases: [
+            { input: { numbers: [3, 7, 2, 9, 1] }, expected: "9" }
+          ]
+        }
+      ];
+      
+      const answeredSet = new Set(answeredIds);
+      const unansweredQuestions = mockQuestions.filter(q => !answeredSet.has(String(q.id)));
+      
+      setQuizState(prev => ({
+        ...prev,
+        questions: unansweredQuestions,
+        isLoading: false
+      }));
+      
+      if (unansweredQuestions.length > 0) {
+        setTimeout(() => initQuizCodeEditor(), 500);
+      }
+    }
+  };
 
   const currentQuestion = quizState.questions[quizState.currentQuizIndex];
 
@@ -617,8 +775,6 @@ _capture = FastCapture()
           line-height: 1.6;
           color: #333;
         }
-
-        
 
         .loading-indicator {
           background: #fff3cd;
@@ -938,31 +1094,12 @@ _capture = FastCapture()
           display: flex;
         }
 
-        .gap-2 {
-          gap: 0.5rem;
-        }
-
         .justify-content-between {
           justify-content: space-between;
         }
 
         .align-items-center {
           align-items: center;
-        }
-
-        .ms-2 {
-          margin-left: 0.5rem;
-        }
-
-        .btn-info {
-          color: #fff;
-          background-color: #17a2b8;
-          border-color: #17a2b8;
-        }
-
-        .btn-info:hover {
-          background-color: #138496;
-          border-color: #117a8b;
         }
 
         .badge {
@@ -992,10 +1129,6 @@ _capture = FastCapture()
           width: 100%;
         }
 
-        .col-lg-10 {
-          width: 83.33%;
-        }
-
         .col-md-6 {
           flex: 1;
           min-width: 300px;
@@ -1018,10 +1151,6 @@ _capture = FastCapture()
           .col-md-6 {
             min-width: 100%;
           }
-
-          .col-lg-10 {
-            width: 100%;
-          }
         }
       `}</style>
 
@@ -1031,9 +1160,8 @@ _capture = FastCapture()
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
               <div className="col-lg-8">
-                <h1>Python Functions</h1>
-                <p className="mb-0">Master modular programming with reusable functions</p>
-                
+                <h1>Python Functions </h1>
+                <p className="mb-0">Master modular programming by breaking problems into reusable, organized, and testable functions.</p>
               </div>
             </div>
           </div>
@@ -1049,295 +1177,483 @@ _capture = FastCapture()
         </nav>
       </div>
 
-      {/* Main Content */}
-      <section className="guide-content">
-        <div className="container">
-          <div className="row justify-content-center">
-            <div className="col-lg-10">
+      {/* Functions Introduction */}
+      <div className="container">
+        <div className="section">
+          <h2><i className="bi bi-gear"></i> Introduction to Functions</h2>
+          
+          <div className="flowchart-example">
+            <h4><i className="bi bi-lightbulb"></i> Computational Thinking Principle</h4>
+            <p>Functions enable decomposition, abstraction, and pattern recognition in programming</p>
+            
+            <h4><i className="bi bi-check-circle"></i> Function Advantages</h4>
+            <ul>
+              <li>Code reusability and modularity</li>
+              <li>Easier debugging and maintenance</li>
+              <li>Better code organization</li>
+            </ul>
+        
+            <h4><i className="bi bi-globe"></i> Real-Life Examples</h4>
+            <ul>
+              <li>Calculator operations (add, subtract, multiply)</li>
+              <li>ATM functions (withdraw, deposit, check balance)</li>
+              <li>Kitchen appliances (blend, chop, mix)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
-              {/* Introduction Section */}
-              <div className="section">
-                <h2><i className="bi bi-gear"></i> Introduction to Functions</h2>
-                <div className="flowchart-example">
-                  <h4><i className="bi bi-lightbulb"></i> Key Benefits</h4>
-                  <ul>
-                    <li>Reduce code redundancy</li>
-                    <li>Improve readability</li>
-                    <li>Enable modular programming</li>
-                  </ul>
+      {/* Function Structure */}
+      <div className="container">
+        <div className="section">
+          <h2><i className="bi bi-diagram-3"></i> Function Structure & Syntax</h2>
+          
+          <div className="row">
+            <div className="col-md-6">
+              <div className="flowchart-example">
+                <h4><i className="bi bi-code-square"></i> Basic Function Syntax</h4>
+                <pre><code>def function_name(parameters):
+    """Optional docstring"""
+    # Function body
+    return result  # Optional</code></pre>
+            
+                <h4><i className="bi bi-list-ol"></i> Function Creation Steps</h4>
+                <ol>
+                  <li>Define with <code>def</code> keyword</li>
+                  <li>Name the function descriptively</li>
+                  <li>Add parameters in parentheses</li>
+                  <li>Write function body with indentation</li>
+                  <li>Return result (optional)</li>
+                </ol>
+              </div>
+            </div>
+            
+            <div className="col-md-6">
+              <div className="exercise-container">
+                <div className="exercise-title">Exercise 1: Simple Function</div>
+                <p>Create a basic greeting function:</p>
+                <div className="explanation">
+                  <div className="code-body">
+                    <textarea className="codeInput" defaultValue={`def greet(name):
+    print("Hello, " + name + "!")
 
-                  <h4><i className="bi bi-lightbulb"></i> Computational Thinking Principle</h4>
-                  <p>Using functions is a key part of Computational Thinking—they help us organize our code by breaking tasks into smaller parts (decomposition) and by focusing on what a part does without worrying about how it works (abstraction).</p>
-
-                  <h4><i className="bi bi-cup-hot"></i> Real-Life Examples</h4>
-                  <ul>
-                    <li>Coffee machine workflow</li>
-                    <li>ATM transaction processing</li>
-                    <li>Calculator operations</li>
-                  </ul>
+# Call the function
+greet("Alice")
+greet("Bob")`}></textarea>
+                    <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                    <div className="output"></div>
+                  </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              {/* Function Structure */}
-              <div className="section">
-                <h2><i className="bi bi-diagram-3"></i> Function Structure</h2>
-                <div className="flowchart-example">
-                  <h4><i className="bi bi-shuffle"></i> Flowchart Representation</h4>
-                  <ol>
-                    <li>Define function with meaningful name</li>
-                    <li>Declare parameters (inputs)</li>
-                    <li>Implement logic</li>
-                    <li>Return output (optional)</li>
-                    <li>Call function when needed</li>
-                  </ol>
-                </div>
-              </div>
-
-              {/* Function Implementation */}
-              <div className="container guide-content">
-                <div className="section">
-                  <h2><i className="bi bi-code-square"></i> Function Implementation</h2>
-                  
-                  <div className="row">
-                    <div className="col-md-6">
-                      <div className="flowchart-example">
-                        <h4><i className="bi bi-code-square"></i> Simple Function</h4>
-                        <div className="explanation">
-                          <div className="code-body">
-                            <textarea className="codeInput" defaultValue={`def greet(name):
-    print("Hello, " + name)
-
-greet("Alice")  # Output: Hello, Alice`}></textarea>
-                            <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                            <div className="output"></div>
-                          </div>
-                        </div>    
-                      </div>
-                    </div>
-                    
-                    <div className="col-md-6">
-                      <div className="flowchart-example">
-                        <h4><i className="bi bi-arrow-return-right"></i> Return Values</h4>
-                        <div className="explanation">
-                          <div className="code-body">
-                            <textarea className="codeInput" defaultValue={`def add(a, b):
+      {/* Function Types */}
+      <div className="container">
+        <div className="section">
+          <h2><i className="bi bi-collection"></i> Function Types</h2>
+          
+          <div className="row">
+            <div className="col-md-6">
+              <div className="flowchart-example">
+                <h4><i className="bi bi-arrow-return-left"></i> Functions with Return Values</h4>
+                
+                <div className="exercise-container">
+                  <div className="exercise-title">Exercise 2: Function with Return</div>
+                  <p>Create a function that returns a calculated result:</p>
+                  <div className="explanation">
+                    <div className="code-body">
+                      <textarea className="codeInput" defaultValue={`def add_numbers(a, b):
     return a + b
 
-result = add(5, 3)
-print(result)  # Output: 8`}></textarea>
-                            <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                            <div className="output"></div>
-                          </div>
-                        </div>
-                      </div>
+# Use the returned value
+result = add_numbers(5, 3)
+print("5 + 3 =", result)
+print("10 + 15 =", add_numbers(10, 15))`}></textarea>
+                      <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                      <div className="output"></div>
                     </div>
                   </div>
-
-                  <div className="flowchart-example">
-                    <h4><i className="bi bi-gear-wide-connected"></i> Default Parameters</h4>
-                    <p>Default parameters allow functions to be called with fewer arguments than defined. If an argument isn't provided, the default value is used.</p>
-                    <div className="explanation">
-                      <div className="code-body">
-                        <textarea className="codeInput" defaultValue={`def power(base, exponent=2):
+                </div>
+              </div>
+            </div>
+            
+            <div className="col-md-6">
+              <div className="flowchart-example">
+                <h4><i className="bi bi-sliders"></i> Functions with Default Parameters</h4>
+                
+                <div className="exercise-container">
+                  <div className="exercise-title">Exercise 3: Default Parameters</div>
+                  <p>Functions can have default values for parameters:</p>
+                  <div className="explanation">
+                    <div className="code-body">
+                      <textarea className="codeInput" defaultValue={`def power(base, exponent=2):
     return base ** exponent
 
-print(power(3))    # 9
-print(power(3, 4)) # 81`}></textarea>
-                        <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                        <div className="output"></div>
-                      </div>
+print("3^2 =", power(3))        # Uses default
+print("3^4 =", power(3, 4))     # Uses provided value
+print("2^3 =", power(2, 3))`}></textarea>
+                      <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                      <div className="output"></div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              {/* Best Practices */}
-              <div className="section">
-                <h2><i className="bi bi-pencil"></i> Best Practices</h2>
-                
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="flowchart-example">
-                      <h4><i className="bi bi-check-lg text-success"></i> Descriptive Naming</h4>
-                      <pre><code>{`def calculate_area(width, height):
-    return width * height`}</code></pre>
-                    </div>
-                  </div>
-                  
-                  <div className="col-md-6">
-                    <div className="flowchart-example">
-                      <h4><i className="bi bi-x-lg text-danger"></i> Non-descriptive Naming</h4>
-                      <pre><code>{`def ca(w, h):
-    return w * h`}</code></pre>
-                    </div>
-                  </div>
-                </div>
+      {/* Best Practices */}
+      <div className="container">
+        <div className="section">
+          <h2><i className="bi bi-star"></i> Best Practices</h2>
+          
+          <div className="row">
+            <div className="col-md-6">
+              <div className="flowchart-example">
+                <h4><i className="bi bi-check-lg text-success"></i> Good Function Design</h4>
+                <pre><code>{`def calculate_area(width, height):
+    """Calculate rectangle area"""
+    return width * height
+
+def is_even(number):
+    """Check if number is even"""
+    return number % 2 == 0`}</code></pre>
+                <p><strong>Good:</strong> Clear names, single purpose, documented</p>
               </div>
+            </div>
+            
+            <div className="col-md-6">
+              <div className="flowchart-example">
+                <h4><i className="bi bi-x-lg text-danger"></i> Poor Function Design</h4>
+                <pre><code>{`def calc(w, h):
+    return w * h
 
-              {/* Examples Section */}
-              <div className="section">
-                <h2><i className="bi bi-code-slash"></i> Function Examples</h2>
-                
-                <div className="flowchart-example">
-                  <h4><i className="bi bi-1-circle"></i> Example 1: Temperature Converter</h4>
-                  <div className="explanation">
-                    <div className="code-body">
-                      <textarea className="codeInput" defaultValue={`def celsius_to_fahrenheit(celsius):
+def func(x):
+    if x % 2 == 0:
+        return True
+    else:
+        return False`}</code></pre>
+                <p><strong>Bad:</strong> Unclear names, no documentation, verbose</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flowchart-example mt-3">
+            <h4><i className="bi bi-lightbulb"></i> Function Design Principles</h4>
+            <ul>
+              <li><strong>Single Responsibility:</strong> One function, one task</li>
+              <li><strong>Descriptive Names:</strong> Clear purpose from name</li>
+              <li><strong>Meaningful Parameters:</strong> Self-explanatory parameter names</li>
+              <li><strong>Return vs Print:</strong> Return values for reusability</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Function Examples Section */}
+{/* Function Examples Section */}
+<div className="container">
+  <div className="section">
+    <h2><i className="bi bi-trophy"></i> Function Examples</h2>
+    
+    {/* Temperature Converter Example */}
+    <div className="flowchart-example">
+      <h4><i className="bi bi-thermometer-half"></i> Temperature Converter</h4>
+      <div className="exercise-container">
+        <div className="exercise-title">Celsius to Fahrenheit Conversion</div>
+        <div className="explanation">
+          <p>This example shows two functions that convert between Celsius and Fahrenheit:</p>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`def celsius_to_fahrenheit(celsius):
+    """Convert Celsius to Fahrenheit"""
     return (celsius * 9/5) + 32
 
-temp_c = 25
-temp_f = celsius_to_fahrenheit(temp_c)
-print(temp_c, "Celsius is", temp_f, "Fahrenheit")`}></textarea>
-                      <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                      <div className="output"></div>
-                    </div>
-                  </div>
-              
-                  <h4><i className="bi bi-2-circle"></i> Example 2: String Repeater</h4>
-                  <div className="explanation">
-                    <div className="code-body">
-                      <textarea className="codeInput" defaultValue={`def repeat_string(text, times=3):
-    return text * times
+def fahrenheit_to_celsius(fahrenheit):
+    """Convert Fahrenheit to Celsius"""
+    return (fahrenheit - 32) * 5/9
 
-print(repeat_string("Hello "))
-print(repeat_string("Python ", 5))`}></textarea>
-                      <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                      <div className="output"></div>
-                    </div>
-                  </div>
-              
-                  <h4><i className="bi bi-3-circle"></i> Example 3: List Average</h4>
-                  <div className="explanation">
-                    <div className="code-body">
-                      <textarea className="codeInput" defaultValue={`def calculate_average(numbers):
+# Test the functions
+print("25°C =", celsius_to_fahrenheit(25), "°F")
+print("77°F =", fahrenheit_to_celsius(77), "°C")`}></textarea>
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* String Manipulation Example */}
+    <div className="flowchart-example">
+      <h4><i className="bi bi-textarea-t"></i> String Manipulation</h4>
+      <div className="exercise-container">
+        <div className="exercise-title">String Analysis Functions</div>
+        <div className="explanation">
+          <p>These functions perform operations on strings:</p>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`def count_vowels(text):
+    """Count vowels in a string"""
+    vowels = "aeiouAEIOU"
+    count = 0
+    for char in text:
+        if char in vowels:
+            count += 1
+    return count
+
+def reverse_string(text):
+    """Reverse a string"""
+    return text[::-1]
+
+# Test the functions
+message = "Hello World"
+print("Vowel count:", count_vowels(message))
+print("Reversed:", reverse_string(message))`}></textarea>
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* List Processing Example */}
+    <div className="flowchart-example">
+      <h4><i className="bi bi-list-ol"></i> List Processing</h4>
+      <div className="exercise-container">
+        <div className="exercise-title">List Analysis Functions</div>
+        <div className="explanation">
+          <p>Functions that operate on lists of numbers:</p>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`def calculate_average(numbers):
+    """Calculate average of numbers"""
+    if not numbers:
+        return 0
     return sum(numbers) / len(numbers)
 
-scores = [85, 90, 78, 92, 88]
-print("Average score:", calculate_average(scores))`}></textarea>
-                      <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                      <div className="output"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+def find_max(numbers):
+    """Find maximum value"""
+    if not numbers:
+        return None
+    max_num = numbers[0]
+    for num in numbers:
+        if num > max_num:
+            max_num = num
+    return max_num
 
-              {/* Practice Quiz Section */}
-              <div className="row d-flex justify-content-center">
-                <div className="col-lg-12">
-                  <div className="card">
-                    <div className="card-header bg-success text-white">
-                      <h3><i className="bi bi-question-circle"></i> Practice Quiz</h3>
-                      <p className="mb-0">Test your Python skills with interactive exercises</p>
+# Test the functions
+grades = [85, 90, 78, 92, 88]
+print("Average:", calculate_average(grades))
+print("Highest:", find_max(grades))`}></textarea>
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Word Frequency Example */}
+    <div className="flowchart-example">
+      <h4><i className="bi bi-card-text"></i> Word Frequency</h4>
+      <div className="exercise-container">
+        <div className="exercise-title">Text Analysis Function</div>
+        <div className="explanation">
+          <p>This function counts how often each word appears in text:</p>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`def word_frequency(text):
+    """Count word occurrences"""
+    words = text.lower().split()
+    freq = {}
+    for word in words:
+        freq[word] = freq.get(word, 0) + 1
+    return freq
+
+# Test the function
+text = "This is a test. This is only a test."
+result = word_frequency(text)
+for word, count in result.items():
+    print(f"{word}: {count}")`}></textarea>
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      {/* Practice Quiz Section */}
+      <div className="container">
+        <div className="section">
+          <div className="row d-flex justify-content-center">
+            <div className="col-lg-12">
+              <div className="card">
+                <div className="card-header bg-success text-white">
+                  <h3><i className="bi bi-question-circle"></i> Practice Quiz</h3>
+                  <p className="mb-0">Test your Python functions knowledge with interactive exercises</p>
+                  
+                </div>
+                <div className="card-body">
+                  {pyodideLoading && (
+                    <div className="alert alert-info">
+                      <div className="spinner-border spinner-border-sm me-2"></div>
+                      Loading Python interpreter (this may take 20-30 seconds on first load)...
                     </div>
-                    <div className="card-body">
-                      {quizState.isLoading ? (
-                        <div className="text-center py-5">
-                          <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
-                          </div>
-                          <p className="mt-3">Loading practice questions...</p>
-                        </div>
-                      ) : quizState.questions.length === 0 ? (
-                        <div className="alert alert-success">
-                          <h4><i className="bi bi-trophy"></i> No questions available!</h4>
-                          <p>Practice with the examples above to improve your skills.</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="quiz-header d-flex justify-content-between align-items-center mb-3">
-                            <h4>{currentQuestion?.title || 'Practice Question'}</h4>
-                            <span className="badge bg-info">Python Functions</span>
-                          </div>
-                          
-                          <div className="text-muted mb-2">
-                            Question {quizState.currentQuizIndex + 1} of {quizState.questions.length}
-                            <span className="ms-2">
-                              <i className="bi bi-bookmark-check"></i> 
-                              {quizState.questions.length - quizState.answeredQuestionIds.length} remaining
-                            </span>
-                          </div>
-                          
-                          <div className="quiz-question mb-4">
-                            <p>{currentQuestion?.description}</p>
-                          </div>
-                          
-                          <textarea 
-                            className="codeInput" 
-                            id="quiz-code-editor"
-                            key={`quiz-${quizState.currentQuizIndex}`}
-                            defaultValue={currentQuestion?.starter_code || ''}
-                          ></textarea>
-                          
-                          <div className="btn-toolbar mt-3 mb-3">
-                            <button className="btn btn-primary run-quiz-btn me-2" onClick={runQuizCode}>
+                  )}
+                  
+                  {quizState.isLoading ? (
+                    <div className="text-center py-5">
+                      <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                      <p className="mt-3">Loading practice questions...</p>
+                    </div>
+                  ) : quizState.questions.length === 0 ? (
+                    <div className="alert alert-success">
+                      <h4><i className="bi bi-trophy"></i> Congratulations!</h4>
+                      <p>You've completed all practice questions for Python Functions!</p>
+                      <p>You're ready to move on to the next topic.</p>
+                      <div className="mt-3">
+                        <button className="btn btn-primary me-2" onClick={() => window.location.reload()}>
+                          🔄 Reload Questions
+                        </button>
+                        <button className="btn btn-outline-secondary" onClick={resetAllQuestions}>
+                          🗑️ Reset Progress
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="quiz-header d-flex justify-content-between align-items-center mb-3">
+                        <h4>{currentQuestion?.title || 'Practice Question'}</h4>
+                        <span className="badge bg-info">Python Functions</span>
+                      </div>
+                      
+                      <div className="text-muted mb-2">
+                        Question {quizState.currentQuizIndex + 1} of {quizState.questions.length}
+                      </div>
+                      
+                      <div className="quiz-question mb-4">
+                        <p>{currentQuestion?.description}</p>
+                      </div>
+                      
+                      <textarea 
+                        className="codeInput" 
+                        id="quiz-code-editor"
+                        key={`quiz-${quizState.currentQuizIndex}`}
+                        defaultValue={currentQuestion?.starter_code || ''}
+                      ></textarea>
+                      
+                      <div className="btn-toolbar mt-3 mb-3">
+                        <button 
+                          className="btn btn-primary run-quiz-btn me-2" 
+                          onClick={runQuizCode}
+                          disabled={pyodideLoading || quizState.isLoading}
+                        >
+                          {pyodideLoading ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2"></span>
+                              Loading...
+                            </>
+                          ) : (
+                            <>
                               <i className="bi bi-play-fill"></i> Run Code
+                            </>
+                          )}
+                        </button>
+                        <button className="btn btn-outline-secondary show-quiz-hint-btn" onClick={toggleQuizHint}>
+                          <i className="bi bi-lightbulb"></i> {quizState.showHint ? 'Hide Hint' : 'Show Hint'}
+                        </button>
+                        {quizState.allTestsPassed && (
+                          <button className="btn btn-success ms-auto" onClick={submitQuizAnswer}>
+                            <i className="bi bi-check-circle"></i> Submit Answer
+                          </button>
+                        )}
+                      </div>
+                      
+                      {quizState.showHint && (
+                        <div className="quiz-hint-container alert alert-info">
+                          💡 <strong>Hint:</strong> {currentQuestion?.hint || 'No hint available for this question.'}
+                        </div>
+                      )}
+                      
+                      {quizState.showOutput && (
+                        <div className="quiz-output">
+                          <h5>Output:</h5>
+                          <pre className="bg-light p-3 rounded">{quizState.output}</pre>
+                        </div>
+                      )}
+                      
+                      {quizState.showResult && (
+                        <div className={`quiz-result alert alert-${quizState.resultType}`}>
+                          {quizState.resultMessage}
+                          {quizState.resultType === 'success' && 
+                           quizState.currentQuizIndex < quizState.questions.length - 1 && (
+                            <button className="btn btn-primary ms-2" onClick={goToNextQuestion}>
+                              <i className="bi bi-arrow-right"></i> Next Question
                             </button>
-                            <button className="btn btn-outline-secondary show-quiz-hint-btn" onClick={toggleQuizHint}>
-                              <i className="bi bi-lightbulb"></i> {quizState.showHint ? 'Hide Hint' : 'Show Hint'}
-                            </button>
-                            {quizState.allTestsPassed && (
-                              <button className="btn btn-success ms-auto" onClick={submitQuizAnswer}>
-                                <i className="bi bi-check-circle"></i> Submit Answer
+                          )}
+                          {quizState.resultType === 'success' && 
+                           quizState.currentQuizIndex === quizState.questions.length - 1 && (
+                            <div className="mt-3">
+                              <p><strong>🎉 Congratulations!</strong> You've completed all practice questions.</p>
+                              <a href="/programming/python-lists" className="btn btn-success me-2">
+                                🚀 Continue to Lists
+                              </a>
+                              <button className="btn btn-outline-primary me-2" onClick={() => window.location.reload()}>
+                                🔄 Start Over
                               </button>
-                            )}
-                          </div>
-                          
-                          {quizState.showHint && (
-                            <div className="quiz-hint-container alert alert-info">
-                              {currentQuestion?.hint || 'No hint available for this question.'}
-                            </div>
-                          )}
-                          
-                          {quizState.showOutput && (
-                            <div className="quiz-output">
-                              <h5>Output:</h5>
-                              <pre className="bg-light p-3 rounded">{quizState.output}</pre>
-                            </div>
-                          )}
-                          
-                          {quizState.showResult && (
-                            <div className={`quiz-result alert alert-${quizState.resultType}`}>
-                              {quizState.resultMessage}
-                              {quizState.resultType === 'success' && 
-                               quizState.currentQuizIndex < quizState.questions.length - 1 && (
-                                <button className="btn btn-primary ms-2" onClick={goToNextQuestion}>
-                                  <i className="bi bi-arrow-right"></i> Next Question
-                                </button>
-                              )}
-                              {quizState.resultType === 'success' && 
-                               quizState.currentQuizIndex === quizState.questions.length - 1 && (
-                                <div className="mt-3">
-                                  <p><strong>Congratulations!</strong> You've completed all practice questions.</p>
-                                  <div className="d-flex gap-2">
-                                    <button className="btn btn-success" onClick={() => window.location.reload()}>
-                                      <i className="bi bi-arrow-repeat"></i> Start Over
-                                    </button>
-                                    <button className="btn btn-info" onClick={() => alert('Feature coming soon: Reset all questions')}>
-                                      <i className="bi bi-arrow-clockwise"></i> Reset All Questions
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
+                              <button className="btn btn-outline-secondary" onClick={resetAllQuestions}>
+                                🗑️ Reset All Progress
+                              </button>
                             </div>
                           )}
                         </div>
                       )}
+                      
+                      {/* Navigation between questions */}
+                      <div className="d-flex justify-content-between align-items-center mt-4 p-3 bg-light rounded">
+                        <button 
+                          className="btn btn-outline-secondary" 
+                          onClick={goToPrevQuestion}
+                          disabled={quizState.currentQuizIndex === 0}
+                        >
+                          <i className="bi bi-arrow-left"></i> Previous
+                        </button>
+                        
+                        <span className="text-muted">
+                          {quizState.currentQuizIndex + 1} / {quizState.questions.length}
+                        </span>
+                        
+                        <button 
+                          className="btn btn-outline-secondary" 
+                          onClick={goToNextQuestion}
+                          disabled={quizState.currentQuizIndex >= quizState.questions.length - 1}
+                        >
+                          Next <i className="bi bi-arrow-right"></i>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
-
-              {/* Next Steps Section */}
-              <div className="section text-center">
-                <h2>Ready to Learn More?</h2>
-                <p>Now that you understand the Python Language, let's test these concepts!</p>
-                <a href="/programming-diagnostic" className="btn btn-primary">Continue to Next Lesson</a>
-              </div>
-
             </div>
-          </div>
+          </div>      
         </div>
-      </section>
+      </div>
+
+      {/* Next Steps Section */}
+      <div className="container">
+        <div className="section text-center">
+           <div className="section" style={{ textAlign: 'center' }}>
+          <h2>Ready to Learn More?</h2>
+          <p>Now that you understand Python Functions, let's explore Python Lists and data structures!</p>
+          <a href="python-lists" className="btn btn-primary">
+            Continue to Next Lesson
+          </a>
+        </div>
+        </div>
+      </div>
     </div>
   );
 };
