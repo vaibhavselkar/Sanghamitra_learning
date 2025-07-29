@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const PythonLoops = () => {
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // State management
   const [userInfo, setUserInfo] = useState({ username: null, email: null });
   const [quizState, setQuizState] = useState({
@@ -18,28 +22,32 @@ const PythonLoops = () => {
     allTestsPassed: false
   });
 
-  // Pyodide instance
-  const [pyodide, setPyodide] = useState(null);
+  // Refs for performance optimization
+  const pyodideRef = useRef(null);
   const [pyodideLoading, setPyodideLoading] = useState(true);
-
-  // Refs for CodeMirror instances
   const codeEditorsRef = useRef([]);
   const quizCodeEditorRef = useRef(null);
+  const executionQueue = useRef([]);
+  const isExecuting = useRef(false);
 
   // Initialize component
   useEffect(() => {
     initializePyodide();
     loadCodeMirror();
+    fetchSessionInfo();
   }, []);
 
-  // Initialize Pyodide with better UX and optimization
+  // Initialize Pyodide with better performance
   const initializePyodide = async () => {
+    if (pyodideRef.current) {
+      setPyodideLoading(false);
+      return;
+    }
+
     try {
-      // Check if Pyodide is already loaded globally
       if (window.pyodide) {
-        setPyodide(window.pyodide);
+        pyodideRef.current = window.pyodide;
         setPyodideLoading(false);
-        console.log('Using existing Pyodide instance');
         return;
       }
 
@@ -47,19 +55,15 @@ const PythonLoops = () => {
       script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
       script.onload = async () => {
         try {
-          console.log('Loading Pyodide... This may take 15-30 seconds on first load.');
-          
           const pyodideInstance = await window.loadPyodide({
             indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/',
-            fullStdLib: false, // Only load essential packages for faster loading
+            fullStdLib: false,
           });
           
-          // Setup minimal output capture for better performance
           pyodideInstance.runPython(`
 import sys
 from io import StringIO
 
-# Lightweight output capture
 class FastCapture:
     def __init__(self):
         self.stdout = StringIO()
@@ -79,23 +83,18 @@ class FastCapture:
 _capture = FastCapture()
           `);
           
-          // Store globally to reuse across components
+          pyodideRef.current = pyodideInstance;
           window.pyodide = pyodideInstance;
-          setPyodide(pyodideInstance);
           setPyodideLoading(false);
-          console.log('Pyodide loaded successfully!');
         } catch (error) {
           console.error('Error loading Pyodide:', error);
           setPyodideLoading(false);
-          // Fallback to a simple alert for now
-          alert('Python interpreter failed to load. Code examples will not work. Please refresh the page to try again.');
         }
       };
       
       script.onerror = () => {
         console.error('Failed to load Pyodide script');
         setPyodideLoading(false);
-        alert('Failed to load Python interpreter. Please check your internet connection and refresh.');
       };
       
       document.head.appendChild(script);
@@ -105,47 +104,26 @@ _capture = FastCapture()
     }
   };
 
-  // Reinitialize editors when content changes
-  useEffect(() => {
-    if (window.CodeMirror && !pyodideLoading) {
-      const timer = setTimeout(() => {
-        initCodeEditors();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [pyodideLoading]);
+  // Optimized CodeMirror initialization
+  const initQuizCodeEditor = useCallback(() => {
+    if (!window.CodeMirror || quizCodeEditorRef.current) return;
 
-  // Update quiz editor when current question changes
-  useEffect(() => {
-    if (quizState.questions.length > 0 && window.CodeMirror && quizCodeEditorRef.current) {
-      const currentQuestion = quizState.questions[quizState.currentQuizIndex];
-      if (currentQuestion) {
-        quizCodeEditorRef.current.setValue('');
-        quizCodeEditorRef.current.setValue(currentQuestion.starter_code || '');
-      }
-    }
-  }, [quizState.currentQuizIndex, quizState.questions]);
+    const quizTextarea = document.getElementById('quiz-code-editor');
+    if (!quizTextarea) return;
 
-  // Cleanup CodeMirror instances on unmount
-  useEffect(() => {
-    return () => {
-      if (quizCodeEditorRef.current) {
-        quizCodeEditorRef.current.toTextArea();
-        quizCodeEditorRef.current = null;
-      }
-      
-      codeEditorsRef.current.forEach(editor => {
-        if (editor && editor.toTextArea) {
-          try {
-            editor.toTextArea();
-          } catch (e) {
-            console.warn('Error cleaning up CodeMirror editor:', e);
-          }
-        }
-      });
-      codeEditorsRef.current = [];
-    };
-  }, []);
+    quizCodeEditorRef.current = window.CodeMirror.fromTextArea(quizTextarea, {
+      mode: "python",
+      theme: "dracula",
+      lineNumbers: true,
+      indentUnit: 4,
+      lineWrapping: true
+    });
+
+    const currentQuestion = quizState.questions[quizState.currentQuizIndex];
+    if (currentQuestion) {
+      quizCodeEditorRef.current.setValue(currentQuestion.starter_code || '');
+    }
+  }, [quizState.questions, quizState.currentQuizIndex]);
 
   // Load CodeMirror library
   const loadCodeMirror = () => {
@@ -156,7 +134,10 @@ _capture = FastCapture()
         const pythonScript = document.createElement('script');
         pythonScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js';
         pythonScript.onload = () => {
-          setTimeout(() => initCodeEditors(), 100);
+          setTimeout(() => {
+            initCodeEditors();
+            initQuizCodeEditor();
+          }, 100);
         };
         document.head.appendChild(pythonScript);
       };
@@ -172,241 +153,76 @@ _capture = FastCapture()
       themeLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.css';
       document.head.appendChild(themeLink);
     } else {
-      setTimeout(() => initCodeEditors(), 100);
+      setTimeout(() => {
+        initCodeEditors();
+        initQuizCodeEditor();
+      }, 100);
     }
   };
 
-  // Initialize CodeMirror editors
+  // Initialize regular code editors
   const initCodeEditors = () => {
     if (!window.CodeMirror) return;
 
-    setTimeout(() => {
-      const textareas = document.querySelectorAll("textarea.codeInput");
-      textareas.forEach((textarea, index) => {
-        if (textarea.style.display === 'none' || textarea.nextSibling?.classList?.contains('CodeMirror')) {
-          return;
-        }
+    const textareas = document.querySelectorAll("textarea.codeInput");
+    textareas.forEach((textarea, index) => {
+      if (textarea.style.display === 'none' || textarea.nextSibling?.classList?.contains('CodeMirror')) {
+        return;
+      }
 
-        const originalValue = textarea.value;
-        
-        const editor = window.CodeMirror.fromTextArea(textarea, {
-          mode: "python",
-          theme: "dracula",
-          lineNumbers: true,
-          indentUnit: 4,
-          matchBrackets: true,
-          viewportMargin: Infinity,
-        });
-
-        editor.setValue(originalValue);
-        editor.setSize("100%", "auto");
-        editor.on("change", function(cm) {
-          let lines = cm.lineCount();
-          let newHeight = Math.min(30 + lines * 20, 200);
-          cm.setSize("100%", newHeight + "px");
-        });
-
-        codeEditorsRef.current[index] = editor;
+      const editor = window.CodeMirror.fromTextArea(textarea, {
+        mode: "python",
+        theme: "dracula",
+        lineNumbers: true,
+        indentUnit: 4,
+        matchBrackets: true,
+        viewportMargin: Infinity,
       });
-    }, 200);
+
+      editor.setValue(textarea.value);
+      editor.setSize("100%", "auto");
+      editor.on("change", function(cm) {
+        let lines = cm.lineCount();
+        let newHeight = Math.min(30 + lines * 20, 200);
+        cm.setSize("100%", newHeight + "px");
+      });
+
+      codeEditorsRef.current[index] = editor;
+    });
   };
 
-  // Initialize quiz code editor
-  const initQuizCodeEditor = () => {
-    if (!window.CodeMirror) return;
-    
-    setTimeout(() => {
-      const quizTextarea = document.getElementById('quiz-code-editor');
-      if (quizTextarea && quizTextarea.style.display !== 'none') {
-        if (quizCodeEditorRef.current) {
-          try {
-            quizCodeEditorRef.current.toTextArea();
-          } catch (e) {
-            console.warn('Error cleaning up existing quiz editor:', e);
-          }
-          quizCodeEditorRef.current = null;
-        }
-        
-        const originalValue = quizTextarea.value;
-        
-        try {
-          quizCodeEditorRef.current = window.CodeMirror.fromTextArea(quizTextarea, {
-            mode: "python",
-            theme: "dracula",
-            lineNumbers: false,
-            indentUnit: 4,
-            matchBrackets: true,
-            viewportMargin: Infinity,
-            lineWrapping: true
-          });
-          
-          quizCodeEditorRef.current.setValue(originalValue);
-          quizCodeEditorRef.current.setSize("100%", "250px");
-        } catch (e) {
-          console.error('Error creating quiz editor:', e);
-        }
-      }
-    }, 100);
-  };
+  // Optimized question navigation
+  const goToNextQuestion = useCallback(() => {
+    if (quizState.currentQuizIndex >= quizState.questions.length - 1) return;
 
-  // Optimized Python code execution
-  const executePythonCode = async (code, testCases = null) => {
-    if (!pyodide) {
-      return { 
-        error: 'Python interpreter not loaded yet. Please wait for initialization to complete...',
-        loading: true 
-      };
+    setQuizState(prev => ({
+      ...prev,
+      currentQuizIndex: prev.currentQuizIndex + 1,
+      showOutput: false,
+      showHint: false,
+      showResult: false,
+      output: '',
+      allTestsPassed: false
+    }));
+
+    if (quizCodeEditorRef.current) {
+      const nextQuestion = quizState.questions[quizState.currentQuizIndex + 1];
+      quizCodeEditorRef.current.setValue(nextQuestion.starter_code || '');
     }
+  }, [quizState.questions, quizState.currentQuizIndex]);
 
-    try {
-      // Reset and capture output
-      pyodide.runPython('_capture.reset()');
-      pyodide.runPython('_capture.capture()');
-      
-      let result = { output: '', error: null };
-      
-      try {
-        // Execute the user code
-        const output = pyodide.runPython(code);
-        const capturedOutput = pyodide.runPython('_capture.get_output()');
-        pyodide.runPython('_capture.restore()');
-        
-        // Process output
-        let finalOutput = '';
-        if (capturedOutput && capturedOutput.trim()) {
-          finalOutput = capturedOutput.trim();
-        } else if (output !== undefined && output !== null) {
-          finalOutput = String(output);
-        }
-        
-        result.output = finalOutput;
-        result.raw_output = finalOutput;
-        
-        // Handle test cases if provided (simplified for better performance)
-        if (testCases && testCases.length > 0) {
-          result.results = [];
-          
-          for (let i = 0; i < Math.min(testCases.length, 5); i++) { // Limit to 5 test cases for performance
-            const testCase = testCases[i];
-            try {
-              pyodide.runPython('_capture.reset()');
-              pyodide.runPython('_capture.capture()');
-              
-              const testOutput = pyodide.runPython(code);
-              const testCapturedOutput = pyodide.runPython('_capture.get_output()');
-              pyodide.runPython('_capture.restore()');
-              
-              let actualOutput = '';
-              if (testCapturedOutput && testCapturedOutput.trim()) {
-                actualOutput = testCapturedOutput.trim();
-              } else if (testOutput !== undefined && testOutput !== null) {
-                actualOutput = String(testOutput);
-              }
-              
-              result.results.push({
-                input: testCase.input || {},
-                expected: testCase.expected,
-                output: actualOutput,
-                passed: String(actualOutput).trim() === String(testCase.expected).trim()
-              });
-              
-            } catch (testError) {
-              result.results.push({
-                input: testCase.input || {},
-                expected: testCase.expected,
-                output: `Error: ${testError.message}`,
-                passed: false
-              });
-            }
-          }
-        }
-        
-      } catch (executeError) {
-        pyodide.runPython('_capture.restore()');
-        result.error = executeError.message;
-      }
-      
-      return result;
-      
-    } catch (error) {
-      return { error: error.message };
-    }
-  };
-
-  // Run regular code examples with better UX
-  const runCode = async (buttonElement) => {
-    try {
-      const container = buttonElement.closest('.code-body') || buttonElement.parentElement;
-      if (!container) return;
-
-      const codeMirrorElement = container.querySelector('.CodeMirror');
-      if (!codeMirrorElement || !codeMirrorElement.CodeMirror) return;
-
-      const cmInstance = codeMirrorElement.CodeMirror;
-      const code = cmInstance.getValue();
-      
-      let outputDiv = buttonElement.nextElementSibling;
-      if (!outputDiv || !outputDiv.classList.contains('output')) {
-        outputDiv = container.querySelector('.output');
-      }
-      
-      if (!outputDiv) return;
-
-      // Show loading state
-      outputDiv.style.display = "block";
-      buttonElement.disabled = true;
-      buttonElement.textContent = 'Running...';
-
-      if (pyodideLoading) {
-        outputDiv.innerHTML = '<span style="color: #666;">⏳ Waiting for Python interpreter to load... This may take a moment on first visit.</span>';
-        buttonElement.disabled = false;
-        buttonElement.textContent = 'Run Code';
-        return;
-      }
-
-      if (!pyodide) {
-        outputDiv.innerHTML = '<span style="color: #dc3545;">❌ Python interpreter failed to load. Please refresh the page to try again.</span>';
-        buttonElement.disabled = false;
-        buttonElement.textContent = 'Run Code';
-        return;
-      }
-
-      const result = await executePythonCode(code);
-      
-      if (result.loading) {
-        outputDiv.innerHTML = '<span style="color: #666;">⏳ Python interpreter is still loading...</span>';
-      } else if (result.error) {
-        outputDiv.innerHTML = `<span style="color: #dc3545;">❌ Error: ${result.error}</span>`;
-      } else {
-        outputDiv.innerHTML = `<span style="color: #28a745;">✅ Output:</span><br/>${result.output || '<em>Code executed successfully (no output)</em>'}`;
-      }
-      
-      buttonElement.disabled = false;
-      buttonElement.textContent = 'Run Code';
-    } catch (error) {
-      console.error('Error running code:', error);
-      buttonElement.disabled = false;
-      buttonElement.textContent = 'Run Code';
-    }
-  };
-
-  // Quiz functions
+  // Queue-based code execution
   const runQuizCode = async () => {
-    if (!quizCodeEditorRef.current || quizState.questions.length === 0) return;
-    
-    if (pyodideLoading) {
-      setQuizState(prev => ({ ...prev, showOutput: true, output: 'Python interpreter is still loading. Please wait...' }));
+    if (!quizCodeEditorRef.current || isExecuting.current) {
       return;
     }
 
-    const currentQuestion = quizState.questions[quizState.currentQuizIndex];
-    if (!currentQuestion) return;
-
-    const code = quizCodeEditorRef.current.getValue();
-    
+    isExecuting.current = true;
     setQuizState(prev => ({ ...prev, showOutput: true, output: 'Running your code...' }));
     
     try {
+      const currentQuestion = quizState.questions[quizState.currentQuizIndex];
+      const code = quizCodeEditorRef.current.getValue();
       const result = await executePythonCode(code, currentQuestion.test_cases || []);
       
       if (result.error) {
@@ -462,9 +278,170 @@ _capture = FastCapture()
         output: `Error running code: ${error.message}`,
         allTestsPassed: false
       }));
+    } finally {
+      isExecuting.current = false;
+      if (executionQueue.current.length > 0) {
+        const next = executionQueue.current.shift();
+        next();
+      }
     }
   };
 
+  // Execute Python code with fallback to server
+  const executePythonCode = async (code, testCases = null) => {
+    if (!pyodideRef.current) {
+      try {
+        const endpoint = testCases ? 'http://localhost:4000/test' : 'http://localhost:4000/run-python';
+        const payload = testCases ? { code, test_cases: testCases } : { code };
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (serverError) {
+        console.error('Server execution failed:', serverError);
+        return { 
+          error: 'Python interpreter not loaded and server execution failed. Please wait for initialization to complete...',
+          loading: true 
+        };
+      }
+    }
+
+    try {
+      pyodideRef.current.runPython('_capture.reset()');
+      pyodideRef.current.runPython('_capture.capture()');
+      
+      let result = { output: '', error: null };
+      
+      try {
+        const output = pyodideRef.current.runPython(code);
+        const capturedOutput = pyodideRef.current.runPython('_capture.get_output()');
+        pyodideRef.current.runPython('_capture.restore()');
+        
+        let finalOutput = '';
+        if (capturedOutput && capturedOutput.trim()) {
+          finalOutput = capturedOutput.trim();
+        } else if (output !== undefined && output !== null) {
+          finalOutput = String(output);
+        }
+        
+        result.output = finalOutput;
+        result.raw_output = finalOutput;
+        
+        if (testCases && testCases.length > 0) {
+          result.results = [];
+          
+          for (let i = 0; i < Math.min(testCases.length, 5); i++) {
+            const testCase = testCases[i];
+            try {
+              pyodideRef.current.runPython('_capture.reset()');
+              pyodideRef.current.runPython('_capture.capture()');
+              
+              const testOutput = pyodideRef.current.runPython(code);
+              const testCapturedOutput = pyodideRef.current.runPython('_capture.get_output()');
+              pyodideRef.current.runPython('_capture.restore()');
+              
+              let actualOutput = '';
+              if (testCapturedOutput && testCapturedOutput.trim()) {
+                actualOutput = testCapturedOutput.trim();
+              } else if (testOutput !== undefined && testOutput !== null) {
+                actualOutput = String(testOutput);
+              }
+              
+              result.results.push({
+                input: testCase.input || {},
+                expected: testCase.expected,
+                output: actualOutput,
+                passed: String(actualOutput).trim() === String(testCase.expected).trim()
+              });
+              
+            } catch (testError) {
+              result.results.push({
+                input: testCase.input || {},
+                expected: testCase.expected,
+                output: `Error: ${testError.message}`,
+                passed: false
+              });
+            }
+          }
+        }
+        
+      } catch (executeError) {
+        pyodideRef.current.runPython('_capture.restore()');
+        result.error = executeError.message;
+      }
+      
+      return result;
+      
+    } catch (error) {
+      return { error: error.message };
+    }
+  };
+
+  // Run regular code examples
+  const runCode = async (buttonElement) => {
+    try {
+      const container = buttonElement.closest('.code-body') || buttonElement.parentElement;
+      if (!container) return;
+
+      const codeMirrorElement = container.querySelector('.CodeMirror');
+      if (!codeMirrorElement || !codeMirrorElement.CodeMirror) return;
+
+      const cmInstance = codeMirrorElement.CodeMirror;
+      const code = cmInstance.getValue();
+      
+      let outputDiv = buttonElement.nextElementSibling;
+      if (!outputDiv || !outputDiv.classList.contains('output')) {
+        outputDiv = container.querySelector('.output');
+      }
+      
+      if (!outputDiv) return;
+
+      outputDiv.style.display = "block";
+      buttonElement.disabled = true;
+      buttonElement.textContent = 'Running...';
+
+      if (pyodideLoading) {
+        outputDiv.innerHTML = '<span style="color: #666;">⏳ Waiting for Python interpreter to load... This may take a moment on first visit.</span>';
+        buttonElement.disabled = false;
+        buttonElement.textContent = 'Run Code';
+        return;
+      }
+
+      if (!pyodideRef.current) {
+        outputDiv.innerHTML = '<span style="color: #dc3545;">❌ Python interpreter failed to load. Please refresh the page to try again.</span>';
+        buttonElement.disabled = false;
+        buttonElement.textContent = 'Run Code';
+        return;
+      }
+
+      const result = await executePythonCode(code);
+      
+      if (result.loading) {
+        outputDiv.innerHTML = '<span style="color: #666;">⏳ Python interpreter is still loading...</span>';
+      } else if (result.error) {
+        outputDiv.innerHTML = `<span style="color: #dc3545;">❌ Error: ${result.error}</span>`;
+      } else {
+        outputDiv.innerHTML = `<span style="color: #28a745;">✅ Output:</span><br/>${result.output || '<em>Code executed successfully (no output)</em>'}`;
+      }
+      
+      buttonElement.disabled = false;
+      buttonElement.textContent = 'Run Code';
+    } catch (error) {
+      console.error('Error running code:', error);
+      buttonElement.disabled = false;
+      buttonElement.textContent = 'Run Code';
+    }
+  };
+
+  // Submit quiz answer
   const submitQuizAnswer = async () => {
     if (!quizCodeEditorRef.current || quizState.questions.length === 0) return;
 
@@ -486,24 +463,64 @@ _capture = FastCapture()
         isCorrect = true;
       }
 
-      // For demo purposes - in real app, submit to backend
-      // const submitResponse = await fetch('API_ENDPOINT', { ... });
-
-      if (isCorrect) {
-        setQuizState(prev => ({
-          ...prev,
-          answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
-          showResult: true,
-          resultType: 'success',
-          resultMessage: 'Correct! Great job! Your solution is working perfectly.'
-        }));
-      } else {
-        setQuizState(prev => ({
-          ...prev,
-          showResult: true,
-          resultType: 'warning',
-          resultMessage: 'Keep Trying! Your solution is not quite right yet.'
-        }));
+      try {
+        const submitResponse = await fetch('http://localhost:4000/api/finger-exercise/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: userInfo.username,
+            email: userInfo.email,
+            topic: 'python_loops',
+            questionId: currentQuestion.id,
+            userAnswer: userCode,
+            isCorrect
+          })
+        });
+        
+        if (!submitResponse.ok) {
+          throw new Error(`Server responded with status: ${submitResponse.status}`);
+        }
+        
+        const responseData = await submitResponse.json();
+        console.log('Answer submitted successfully to server:', responseData);
+        
+        if (isCorrect) {
+          setQuizState(prev => ({
+            ...prev,
+            answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
+            showResult: true,
+            resultType: 'success',
+            resultMessage: `✅ Correct! Great job! Your solution has been saved to the server. (Question ID: ${currentQuestion.id})`
+          }));
+        } else {
+          setQuizState(prev => ({
+            ...prev,
+            showResult: true,
+            resultType: 'warning',
+            resultMessage: `📝 Keep Trying! Your attempt has been recorded on the server, but it's not quite right yet. (Question ID: ${currentQuestion.id})`
+          }));
+        }
+        
+      } catch (submitError) {
+        console.error('Error submitting to server:', submitError);
+        
+        if (isCorrect) {
+          setQuizState(prev => ({
+            ...prev,
+            answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
+            showResult: true,
+            resultType: 'success',
+            resultMessage: 'Correct! Great job! (Note: Server submission failed, but your answer is correct)'
+          }));
+        } else {
+          setQuizState(prev => ({
+            ...prev,
+            showResult: true,
+            resultType: 'warning',
+            resultMessage: 'Keep Trying! Your solution is not quite right yet. (Note: Server submission failed)'
+          }));
+        }
       }
     } catch (error) {
       setQuizState(prev => ({
@@ -515,69 +532,208 @@ _capture = FastCapture()
     }
   };
 
-  const goToNextQuestion = () => {
-    if (quizState.currentQuizIndex < quizState.questions.length - 1) {
-      const nextIndex = quizState.currentQuizIndex + 1;
+  const toggleQuizHint = () => {
+    setQuizState(prev => ({ ...prev, showHint: !prev.showHint }));
+  };
+
+  // Reset all questions
+  const resetAllQuestions = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/finger-exercise/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: userInfo.email,
+          topic: 'python_loops'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to reset questions: ${response.status}`);
+      }
       
       setQuizState(prev => ({
         ...prev,
-        currentQuizIndex: nextIndex,
+        answeredQuestionIds: [],
+        currentQuizIndex: 0,
         showOutput: false,
         showHint: false,
         showResult: false,
         output: '',
         allTestsPassed: false
       }));
+      
+      await fetchUserAnsweredQuestions(userInfo.email);
+      
+    } catch (error) {
+      console.error('Error resetting questions:', error);
+      alert(`Failed to reset questions: ${error.message}`);
     }
   };
 
-  const toggleQuizHint = () => {
-    setQuizState(prev => ({ ...prev, showHint: !prev.showHint }));
+  // Fetch session information
+  const fetchSessionInfo = async () => {
+    try {
+      const sessionResponse = await fetch('http://localhost:4000/api/session-info', { 
+        credentials: 'include' 
+      });
+      
+      if (sessionResponse.ok) {
+        const sessionData = await sessionResponse.json();
+        setUserInfo({
+          email: sessionData.email,
+          username: sessionData.username
+        });
+        
+        await fetchUserAnsweredQuestions(sessionData.email);
+      } else {
+        setUserInfo({
+          email: 'demo@example.com',
+          username: 'demo_user'
+        });
+        await fetchUserAnsweredQuestions('demo@example.com');
+      }
+    } catch (error) {
+      console.error('Error fetching session info:', error);
+      setUserInfo({
+        email: 'demo@example.com',
+        username: 'demo_user'
+      });
+      await fetchUserAnsweredQuestions('demo@example.com');
+    }
   };
 
-  // Mock quiz data for demo - enhanced to match HTML functionality
-  const mockQuestions = [
-    {
-      id: 1,
-      title: "Basic For Loop",
-      description: "Write a for loop that prints numbers from 1 to 5.",
-      starter_code: "# Write your for loop here\nfor i in range(1, 6):\n    print(i)",
-      hint: "Use range(1, 6) to get numbers from 1 to 5",
-      test_cases: [
-        { input: {}, expected: "1\n2\n3\n4\n5" }
-      ]
-    },
-    {
-      id: 2,
-      title: "While Loop Counter",
-      description: "Write a while loop that counts from 0 to 4.",
-      starter_code: "# Write your while loop here\ncount = 0\nwhile count < 5:\n    print(count)\n    count += 1",
-      hint: "Initialize a counter variable and increment it in each iteration",
-      test_cases: [
-        { input: {}, expected: "0\n1\n2\n3\n4" }
-      ]
-    },
-    {
-      id: 3,
-      title: "String Iteration",
-      description: "Write a for loop that prints each character in the word 'Python'.",
-      starter_code: "# Write your for loop here\n",
-      hint: "Use 'for char in string:' syntax to iterate through characters",
-      test_cases: [
-        { input: {}, expected: "P\ny\nt\nh\no\nn" }
-      ]
+  // Fetch user's answered questions
+  const fetchUserAnsweredQuestions = async (email) => {
+    try {
+      if (!email) {
+        await initPracticeQuiz([]);
+        return;
+      }
+      
+      const response = await fetch(`http://localhost:4000/api/finger-exercise?email=${email}&topic=python_loops`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        await initPracticeQuiz([]);
+        return;
+      }
+      
+      const answeredData = await response.json();
+      
+      const answeredIds = (answeredData.submissions || [])
+        .map(sub => String(sub.questionId));
+      
+      setQuizState(prev => ({ ...prev, answeredQuestionIds: answeredIds }));
+      await initPracticeQuiz(answeredIds);
+      
+    } catch (error) {
+      console.error('Error fetching user answered questions:', error);
+      await initPracticeQuiz([]);
     }
-  ];
+  };
 
-  useEffect(() => {
-    setQuizState(prev => ({
-      ...prev,
-      questions: mockQuestions,
-      isLoading: false
-    }));
-    
-    setTimeout(() => initQuizCodeEditor(), 500);
-  }, []);
+  // Initialize practice quiz
+  const initPracticeQuiz = async (answeredIds) => {
+    try {
+      setQuizState(prev => ({ ...prev, isLoading: true }));
+      
+      const response = await fetch('http://localhost:4000/api/finger-questions?topic=python_loops', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch questions: ${response.status}`);
+      }
+      
+      const allQuestions = await response.json();
+      
+      const answeredSet = new Set(answeredIds);
+      const unansweredQuestions = allQuestions.filter(q => 
+        !answeredSet.has(String(q.id))
+      );
+      
+      setQuizState(prev => ({
+        ...prev,
+        questions: unansweredQuestions,
+        isLoading: false
+      }));
+      
+      if (unansweredQuestions.length > 0) {
+        setTimeout(() => initQuizCodeEditor(), 500);
+      }
+    } catch (error) {
+      console.error('Error initializing practice quiz:', error);
+      
+      const mockQuestions = [
+        {
+          id: 1,
+          title: "Basic For Loop",
+          description: "Write a for loop that prints numbers from 1 to 5.",
+          starter_code: "# Write your for loop here\nfor i in range(1, 6):\n    print(i)",
+          hint: "Use range(1, 6) to get numbers from 1 to 5",
+          test_cases: [
+            { input: {}, expected: "1\n2\n3\n4\n5" }
+          ]
+        },
+        {
+          id: 2,
+          title: "While Loop Counter",
+          description: "Write a while loop that counts from 0 to 4.",
+          starter_code: "# Write your while loop here\ncount = 0\nwhile count < 5:\n    print(count)\n    count += 1",
+          hint: "Initialize a counter variable and increment it in each iteration",
+          test_cases: [
+            { input: {}, expected: "0\n1\n2\n3\n4" }
+          ]
+        },
+        {
+          id: 3,
+          title: "String Iteration",
+          description: "Write a for loop that prints each character in the word 'Python'.",
+          starter_code: "# Write your for loop here\nfor char in 'Python':\n    print(char)",
+          hint: "Use 'for char in string:' syntax to iterate through characters",
+          test_cases: [
+            { input: {}, expected: "P\ny\nt\nh\no\nn" }
+          ]
+        },
+        {
+          id: 4,
+          title: "Loop with Break",
+          description: "Write a loop that prints numbers 1 to 10, but stops when it reaches 5.",
+          starter_code: "# Write your loop here\n",
+          hint: "Use a for loop with range() and break statement",
+          test_cases: [
+            { input: {}, expected: "1\n2\n3\n4\n5" }
+          ]
+        },
+        {
+          id: 5,
+          title: "Sum of Numbers",
+          description: "Write a loop that calculates the sum of numbers from 1 to 5 and prints the result.",
+          starter_code: "# Write your loop here\ntotal = 0\n",
+          hint: "Initialize a total variable and add each number in the loop",
+          test_cases: [
+            { input: {}, expected: "15" }
+          ]
+        }
+      ];
+      
+      const answeredSet = new Set(answeredIds);
+      const unansweredQuestions = mockQuestions.filter(q => !answeredSet.has(String(q.id)));
+      
+      setQuizState(prev => ({
+        ...prev,
+        questions: unansweredQuestions,
+        isLoading: false
+      }));
+      
+      if (unansweredQuestions.length > 0) {
+        setTimeout(() => initQuizCodeEditor(), 500);
+      }
+    }
+  };
 
   const currentQuestion = quizState.questions[quizState.currentQuizIndex];
 
@@ -590,7 +746,6 @@ _capture = FastCapture()
           color: #333;
         }
 
-        
         .loading-indicator {
           background: #fff3cd;
           border: 1px solid #ffeaa7;
@@ -975,9 +1130,8 @@ _capture = FastCapture()
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
               <div className="col-lg-8">
-                <h1>Python Loops with Computational Thinking</h1>
-                <p className="mb-0">Master problem-solving through process decomposition, conditional logic, and algorithmic thinking</p>
-               
+                <h1>Python Loops </h1>
+                <p className="mb-0">Master iteration with loops to automate tasks, simplify logic, and solve complex problems efficiently.</p>
               </div>
             </div>
           </div>
@@ -1175,7 +1329,7 @@ while x < 3:
 counter = 0
 while counter < 10:
     print("Counter value:", counter)
-    # Add the missing line here to increment counter`}></textarea>
+    counter += 1  # Add this line to increment counter`}></textarea>
                   <button onClick={(e) => runCode(e.target)}>Run Code</button>
                   <div className="output"></div>
                 </div>
@@ -1282,9 +1436,17 @@ for user_input in responses:
               <div className="card">
                 <div className="card-header bg-success text-white">
                   <h3><i className="bi bi-question-circle"></i> Practice Quiz</h3>
-                  <p className="mb-0">Test your Python skills with interactive exercises</p>
+                  <p className="mb-0">Test your Python loops knowledge with interactive exercises</p>
+                 
                 </div>
                 <div className="card-body">
+                  {pyodideLoading && (
+                    <div className="alert alert-info">
+                      <div className="spinner-border spinner-border-sm me-2"></div>
+                      Loading Python interpreter (this may take 20-30 seconds on first load)...
+                    </div>
+                  )}
+                  
                   {quizState.isLoading ? (
                     <div className="text-center py-5">
                       <div className="spinner-border text-primary" role="status">
@@ -1294,8 +1456,17 @@ for user_input in responses:
                     </div>
                   ) : quizState.questions.length === 0 ? (
                     <div className="alert alert-success">
-                      <h4><i className="bi bi-trophy"></i> No questions available!</h4>
-                      <p>Practice with the examples above to improve your skills.</p>
+                      <h4><i className="bi bi-trophy"></i> Congratulations!</h4>
+                      <p>You've completed all practice questions for Python Loops!</p>
+                      <p>You're ready to move on to the next topic.</p>
+                      <div className="mt-3">
+                        <button className="btn btn-primary me-2" onClick={() => window.location.reload()}>
+                          🔄 Reload Questions
+                        </button>
+                        <button className="btn btn-outline-secondary" onClick={resetAllQuestions}>
+                          🗑️ Reset Progress
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div>
@@ -1320,8 +1491,21 @@ for user_input in responses:
                       ></textarea>
                       
                       <div className="btn-toolbar mt-3 mb-3">
-                        <button className="btn btn-primary run-quiz-btn me-2" onClick={runQuizCode}>
-                          <i className="bi bi-play-fill"></i> Run Code
+                        <button 
+                          className="btn btn-primary run-quiz-btn me-2" 
+                          onClick={runQuizCode}
+                          disabled={pyodideLoading || quizState.isLoading}
+                        >
+                          {pyodideLoading ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2"></span>
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <i className="bi bi-play-fill"></i> Run Code
+                            </>
+                          )}
                         </button>
                         <button className="btn btn-outline-secondary show-quiz-hint-btn" onClick={toggleQuizHint}>
                           <i className="bi bi-lightbulb"></i> {quizState.showHint ? 'Hide Hint' : 'Show Hint'}
@@ -1335,7 +1519,7 @@ for user_input in responses:
                       
                       {quizState.showHint && (
                         <div className="quiz-hint-container alert alert-info">
-                          {currentQuestion?.hint || 'No hint available for this question.'}
+                          💡 <strong>Hint:</strong> {currentQuestion?.hint || 'No hint available for this question.'}
                         </div>
                       )}
                       
@@ -1358,9 +1542,15 @@ for user_input in responses:
                           {quizState.resultType === 'success' && 
                            quizState.currentQuizIndex === quizState.questions.length - 1 && (
                             <div className="mt-3">
-                              <p><strong>Congratulations!</strong> You've completed all practice questions.</p>
-                              <button className="btn btn-success" onClick={() => window.location.reload()}>
-                                <i className="bi bi-arrow-repeat"></i> Start Over
+                              <p><strong>🎉 Congratulations!</strong> You've completed all practice questions.</p>
+                              <a href="/programming/python-functions" className="btn btn-success me-2">
+                                🚀 Continue to Functions
+                              </a>
+                              <button className="btn btn-outline-primary me-2" onClick={() => window.location.reload()}>
+                                🔄 Start Over
+                              </button>
+                              <button className="btn btn-outline-secondary" onClick={resetAllQuestions}>
+                                🗑️ Reset All Progress
                               </button>
                             </div>
                           )}
@@ -1378,10 +1568,9 @@ for user_input in responses:
       {/* Next Steps Section */}
       <div className="container">
         <div className="section text-center">
-       
            <div className="section" style={{ textAlign: 'center' }}>
           <h2>Ready to Learn More?</h2>
-          <p>Now that you understand the basics of Python, let's explore further topics in Python Conditionals!</p>
+          <p>Now that you understand Python Loops, let's explore further topics in Python Functions!</p>
           <a href="python-functions" className="btn btn-primary">
             Continue to Next Lesson
           </a>
