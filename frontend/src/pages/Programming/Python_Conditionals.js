@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from "react-router-dom";
 
 const PythonConditionals = () => {
@@ -23,28 +23,32 @@ const PythonConditionals = () => {
     allTestsPassed: false
   });
 
-  // Pyodide instance
-  const [pyodide, setPyodide] = useState(null);
+  // Refs for performance optimization
+  const pyodideRef = useRef(null);
   const [pyodideLoading, setPyodideLoading] = useState(true);
-
-  // Refs for CodeMirror instances
   const codeEditorsRef = useRef([]);
   const quizCodeEditorRef = useRef(null);
+  const executionQueue = useRef([]);
+  const isExecuting = useRef(false);
 
   // Initialize component
   useEffect(() => {
     initializePyodide();
     loadCodeMirror();
+    fetchSessionInfo();
   }, []);
 
-  // Initialize Pyodide with better UX and optimization
+  // Initialize Pyodide with better performance
   const initializePyodide = async () => {
+    if (pyodideRef.current) {
+      setPyodideLoading(false);
+      return;
+    }
+
     try {
-      // Check if Pyodide is already loaded globally
       if (window.pyodide) {
-        setPyodide(window.pyodide);
+        pyodideRef.current = window.pyodide;
         setPyodideLoading(false);
-        console.log('Using existing Pyodide instance');
         return;
       }
 
@@ -52,19 +56,15 @@ const PythonConditionals = () => {
       script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
       script.onload = async () => {
         try {
-          console.log('Loading Pyodide... This may take 15-30 seconds on first load.');
-          
           const pyodideInstance = await window.loadPyodide({
             indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/',
-            fullStdLib: false, // Only load essential packages for faster loading
+            fullStdLib: false,
           });
           
-          // Setup minimal output capture for better performance
           pyodideInstance.runPython(`
 import sys
 from io import StringIO
 
-# Lightweight output capture
 class FastCapture:
     def __init__(self):
         self.stdout = StringIO()
@@ -84,22 +84,18 @@ class FastCapture:
 _capture = FastCapture()
           `);
           
-          // Store globally to reuse across components
+          pyodideRef.current = pyodideInstance;
           window.pyodide = pyodideInstance;
-          setPyodide(pyodideInstance);
           setPyodideLoading(false);
-          console.log('Pyodide loaded successfully!');
         } catch (error) {
           console.error('Error loading Pyodide:', error);
           setPyodideLoading(false);
-          alert('Python interpreter failed to load. Code examples will not work. Please refresh the page to try again.');
         }
       };
       
       script.onerror = () => {
         console.error('Failed to load Pyodide script');
         setPyodideLoading(false);
-        alert('Failed to load Python interpreter. Please check your internet connection and refresh.');
       };
       
       document.head.appendChild(script);
@@ -109,48 +105,26 @@ _capture = FastCapture()
     }
   };
 
-  // Reinitialize editors when content changes
-  useEffect(() => {
-    if (window.CodeMirror && !pyodideLoading) {
-      const timer = setTimeout(() => {
-        initCodeEditors();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [pyodideLoading]); // Changed dependency to prevent multiple initializations
+  // Optimized CodeMirror initialization
+  const initQuizCodeEditor = useCallback(() => {
+    if (!window.CodeMirror || quizCodeEditorRef.current) return;
 
-  // Update quiz editor when current question changes
-  useEffect(() => {
-    if (quizState.questions.length > 0 && window.CodeMirror && quizCodeEditorRef.current) {
-      const currentQuestion = quizState.questions[quizState.currentQuizIndex];
-      if (currentQuestion) {
-        // Clear and set new value to prevent duplication
-        quizCodeEditorRef.current.setValue('');
-        quizCodeEditorRef.current.setValue(currentQuestion.starter_code || '');
-      }
-    }
-  }, [quizState.currentQuizIndex, quizState.questions]);
+    const quizTextarea = document.getElementById('quiz-code-editor');
+    if (!quizTextarea) return;
 
-  // Cleanup CodeMirror instances on unmount
-  useEffect(() => {
-    return () => {
-      if (quizCodeEditorRef.current) {
-        quizCodeEditorRef.current.toTextArea();
-        quizCodeEditorRef.current = null;
-      }
-      
-      codeEditorsRef.current.forEach(editor => {
-        if (editor && editor.toTextArea) {
-          try {
-            editor.toTextArea();
-          } catch (e) {
-            console.warn('Error cleaning up CodeMirror editor:', e);
-          }
-        }
-      });
-      codeEditorsRef.current = [];
-    };
-  }, []);
+    quizCodeEditorRef.current = window.CodeMirror.fromTextArea(quizTextarea, {
+      mode: "python",
+      theme: "dracula",
+      lineNumbers: true,
+      indentUnit: 4,
+      lineWrapping: true
+    });
+
+    const currentQuestion = quizState.questions[quizState.currentQuizIndex];
+    if (currentQuestion) {
+      quizCodeEditorRef.current.setValue(currentQuestion.starter_code || '');
+    }
+  }, [quizState.questions, quizState.currentQuizIndex]);
 
   // Load CodeMirror library
   const loadCodeMirror = () => {
@@ -161,7 +135,10 @@ _capture = FastCapture()
         const pythonScript = document.createElement('script');
         pythonScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js';
         pythonScript.onload = () => {
-          setTimeout(() => initCodeEditors(), 100);
+          setTimeout(() => {
+            initCodeEditors();
+            initQuizCodeEditor();
+          }, 100);
         };
         document.head.appendChild(pythonScript);
       };
@@ -177,248 +154,76 @@ _capture = FastCapture()
       themeLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.css';
       document.head.appendChild(themeLink);
     } else {
-      setTimeout(() => initCodeEditors(), 100);
+      setTimeout(() => {
+        initCodeEditors();
+        initQuizCodeEditor();
+      }, 100);
     }
   };
 
-  // Initialize CodeMirror editors
+  // Initialize regular code editors
   const initCodeEditors = () => {
     if (!window.CodeMirror) return;
 
-    setTimeout(() => {
-      const textareas = document.querySelectorAll("textarea.codeInput");
-      textareas.forEach((textarea, index) => {
-        // Check if this textarea already has a CodeMirror instance
-        if (textarea.style.display === 'none' || textarea.nextSibling?.classList?.contains('CodeMirror')) {
-          return; // Skip if already initialized
-        }
+    const textareas = document.querySelectorAll("textarea.codeInput");
+    textareas.forEach((textarea, index) => {
+      if (textarea.style.display === 'none' || textarea.nextSibling?.classList?.contains('CodeMirror')) {
+        return;
+      }
 
-        // Store original value to prevent duplication
-        const originalValue = textarea.value;
-        
-        const editor = window.CodeMirror.fromTextArea(textarea, {
-          mode: "python",
-          theme: "dracula",
-          lineNumbers: true,
-          indentUnit: 4,
-          matchBrackets: true,
-          viewportMargin: Infinity,
-        });
-
-        // Set the original value to prevent duplication
-        editor.setValue(originalValue);
-
-        editor.setSize("100%", "auto");
-        editor.on("change", function(cm) {
-          let lines = cm.lineCount();
-          let newHeight = Math.min(30 + lines * 20, 200);
-          cm.setSize("100%", newHeight + "px");
-        });
-
-        codeEditorsRef.current[index] = editor;
+      const editor = window.CodeMirror.fromTextArea(textarea, {
+        mode: "python",
+        theme: "dracula",
+        lineNumbers: true,
+        indentUnit: 4,
+        matchBrackets: true,
+        viewportMargin: Infinity,
       });
-    }, 200);
+
+      editor.setValue(textarea.value);
+      editor.setSize("100%", "auto");
+      editor.on("change", function(cm) {
+        let lines = cm.lineCount();
+        let newHeight = Math.min(30 + lines * 20, 200);
+        cm.setSize("100%", newHeight + "px");
+      });
+
+      codeEditorsRef.current[index] = editor;
+    });
   };
 
-  // Initialize quiz code editor
-  const initQuizCodeEditor = () => {
-    if (!window.CodeMirror) return;
-    
-    setTimeout(() => {
-      const quizTextarea = document.getElementById('quiz-code-editor');
-      if (quizTextarea && quizTextarea.style.display !== 'none') {
-        // Clean up existing editor if it exists
-        if (quizCodeEditorRef.current) {
-          try {
-            quizCodeEditorRef.current.toTextArea();
-          } catch (e) {
-            console.warn('Error cleaning up existing quiz editor:', e);
-          }
-          quizCodeEditorRef.current = null;
-        }
-        
-        // Store original value
-        const originalValue = quizTextarea.value;
-        
-        try {
-          quizCodeEditorRef.current = window.CodeMirror.fromTextArea(quizTextarea, {
-            mode: "python",
-            theme: "dracula",
-            lineNumbers: false,
-            indentUnit: 4,
-            matchBrackets: true,
-            viewportMargin: Infinity,
-            lineWrapping: true
-          });
-          
-          // Set the original value
-          quizCodeEditorRef.current.setValue(originalValue);
-          quizCodeEditorRef.current.setSize("100%", "250px");
-        } catch (e) {
-          console.error('Error creating quiz editor:', e);
-        }
-      }
-    }, 100);
-  };
+  // Optimized question navigation
+  const goToNextQuestion = useCallback(() => {
+    if (quizState.currentQuizIndex >= quizState.questions.length - 1) return;
 
-  // Optimized Python code execution
-  const executePythonCode = async (code, testCases = null) => {
-    if (!pyodide) {
-      return { 
-        error: 'Python interpreter not loaded yet. Please wait for initialization to complete...',
-        loading: true 
-      };
+    setQuizState(prev => ({
+      ...prev,
+      currentQuizIndex: prev.currentQuizIndex + 1,
+      showOutput: false,
+      showHint: false,
+      showResult: false,
+      output: '',
+      allTestsPassed: false
+    }));
+
+    if (quizCodeEditorRef.current) {
+      const nextQuestion = quizState.questions[quizState.currentQuizIndex + 1];
+      quizCodeEditorRef.current.setValue(nextQuestion.starter_code || '');
     }
+  }, [quizState.questions, quizState.currentQuizIndex]);
 
-    try {
-      // Reset and capture output
-      pyodide.runPython('_capture.reset()');
-      pyodide.runPython('_capture.capture()');
-      
-      let result = { output: '', error: null };
-      
-      try {
-        // Execute the user code
-        const output = pyodide.runPython(code);
-        const capturedOutput = pyodide.runPython('_capture.get_output()');
-        pyodide.runPython('_capture.restore()');
-        
-        // Process output
-        let finalOutput = '';
-        if (capturedOutput && capturedOutput.trim()) {
-          finalOutput = capturedOutput.trim();
-        } else if (output !== undefined && output !== null) {
-          finalOutput = String(output);
-        }
-        
-        result.output = finalOutput;
-        result.raw_output = finalOutput;
-        
-        // Handle test cases if provided
-        if (testCases && testCases.length > 0) {
-          result.results = [];
-          
-          for (let i = 0; i < Math.min(testCases.length, 5); i++) { // Limit to 5 test cases for performance
-            const testCase = testCases[i];
-            try {
-              pyodide.runPython('_capture.reset()');
-              pyodide.runPython('_capture.capture()');
-              
-              const testOutput = pyodide.runPython(code);
-              const testCapturedOutput = pyodide.runPython('_capture.get_output()');
-              pyodide.runPython('_capture.restore()');
-              
-              let actualOutput = '';
-              if (testCapturedOutput && testCapturedOutput.trim()) {
-                actualOutput = testCapturedOutput.trim();
-              } else if (testOutput !== undefined && testOutput !== null) {
-                actualOutput = String(testOutput);
-              }
-              
-              result.results.push({
-                input: testCase.input || {},
-                expected: testCase.expected,
-                output: actualOutput,
-                passed: String(actualOutput).trim() === String(testCase.expected).trim()
-              });
-              
-            } catch (testError) {
-              result.results.push({
-                input: testCase.input || {},
-                expected: testCase.expected,
-                output: `Error: ${testError.message}`,
-                passed: false
-              });
-            }
-          }
-        }
-        
-      } catch (executeError) {
-        pyodide.runPython('_capture.restore()');
-        result.error = executeError.message;
-      }
-      
-      return result;
-      
-    } catch (error) {
-      return { error: error.message };
-    }
-  };
-
-  // Run regular code examples with better UX
-  const runCode = async (buttonElement) => {
-    try {
-      const container = buttonElement.closest('.code-body') || buttonElement.parentElement;
-      if (!container) return;
-
-      const codeMirrorElement = container.querySelector('.CodeMirror');
-      if (!codeMirrorElement || !codeMirrorElement.CodeMirror) return;
-
-      const cmInstance = codeMirrorElement.CodeMirror;
-      const code = cmInstance.getValue();
-      
-      let outputDiv = buttonElement.nextElementSibling;
-      if (!outputDiv || !outputDiv.classList.contains('output')) {
-        outputDiv = container.querySelector('.output');
-      }
-      
-      if (!outputDiv) return;
-
-      // Show loading state
-      outputDiv.style.display = "block";
-      buttonElement.disabled = true;
-      buttonElement.textContent = 'Running...';
-
-      if (pyodideLoading) {
-        outputDiv.innerHTML = '<span style="color: #666;">⏳ Waiting for Python interpreter to load... This may take a moment on first visit.</span>';
-        buttonElement.disabled = false;
-        buttonElement.textContent = 'Run Code';
-        return;
-      }
-
-      if (!pyodide) {
-        outputDiv.innerHTML = '<span style="color: #dc3545;">❌ Python interpreter failed to load. Please refresh the page to try again.</span>';
-        buttonElement.disabled = false;
-        buttonElement.textContent = 'Run Code';
-        return;
-      }
-
-      const result = await executePythonCode(code);
-      
-      if (result.loading) {
-        outputDiv.innerHTML = '<span style="color: #666;">⏳ Python interpreter is still loading...</span>';
-      } else if (result.error) {
-        outputDiv.innerHTML = `<span style="color: #dc3545;">❌ Error: ${result.error}</span>`;
-      } else {
-        outputDiv.innerHTML = `<span style="color: #28a745;">✅ Output:</span><br/>${result.output || '<em>Code executed successfully (no output)</em>'}`;
-      }
-      
-      buttonElement.disabled = false;
-      buttonElement.textContent = 'Run Code';
-    } catch (error) {
-      console.error('Error running code:', error);
-      buttonElement.disabled = false;
-      buttonElement.textContent = 'Run Code';
-    }
-  };
-
-  // Quiz functions
+  // Queue-based code execution
   const runQuizCode = async () => {
-    if (!quizCodeEditorRef.current || quizState.questions.length === 0) return;
-    
-    if (pyodideLoading) {
-      setQuizState(prev => ({ ...prev, showOutput: true, output: 'Python interpreter is still loading. Please wait...' }));
+    if (!quizCodeEditorRef.current || isExecuting.current) {
       return;
     }
 
-    const currentQuestion = quizState.questions[quizState.currentQuizIndex];
-    if (!currentQuestion) return;
-
-    const code = quizCodeEditorRef.current.getValue();
-    
+    isExecuting.current = true;
     setQuizState(prev => ({ ...prev, showOutput: true, output: 'Running your code...' }));
     
     try {
+      const currentQuestion = quizState.questions[quizState.currentQuizIndex];
+      const code = quizCodeEditorRef.current.getValue();
       const result = await executePythonCode(code, currentQuestion.test_cases || []);
       
       if (result.error) {
@@ -474,9 +279,170 @@ _capture = FastCapture()
         output: `Error running code: ${error.message}`,
         allTestsPassed: false
       }));
+    } finally {
+      isExecuting.current = false;
+      if (executionQueue.current.length > 0) {
+        const next = executionQueue.current.shift();
+        next();
+      }
     }
   };
 
+  // Execute Python code with fallback to server
+  const executePythonCode = async (code, testCases = null) => {
+    if (!pyodideRef.current) {
+      try {
+        const endpoint = testCases ? 'http://localhost:4000/test' : 'http://localhost:4000/run-python';
+        const payload = testCases ? { code, test_cases: testCases } : { code };
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        
+        return await response.json();
+      } catch (serverError) {
+        console.error('Server execution failed:', serverError);
+        return { 
+          error: 'Python interpreter not loaded and server execution failed. Please wait for initialization to complete...',
+          loading: true 
+        };
+      }
+    }
+
+    try {
+      pyodideRef.current.runPython('_capture.reset()');
+      pyodideRef.current.runPython('_capture.capture()');
+      
+      let result = { output: '', error: null };
+      
+      try {
+        const output = pyodideRef.current.runPython(code);
+        const capturedOutput = pyodideRef.current.runPython('_capture.get_output()');
+        pyodideRef.current.runPython('_capture.restore()');
+        
+        let finalOutput = '';
+        if (capturedOutput && capturedOutput.trim()) {
+          finalOutput = capturedOutput.trim();
+        } else if (output !== undefined && output !== null) {
+          finalOutput = String(output);
+        }
+        
+        result.output = finalOutput;
+        result.raw_output = finalOutput;
+        
+        if (testCases && testCases.length > 0) {
+          result.results = [];
+          
+          for (let i = 0; i < Math.min(testCases.length, 5); i++) {
+            const testCase = testCases[i];
+            try {
+              pyodideRef.current.runPython('_capture.reset()');
+              pyodideRef.current.runPython('_capture.capture()');
+              
+              const testOutput = pyodideRef.current.runPython(code);
+              const testCapturedOutput = pyodideRef.current.runPython('_capture.get_output()');
+              pyodideRef.current.runPython('_capture.restore()');
+              
+              let actualOutput = '';
+              if (testCapturedOutput && testCapturedOutput.trim()) {
+                actualOutput = testCapturedOutput.trim();
+              } else if (testOutput !== undefined && testOutput !== null) {
+                actualOutput = String(testOutput);
+              }
+              
+              result.results.push({
+                input: testCase.input || {},
+                expected: testCase.expected,
+                output: actualOutput,
+                passed: String(actualOutput).trim() === String(testCase.expected).trim()
+              });
+              
+            } catch (testError) {
+              result.results.push({
+                input: testCase.input || {},
+                expected: testCase.expected,
+                output: `Error: ${testError.message}`,
+                passed: false
+              });
+            }
+          }
+        }
+        
+      } catch (executeError) {
+        pyodideRef.current.runPython('_capture.restore()');
+        result.error = executeError.message;
+      }
+      
+      return result;
+      
+    } catch (error) {
+      return { error: error.message };
+    }
+  };
+
+  // Run regular code examples
+  const runCode = async (buttonElement) => {
+    try {
+      const container = buttonElement.closest('.code-body') || buttonElement.parentElement;
+      if (!container) return;
+
+      const codeMirrorElement = container.querySelector('.CodeMirror');
+      if (!codeMirrorElement || !codeMirrorElement.CodeMirror) return;
+
+      const cmInstance = codeMirrorElement.CodeMirror;
+      const code = cmInstance.getValue();
+      
+      let outputDiv = buttonElement.nextElementSibling;
+      if (!outputDiv || !outputDiv.classList.contains('output')) {
+        outputDiv = container.querySelector('.output');
+      }
+      
+      if (!outputDiv) return;
+
+      outputDiv.style.display = "block";
+      buttonElement.disabled = true;
+      buttonElement.textContent = 'Running...';
+
+      if (pyodideLoading) {
+        outputDiv.innerHTML = '<span style="color: #666;">⏳ Waiting for Python interpreter to load... This may take a moment on first visit.</span>';
+        buttonElement.disabled = false;
+        buttonElement.textContent = 'Run Code';
+        return;
+      }
+
+      if (!pyodideRef.current) {
+        outputDiv.innerHTML = '<span style="color: #dc3545;">❌ Python interpreter failed to load. Please refresh the page to try again.</span>';
+        buttonElement.disabled = false;
+        buttonElement.textContent = 'Run Code';
+        return;
+      }
+
+      const result = await executePythonCode(code);
+      
+      if (result.loading) {
+        outputDiv.innerHTML = '<span style="color: #666;">⏳ Python interpreter is still loading...</span>';
+      } else if (result.error) {
+        outputDiv.innerHTML = `<span style="color: #dc3545;">❌ Error: ${result.error}</span>`;
+      } else {
+        outputDiv.innerHTML = `<span style="color: #28a745;">✅ Output:</span><br/>${result.output || '<em>Code executed successfully (no output)</em>'}`;
+      }
+      
+      buttonElement.disabled = false;
+      buttonElement.textContent = 'Run Code';
+    } catch (error) {
+      console.error('Error running code:', error);
+      buttonElement.disabled = false;
+      buttonElement.textContent = 'Run Code';
+    }
+  };
+
+  // Submit quiz answer
   const submitQuizAnswer = async () => {
     if (!quizCodeEditorRef.current || quizState.questions.length === 0) return;
 
@@ -498,23 +464,64 @@ _capture = FastCapture()
         isCorrect = true;
       }
 
-      // For demo purposes, just show local feedback
-      // You can add your backend submission logic here if needed
-      if (isCorrect) {
-        setQuizState(prev => ({
-          ...prev,
-          answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
-          showResult: true,
-          resultType: 'success',
-          resultMessage: 'Correct! Great job! Your solution is working perfectly.'
-        }));
-      } else {
-        setQuizState(prev => ({
-          ...prev,
-          showResult: true,
-          resultType: 'warning',
-          resultMessage: 'Keep Trying! Your solution is not quite right yet.'
-        }));
+      try {
+        const submitResponse = await fetch('http://localhost:4000/api/finger-exercise/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: userInfo.username,
+            email: userInfo.email,
+            topic: 'python_conditionals',
+            questionId: currentQuestion.id,
+            userAnswer: userCode,
+            isCorrect
+          })
+        });
+        
+        if (!submitResponse.ok) {
+          throw new Error(`Server responded with status: ${submitResponse.status}`);
+        }
+        
+        const responseData = await submitResponse.json();
+        console.log('Answer submitted successfully to server:', responseData);
+        
+        if (isCorrect) {
+          setQuizState(prev => ({
+            ...prev,
+            answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
+            showResult: true,
+            resultType: 'success',
+            resultMessage: `✅ Correct! Great job! Your solution has been saved to the server. (Question ID: ${currentQuestion.id})`
+          }));
+        } else {
+          setQuizState(prev => ({
+            ...prev,
+            showResult: true,
+            resultType: 'warning',
+            resultMessage: `📝 Keep Trying! Your attempt has been recorded on the server, but it's not quite right yet. (Question ID: ${currentQuestion.id})`
+          }));
+        }
+        
+      } catch (submitError) {
+        console.error('Error submitting to server:', submitError);
+        
+        if (isCorrect) {
+          setQuizState(prev => ({
+            ...prev,
+            answeredQuestionIds: [...prev.answeredQuestionIds, currentQuestion.id],
+            showResult: true,
+            resultType: 'success',
+            resultMessage: 'Correct! Great job! (Note: Server submission failed, but your answer is correct)'
+          }));
+        } else {
+          setQuizState(prev => ({
+            ...prev,
+            showResult: true,
+            resultType: 'warning',
+            resultMessage: 'Keep Trying! Your solution is not quite right yet. (Note: Server submission failed)'
+          }));
+        }
       }
     } catch (error) {
       setQuizState(prev => ({
@@ -526,67 +533,196 @@ _capture = FastCapture()
     }
   };
 
-  const goToNextQuestion = () => {
-    if (quizState.currentQuizIndex < quizState.questions.length - 1) {
-      const nextIndex = quizState.currentQuizIndex + 1;
+  const toggleQuizHint = () => {
+    setQuizState(prev => ({ ...prev, showHint: !prev.showHint }));
+  };
+
+  // Reset all questions
+  const resetAllQuestions = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/finger-exercise/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: userInfo.email,
+          topic: 'python_conditionals'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to reset questions: ${response.status}`);
+      }
       
       setQuizState(prev => ({
         ...prev,
-        currentQuizIndex: nextIndex,
+        answeredQuestionIds: [],
+        currentQuizIndex: 0,
         showOutput: false,
         showHint: false,
         showResult: false,
         output: '',
         allTestsPassed: false
       }));
+      
+      await fetchUserAnsweredQuestions(userInfo.email);
+      
+    } catch (error) {
+      console.error('Error resetting questions:', error);
+      alert(`Failed to reset questions: ${error.message}`);
     }
   };
 
-  const toggleQuizHint = () => {
-    setQuizState(prev => ({ ...prev, showHint: !prev.showHint }));
+  // Fetch session information
+  const fetchSessionInfo = async () => {
+    try {
+      const sessionResponse = await fetch('http://localhost:4000/api/session-info', { 
+        credentials: 'include' 
+      });
+      
+      if (sessionResponse.ok) {
+        const sessionData = await sessionResponse.json();
+        setUserInfo({
+          email: sessionData.email,
+          username: sessionData.username
+        });
+        
+        await fetchUserAnsweredQuestions(sessionData.email);
+      } else {
+        setUserInfo({
+          email: 'demo@example.com',
+          username: 'demo_user'
+        });
+        await fetchUserAnsweredQuestions('demo@example.com');
+      }
+    } catch (error) {
+      console.error('Error fetching session info:', error);
+      setUserInfo({
+        email: 'demo@example.com',
+        username: 'demo_user'
+      });
+      await fetchUserAnsweredQuestions('demo@example.com');
+    }
   };
 
-  // Mock quiz data for demo
-  const mockQuestions = [
-    {
-      id: 1,
-      title: "Age Checker",
-      description: "Write a program that checks if a person can vote. If age is 18 or older, print 'Can vote', otherwise print 'Cannot vote'.",
-      starter_code: "age = 20\n# Write your code here\n",
-      hint: "Use an if-else statement to compare age with 18",
-      test_cases: [
-        { input: { age: 20 }, expected: "Can vote" },
-        { input: { age: 16 }, expected: "Cannot vote" },
-        { input: { age: 18 }, expected: "Can vote" }
-      ]
-    },
-    {
-      id: 2,
-      title: "Grade Calculator",
-      description: "Write a program that converts a numeric score to a letter grade: A (90+), B (80-89), C (70-79), D (60-69), F (below 60).",
-      starter_code: "score = 85\n# Write your code here\n",
-      hint: "Use if-elif-else statements to check score ranges",
-      test_cases: [
-        { input: { score: 95 }, expected: "A" },
-        { input: { score: 85 }, expected: "B" },
-        { input: { score: 75 }, expected: "C" },
-        { input: { score: 65 }, expected: "D" },
-        { input: { score: 55 }, expected: "F" }
-      ]
+  // Fetch user's answered questions
+  const fetchUserAnsweredQuestions = async (email) => {
+    try {
+      if (!email) {
+        await initPracticeQuiz([]);
+        return;
+      }
+      
+      const response = await fetch(`http://localhost:4000/api/finger-exercise?email=${email}&topic=python_conditionals`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        await initPracticeQuiz([]);
+        return;
+      }
+      
+      const answeredData = await response.json();
+      
+      const answeredIds = (answeredData.submissions || [])
+        .map(sub => String(sub.questionId));
+      
+      setQuizState(prev => ({ ...prev, answeredQuestionIds: answeredIds }));
+      await initPracticeQuiz(answeredIds);
+      
+    } catch (error) {
+      console.error('Error fetching user answered questions:', error);
+      await initPracticeQuiz([]);
     }
-  ];
+  };
 
-  useEffect(() => {
-    // Set mock quiz data
-    setQuizState(prev => ({
-      ...prev,
-      questions: mockQuestions,
-      isLoading: false
-    }));
-    
-    // Initialize quiz editor after state is set
-    setTimeout(() => initQuizCodeEditor(), 500);
-  }, []);
+  // Initialize practice quiz
+  const initPracticeQuiz = async (answeredIds) => {
+    try {
+      setQuizState(prev => ({ ...prev, isLoading: true }));
+      
+      const response = await fetch('http://localhost:4000/api/finger-questions?topic=python_conditionals', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch questions: ${response.status}`);
+      }
+      
+      const allQuestions = await response.json();
+      
+      const answeredSet = new Set(answeredIds);
+      const unansweredQuestions = allQuestions.filter(q => 
+        !answeredSet.has(String(q.id))
+      );
+      
+      setQuizState(prev => ({
+        ...prev,
+        questions: unansweredQuestions,
+        isLoading: false
+      }));
+      
+      if (unansweredQuestions.length > 0) {
+        setTimeout(() => initQuizCodeEditor(), 500);
+      }
+    } catch (error) {
+      console.error('Error initializing practice quiz:', error);
+      
+      const mockQuestions = [
+        {
+          id: 1,
+          title: "Age Checker",
+          description: "Write a program that checks if a person can vote. If age is 18 or older, print 'Can vote', otherwise print 'Cannot vote'.",
+          starter_code: "age = 20\n# Write your code here\nif age >= 18:\n    print('Can vote')\nelse:\n    print('Cannot vote')",
+          hint: "Use an if-else statement to compare age with 18",
+          test_cases: [
+            { input: { age: 20 }, expected: "Can vote" },
+            { input: { age: 16 }, expected: "Cannot vote" },
+            { input: { age: 18 }, expected: "Can vote" }
+          ]
+        },
+        {
+          id: 2,
+          title: "Grade Calculator",
+          description: "Write a program that converts a numeric score to a letter grade: A (90+), B (80-89), C (70-79), D (60-69), F (below 60).",
+          starter_code: "score = 85\n# Write your code here\nif score >= 90:\n    print('A')\nelif score >= 80:\n    print('B')\nelif score >= 70:\n    print('C')\nelif score >= 60:\n    print('D')\nelse:\n    print('F')",
+          hint: "Use if-elif-else statements to check score ranges",
+          test_cases: [
+            { input: { score: 95 }, expected: "A" },
+            { input: { score: 85 }, expected: "B" },
+            { input: { score: 75 }, expected: "C" },
+            { input: { score: 65 }, expected: "D" },
+            { input: { score: 55 }, expected: "F" }
+          ]
+        },
+        {
+          id: 3,
+          title: "Number Sign Checker",
+          description: "Write a program that checks if a number is positive, negative, or zero. Print 'Positive', 'Negative', or 'Zero'.",
+          starter_code: "number = 5\n# Write your code here\n",
+          hint: "Use if-elif-else to compare the number with 0",
+          test_cases: [
+            { input: { number: 5 }, expected: "Positive" },
+            { input: { number: -3 }, expected: "Negative" },
+            { input: { number: 0 }, expected: "Zero" }
+          ]
+        }
+      ];
+      
+      const answeredSet = new Set(answeredIds);
+      const unansweredQuestions = mockQuestions.filter(q => !answeredSet.has(String(q.id)));
+      
+      setQuizState(prev => ({
+        ...prev,
+        questions: unansweredQuestions,
+        isLoading: false
+      }));
+      
+      if (unansweredQuestions.length > 0) {
+        setTimeout(() => initQuizCodeEditor(), 500);
+      }
+    }
+  };
 
   const currentQuestion = quizState.questions[quizState.currentQuizIndex];
 
@@ -598,8 +734,6 @@ _capture = FastCapture()
           line-height: 1.6;
           color: #333;
         }
-
-        
 
         .loading-indicator {
           background: #fff3cd;
@@ -669,44 +803,6 @@ _capture = FastCapture()
           border-radius: 8px;
           border-left: 4px solid #3498db;
           overflow-x: auto;
-        }
-
-        .operators-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 20px 0;
-          background-color: #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-          border-radius: 8px;
-          overflow: hidden;
-          font-family: 'Roboto Mono', monospace;
-          font-size: 0.95rem;
-        }
-
-        .operators-table th,
-        .operators-table td {
-          padding: 12px 16px;
-          text-align: left;
-          border-bottom: 1px solid #e0e0e0;
-        }
-
-        .operators-table th {
-          background-color: #f8f9fa;
-          font-weight: bold;
-          color: #2c3e50;
-        }
-
-        .operators-table tr:hover {
-          background-color: #f1f1f1;
-        }
-
-        .operators-table td code {
-          background-color: #eaf2f8;
-          padding: 2px 6px;
-          border-radius: 4px;
-          color: #005f73;
-          font-weight: 500;
-          display: inline-block;
         }
 
         .comparison-container {
@@ -1033,6 +1129,45 @@ _capture = FastCapture()
           width: 100%;
         }
 
+        /* New styles for operators tables */
+        .operators-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 20px 0;
+          background-color: #ffffff;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+          border-radius: 8px;
+          overflow: hidden;
+          font-family: 'Roboto Mono', monospace;
+          font-size: 0.95rem;
+        }
+
+        .operators-table th,
+        .operators-table td {
+          padding: 12px 16px;
+          text-align: left;
+          border-bottom: 1px solid #e0e0e0;
+        }
+
+        .operators-table th {
+          background-color: #f8f9fa;
+          font-weight: bold;
+          color: #2c3e50;
+        }
+
+        .operators-table tr:hover {
+          background-color: #f1f1f1;
+        }
+
+        .operators-table td code {
+          background-color: #eaf2f8;
+          padding: 2px 6px;
+          border-radius: 4px;
+          color: #005f73;
+          font-weight: 500;
+          display: inline-block;
+        }
+
         @media (max-width: 768px) {
           .comparison-container {
             flex-direction: column;
@@ -1054,15 +1189,6 @@ _capture = FastCapture()
           .row {
             flex-direction: column;
           }
-
-          .operators-table {
-            font-size: 0.85rem;
-          }
-
-          .operators-table th,
-          .operators-table td {
-            padding: 8px 12px;
-          }
         }
       `}</style>
 
@@ -1074,7 +1200,6 @@ _capture = FastCapture()
               <div className="col-lg-8">
                 <h1>Python Conditional Statements</h1>
                 <p className="mb-0">Master decision-making through conditional logic and control flow</p>
-                
               </div>
             </div>
           </div>
@@ -1082,12 +1207,150 @@ _capture = FastCapture()
         <nav className="breadcrumbs">
           <div className="container">
             <ol>
-              <li><a href="/">Home</a></li>
-              <li><a href="/programming">Programming</a></li>
+              <li><Link to="/">Home</Link></li>
+              <li><Link to="/programming">Programming</Link></li>
               <li className="current">Python Conditionals</li>
             </ol>
           </div>
         </nav>
+      </div>
+
+      {/* Operators Section */}
+      <div className="container">
+        <div className="section">
+          <h2><i className="bi bi-diagram-2"></i> Operators</h2>
+          
+          <h4><i className="bi bi-file-code"></i> Comparison Operators</h4>
+          <table className="operators-table">
+            <tr>
+              <th>Operator</th>
+              <th>Meaning</th>
+              <th>Example</th>
+            </tr>
+            <tr>
+              <td><code>==</code></td>
+              <td>Equal to</td>
+              <td><code>age == 18</code></td>
+            </tr>
+            <tr>
+              <td><code>!=</code></td>
+              <td>Not equal to</td>
+              <td><code>age != 18</code></td>
+            </tr>
+            <tr>
+              <td><code>&gt;</code></td>
+              <td>Greater than</td>
+              <td><code>age &gt; 18</code></td>
+            </tr>
+            <tr>
+              <td><code>&lt;</code></td>
+              <td>Less than</td>
+              <td><code>age &lt; 18</code></td>
+            </tr>
+            <tr>
+              <td><code>&gt;=</code></td>
+              <td>Greater than or equal to</td>
+              <td><code>age &gt;= 18</code></td>
+            </tr>
+            <tr>
+              <td><code>&lt;=</code></td>
+              <td>Less than or equal to</td>
+              <td><code>age &lt;= 18</code></td>
+            </tr>
+          </table>
+          
+          <br />
+
+          <h4><i className="bi bi-file-code"></i> Arithmetic Operators</h4>
+          <table className="operators-table">
+            <tr>
+              <th>Operator</th>
+              <th>Meaning</th>
+              <th>Example</th>
+            </tr>
+            <tr>
+              <td><code>+</code></td>
+              <td>Addition</td>
+              <td><code>x + y</code></td>
+            </tr>
+            <tr>
+              <td><code>-</code></td>
+              <td>Subtraction</td>
+              <td><code>x - y</code></td>
+            </tr>
+            <tr>
+              <td><code>*</code></td>
+              <td>Multiplication</td>
+              <td><code>x * y</code></td>
+            </tr>
+            <tr>
+              <td><code>/</code></td>
+              <td>Division</td>
+              <td><code>x / y</code></td>
+            </tr>
+            <tr>
+              <td><code>%</code></td>
+              <td>Modulus (Remainder)</td>
+              <td><code>x % y</code></td>
+            </tr>
+            <tr>
+              <td><code>**</code></td>
+              <td>Exponentiation</td>
+              <td><code>x ** 2</code></td>
+            </tr>
+            <tr>
+              <td><code>//</code></td>
+              <td>Floor Division</td>
+              <td><code>x // 2</code></td>
+            </tr>
+          </table>
+          
+          <br />
+          
+          <h4><i className="bi bi-file-code"></i> Logical Operators</h4>
+          <table className="operators-table">
+            <tr>
+              <th>Operator</th>
+              <th>Meaning</th>
+              <th>Example</th>
+            </tr>
+            <tr>
+              <td><code>and</code></td>
+              <td>Logical AND</td>
+              <td><code>x &gt; 5 and y &lt; 10</code></td>
+            </tr>
+            <tr>
+              <td><code>or</code></td>
+              <td>Logical OR</td>
+              <td><code>x &gt; 5 or y &lt; 10</code></td>
+            </tr>
+            <tr>
+              <td><code>not</code></td>
+              <td>Logical NOT</td>
+              <td><code>not(x &gt; 5)</code></td>
+            </tr>
+            <tr>
+              <td><code>in</code></td>
+              <td>Membership operator</td>
+              <td><code>x in list_values</code></td>
+            </tr>
+            <tr>
+              <td><code>not in</code></td>
+              <td>Negated membership</td>
+              <td><code>x not in list_values</code></td>
+            </tr>
+            <tr>
+              <td><code>is</code></td>
+              <td>Identity operator</td>
+              <td><code>x is None</code></td>
+            </tr>
+            <tr>
+              <td><code>is not</code></td>
+              <td>Negated identity</td>
+              <td><code>x is not None</code></td>
+            </tr>
+          </table>
+        </div>
       </div>
 
       {/* Introduction Section */}
@@ -1140,7 +1403,7 @@ else:
           </div>
         </div>
       </div>
-
+      
       {/* Basic If Statement */}
       <div className="container">
         <div className="section">
@@ -1155,27 +1418,59 @@ else:
 # code that always runs</code></pre>
 
             <div className="comparison-container">
-              <div className="code-comparison correct">
+              <div className="code-comparison incorrect">
                 <div className="code-header">
-                  <i className="bi bi-check-circle-fill"></i> Basic If Examples
+                  <i className="bi bi-x-circle-fill"></i> Common Mistakes
                 </div>
                 <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Simple if statement
-age = 20
-if age >= 18:
-    print("You are an adult")
-print("Age check complete")`}></textarea>
+                  <textarea className="codeInput" defaultValue={`# Missing colon
+if age > 18
+    print("Adult")`}></textarea>
                   <button onClick={(e) => runCode(e.target)}>Run Code</button>
                   <div className="output"></div>
                 </div>
                 <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Temperature check
-temperature = 25
+                  <textarea className="codeInput" defaultValue={`# Incorrect indentation
+if age > 18:
+print("Adult")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Using = instead of ==
+if age = 18:
+    print("Exactly 18")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+              </div>
+              
+              <div className="code-comparison correct">
+                <div className="code-header">
+                  <i className="bi bi-check-circle-fill"></i> Correct Usage
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Proper if statement
+age = 20
+if age > 18:
+    print("Adult")  # Properly indented
+print("Check complete")  # Outside if block`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Correct comparison
+age = 20
+if age == 18:
+    print("Exactly 18")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Simple condition
+temperature = 22
 if temperature > 30:
-    print("It's hot today!")
-if temperature < 10:
-    print("It's cold today!")
-print("Weather check done")`}></textarea>
+    print("It's hot outside")`}></textarea>
                   <button onClick={(e) => runCode(e.target)}>Run Code</button>
                   <div className="output"></div>
                 </div>
@@ -1205,36 +1500,86 @@ print("Weather check done")`}></textarea>
             <pre><code>if condition:
     # code when true
 else:
-    # code when false</code></pre>
+    # code when false
+# code that always runs</code></pre>
 
             <div className="comparison-container">
-              <div className="code-comparison correct">
+              <div className="code-comparison incorrect">
                 <div className="code-header">
-                  <i className="bi bi-check-circle-fill"></i> If-Else Examples
+                  <i className="bi bi-x-circle-fill"></i> Problematic Code
                 </div>
                 <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Voting eligibility
-age = 17
-if age >= 18:
-    print("You can vote!")
+                  <textarea className="codeInput" defaultValue={`# Unbalanced conditions
+if password == "secret":
+    print("Access granted")
+        print("Welcome!")  # Executes regardless
 else:
-    print("You cannot vote yet")
-print("Check complete")`}></textarea>
+    print("Access denied")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+              </div>
+              
+              <div className="code-comparison incorrect">
+                <div className="code-header">
+                  <i className="bi bi-x-circle-fill"></i> Problematic Code
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Redundant else
+if score >= 60:
+    print("Pass")
+else:
+    if score < 60:  # Already implied
+      print("Fail")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+              </div>
+              
+              <div className="code-comparison correct">
+                <div className="code-header">
+                  <i className="bi bi-check-circle-fill"></i> Clean Code
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Proper if-else structure
+password = "secret123"
+if password == "secret123":
+    print("Access granted")
+else:
+    print("Access denied")
+print("System check complete")`}></textarea>
                   <button onClick={(e) => runCode(e.target)}>Run Code</button>
                   <div className="output"></div>
                 </div>
                 <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Number comparison
-number = -5
-if number >= 0:
-    print("Positive or zero")
+                  <textarea className="codeInput" defaultValue={`# Simple if-else
+score = 85
+if score >= 60:
+    print("Pass")
 else:
-    print("Negative number")`}></textarea>
+    print("Fail")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Readable formatting
+temperature = 25
+if temperature > 30:
+    print("Hot weather")
+else:
+    print("Moderate weather")`}></textarea>
                   <button onClick={(e) => runCode(e.target)}>Run Code</button>
                   <div className="output"></div>
                 </div>
               </div>
             </div>
+
+            <h4><i className="bi bi-lightbulb"></i> When to Use</h4>
+            <ul>
+              <li>When you have exactly two possible outcomes</li>
+              <li>For simple true/false decisions</li>
+              <li>When you need to handle both cases</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -1253,45 +1598,98 @@ else:
 elif condition2:
     # code for condition2
 else:
-    # default case</code></pre>
+    # default case
+# code that always runs</code></pre>
 
             <div className="comparison-container">
-              <div className="code-comparison correct">
+              <div className="code-comparison incorrect">
                 <div className="code-header">
-                  <i className="bi bi-check-circle-fill"></i> Multiple Conditions
+                  <i className="bi bi-x-circle-fill"></i> Common Issues
                 </div>
                 <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Grade calculator
-score = 85
-if score >= 90:
-    print("Grade: A")
-elif score >= 80:
-    print("Grade: B")
-elif score >= 70:
-    print("Grade: C")
-elif score >= 60:
-    print("Grade: D")
-else:
-    print("Grade: F")`}></textarea>
+                  <textarea className="codeInput" defaultValue={`# Overlapping conditions
+grade = 85
+if grade >= 90:
+    print("A")
+if grade >= 80:  # Will also be true for 85
+    print("B")`}></textarea>
                   <button onClick={(e) => runCode(e.target)}>Run Code</button>
                   <div className="output"></div>
                 </div>
                 <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Weather conditions
+                  <textarea className="codeInput" defaultValue={`# Unordered conditions
+grade = 85
+if grade >= 70:
+    print("C")
+elif grade >= 90:  # Never reached if grade is 95
+    print("A")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Missing final else
+grade = 85
+if grade >= 90:
+    print("A")
+elif grade >= 80:
+    print("B")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+              </div>
+              
+              <div className="code-comparison correct">
+                <div className="code-header">
+                  <i className="bi bi-check-circle-fill"></i> Proper Structure
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Correct grade evaluation
+grade = 85
+if grade >= 90:
+    print("A")
+elif grade >= 80:  # Only checked if grade < 90
+    print("B")
+elif grade >= 70:
+    print("C")
+else:
+    print("Below C")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Proper condition order
 temperature = 25
 if temperature > 30:
-    print("Hot weather")
+    print("Hot")
 elif temperature > 20:
-    print("Warm weather")
-elif temperature > 10:
-    print("Cool weather")
+    print("Warm")
 else:
-    print("Cold weather")`}></textarea>
+    print("Cool")`}></textarea>
+                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
+                  <div className="output"></div>
+                </div>
+                <div className="code-body">
+                  <textarea className="codeInput" defaultValue={`# Complete coverage
+age = 17
+if age >= 18:
+    print("Adult")
+elif age >= 13:
+    print("Teen")
+else:
+    print("Child")`}></textarea>
                   <button onClick={(e) => runCode(e.target)}>Run Code</button>
                   <div className="output"></div>
                 </div>
               </div>
             </div>
+
+            <h4><i className="bi bi-lightbulb"></i> Best Practices</h4>
+            <ul>
+              <li>Order conditions from most specific to least specific</li>
+              <li>Make sure conditions don't overlap</li>
+              <li>Include a final else clause as a catch-all</li>
+              <li>Limit to 3-5 elifs for readability</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -1302,12 +1700,25 @@ else:
           <h2><i className="bi bi-trophy"></i> Practice Examples</h2>
           
           <div className="flowchart-example">
-            <h4><i className="bi bi-1-circle"></i> Try These Examples</h4>
+            <h4><i className="bi bi-1-circle"></i> Beginner level</h4>
+            
+            <div className="exercise">
+              <div className="exercise-title">Age Checker</div>
+              <div className="exercise-description">Check if a person can vote (18+)</div>
+              <textarea className="codeInput" defaultValue={`age = 17  # Try changing this value
+
+if age >= 18:
+    print("You can vote!")
+else:
+    print("You can't vote yet.")`}></textarea>
+              <button onClick={(e) => runCode(e.target)}>Run Code</button>
+              <div className="output"></div>
+            </div>
             
             <div className="exercise">
               <div className="exercise-title">Number Sign Checker</div>
               <div className="exercise-description">Check if a number is positive, negative, or zero</div>
-              <textarea className="codeInput" defaultValue={`number = 0  # Try different numbers
+              <textarea className="codeInput" defaultValue={`number = -5  # Try different numbers
 
 if number > 0:
     print("Positive")
@@ -1318,11 +1729,12 @@ else:
               <button onClick={(e) => runCode(e.target)}>Run Code</button>
               <div className="output"></div>
             </div>
-            
+        
+            <h4><i className="bi bi-2-circle"></i> Intermediate level</h4>
             <div className="exercise">
               <div className="exercise-title">Password Strength Checker</div>
               <div className="exercise-description">Check password strength based on length</div>
-              <textarea className="codeInput" defaultValue={`password = "secret123"  # Try different passwords
+              <textarea className="codeInput" defaultValue={`password = "mypassword123"  # Try different passwords
 length = len(password)
 
 if length < 6:
@@ -1336,11 +1748,25 @@ else:
               <button onClick={(e) => runCode(e.target)}>Run Code</button>
               <div className="output"></div>
             </div>
+            
+            <div className="exercise">
+              <div className="exercise-title">Leap Year Checker</div>
+              <div className="exercise-description">Determine if a year is a leap year</div>
+              <textarea className="codeInput" defaultValue={`year = 2024  # Try different years
 
+if (year % 400 == 0) or (year % 100 != 0 and year % 4 == 0):
+    print("Leap year")
+else:
+    print("Not a leap year")`}></textarea>
+              <button onClick={(e) => runCode(e.target)}>Run Code</button>
+              <div className="output"></div>
+            </div>
+        
+            <h4><i className="bi bi-3-circle"></i> Advanced level</h4>
             <div className="exercise">
               <div className="exercise-title">Discount Calculator</div>
               <div className="exercise-description">Calculate discounts based on purchase amount</div>
-              <textarea className="codeInput" defaultValue={`purchase = 150  # Try different amounts
+              <textarea className="codeInput" defaultValue={`purchase = 175  # Try different amounts
 
 if purchase >= 200:
     discount = 0.15
@@ -1357,6 +1783,25 @@ print(f"Final price: $\{final_price:.2f\}")`}></textarea>
               <button onClick={(e) => runCode(e.target)}>Run Code</button>
               <div className="output"></div>
             </div>
+            
+            <div className="exercise">
+              <div className="exercise-title">Grade Calculator</div>
+              <div className="exercise-description">Convert score to letter grade</div>
+              <textarea className="codeInput" defaultValue={`score = 83  # Try different scores
+
+if score >= 90:
+    print("A")
+elif score >= 80:
+    print("B")
+elif score >= 70:
+    print("C")
+elif score >= 60:
+    print("D")
+else:
+    print("F")`}></textarea>
+              <button onClick={(e) => runCode(e.target)}>Run Code</button>
+              <div className="output"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1369,9 +1814,17 @@ print(f"Final price: $\{final_price:.2f\}")`}></textarea>
               <div className="card">
                 <div className="card-header bg-success text-white">
                   <h3><i className="bi bi-question-circle"></i> Practice Quiz</h3>
-                  <p className="mb-0">Test your Python skills with interactive exercises</p>
+                  <p className="mb-0">Test your Python conditionals knowledge with interactive exercises</p>
+                  
                 </div>
                 <div className="card-body">
+                  {pyodideLoading && (
+                    <div className="alert alert-info">
+                      <div className="spinner-border spinner-border-sm me-2"></div>
+                      Loading Python interpreter (this may take 20-30 seconds on first load)...
+                    </div>
+                  )}
+                  
                   {quizState.isLoading ? (
                     <div className="text-center py-5">
                       <div className="spinner-border text-primary" role="status">
@@ -1381,14 +1834,23 @@ print(f"Final price: $\{final_price:.2f\}")`}></textarea>
                     </div>
                   ) : quizState.questions.length === 0 ? (
                     <div className="alert alert-success">
-                      <h4><i className="bi bi-trophy"></i> No questions available!</h4>
-                      <p>Practice with the examples above to improve your skills.</p>
+                      <h4><i className="bi bi-trophy"></i> Congratulations!</h4>
+                      <p>You've completed all practice questions for Python Conditionals!</p>
+                      <p>You're ready to move on to the next topic.</p>
+                      <div className="mt-3">
+                        <button className="btn btn-primary me-2" onClick={() => window.location.reload()}>
+                          🔄 Reload Questions
+                        </button>
+                        <button className="btn btn-outline-secondary" onClick={resetAllQuestions}>
+                          🗑️ Reset Progress
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div>
                       <div className="quiz-header d-flex justify-content-between align-items-center mb-3">
                         <h4>{currentQuestion?.title || 'Practice Question'}</h4>
-                        <span className="badge bg-info">Python</span>
+                        <span className="badge bg-info">Python Conditionals</span>
                       </div>
                       
                       <div className="text-muted mb-2">
@@ -1407,8 +1869,21 @@ print(f"Final price: $\{final_price:.2f\}")`}></textarea>
                       ></textarea>
                       
                       <div className="btn-toolbar mt-3 mb-3">
-                        <button className="btn btn-primary run-quiz-btn me-2" onClick={runQuizCode}>
-                          <i className="bi bi-play-fill"></i> Run Code
+                        <button 
+                          className="btn btn-primary run-quiz-btn me-2" 
+                          onClick={runQuizCode}
+                          disabled={pyodideLoading || quizState.isLoading}
+                        >
+                          {pyodideLoading ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2"></span>
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <i className="bi bi-play-fill"></i> Run Code
+                            </>
+                          )}
                         </button>
                         <button className="btn btn-outline-secondary show-quiz-hint-btn" onClick={toggleQuizHint}>
                           <i className="bi bi-lightbulb"></i> {quizState.showHint ? 'Hide Hint' : 'Show Hint'}
@@ -1422,7 +1897,7 @@ print(f"Final price: $\{final_price:.2f\}")`}></textarea>
                       
                       {quizState.showHint && (
                         <div className="quiz-hint-container alert alert-info">
-                          {currentQuestion?.hint || 'No hint available for this question.'}
+                          💡 <strong>Hint:</strong> {currentQuestion?.hint || 'No hint available for this question.'}
                         </div>
                       )}
                       
@@ -1449,8 +1924,11 @@ print(f"Final price: $\{final_price:.2f\}")`}></textarea>
                               <Link to="/programming/python-loops" className="btn btn-success me-2">
                                 🚀 Continue to Loops
                               </Link>
-                              <button className="btn btn-outline-primary" onClick={() => window.location.reload()}>
+                              <button className="btn btn-outline-primary me-2" onClick={() => window.location.reload()}>
                                 🔄 Start Over
+                              </button>
+                              <button className="btn btn-outline-secondary" onClick={resetAllQuestions}>
+                                🗑️ Reset All Progress
                               </button>
                             </div>
                           )}
@@ -1466,13 +1944,13 @@ print(f"Final price: $\{final_price:.2f\}")`}></textarea>
       </div>
 
       {/* Next Steps Section */}
-       <div className="section" style={{ textAlign: 'center' }}>
-          <h2>Ready to Learn More?</h2>
-          <p>Now that you understand the Python Conditionals, let's explore further topics in Python Loops!</p>
-          <a href="python-loops" className="btn btn-primary">
-            Continue to Next Lesson
-          </a>
-        </div>
+      <div className="section" style={{ textAlign: 'center' }}>
+        <h2>Ready to Learn More?</h2>
+        <p>Now that you understand Python Conditionals, let's explore further topics in Python Loops!</p>
+        <Link to="/programming/python-loops" className="btn btn-primary">
+          Continue to Next Lesson
+        </Link>
+      </div>
     </div>
   );
 };
