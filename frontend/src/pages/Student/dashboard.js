@@ -517,7 +517,7 @@ const StudentDashboard = () => {
             <th>Total Passages Solved</th>
             <th>Current Level</th>
             <th>Last Activity</th>
-            <th>Actions</th>
+           
           </tr>
         </thead>
         <tbody>
@@ -567,7 +567,7 @@ const StudentDashboard = () => {
               <th>Date</th>
               <th>Score(%)</th>
               <th>Questions Passed Out of 20</th>
-              <th>Actions</th>
+              
             </tr>
           </thead>
           <tbody>
