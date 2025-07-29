@@ -165,7 +165,7 @@ const Programming = () => {
 
   const fetchSessionInfo = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/session-info', {
+      const response = await fetch('http://3.111.49.131:4000/api/session-info', {
         credentials: 'include'
       });
 
@@ -193,7 +193,7 @@ const Programming = () => {
     try {
       console.log(`Fetching CT progress for ${topic} with email: ${email}`);
       const response = await fetch(
-        `http://localhost:4000/api/CT_finger_scores/${email}/${topic}`,
+        `http://3.111.49.131:4000/api/CT_finger_scores/${email}/${topic}`,
         { credentials: 'include' }
       );
       
@@ -227,7 +227,7 @@ const Programming = () => {
     try {
       console.log(`Fetching Python progress for ${topic} with email: ${email}`);
       const response = await fetch(
-        `http://localhost:4000/api/finger-exercise?email=${email}&topic=${topic}`,
+        `http://3.111.49.131:4000/api/finger-exercise?email=${email}&topic=${topic}`,
         { credentials: 'include' }
       );
       
