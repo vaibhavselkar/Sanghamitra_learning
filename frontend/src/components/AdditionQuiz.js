@@ -850,26 +850,7 @@ const AdditionQuiz = ({ operationType = 'addition' }) => {
           </div>
         </div>
 
-        {/* Debug Panel - Remove this in production */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-4">
-            <div className="card">
-              <div className="card-header">
-                <h6>Debug Info</h6>
-              </div>
-              <div className="card-body small">
-                <strong>Current Question:</strong> {quizState.currentQuestionIndex + 1}<br/>
-                <strong>Status:</strong> {getQuestionStatus(currentQuestion)}<br/>
-                <strong>Attempted:</strong> {currentQuestion?.attempted?.toString() || 'false'}<br/>
-                <strong>User Answer:</strong> {currentQuestion?.userAnswer || 'None'}<br/>
-                <strong>Selected Answer:</strong> {quizState.selectedAnswer || 'None'}<br/>
-                <strong>Correct Answer:</strong> {currentQuestion?.correctOption}<br/>
-                <strong>Is Correct:</strong> {currentQuestion?.isCorrect !== null && currentQuestion?.isCorrect !== undefined ? currentQuestion.isCorrect.toString() : 'N/A'}<br/>
-                <strong>Total Attempted:</strong> {attemptedCount} / {quizState.questions.length}
-              </div>
-            </div>
-          </div>
-        )}
+       
       </div>
     </section>
   );
