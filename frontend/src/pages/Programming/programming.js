@@ -32,14 +32,7 @@ const Programming = () => {
 
   // Define all courses with their configurations
   const courses = [
-    {
-      icon: "bi-clipboard-check",
-      title: "Weekly Assessments",
-      desc: "Regular evaluations to track your learning progress",
-      bg: "bg-warning",
-      href: "/programming/weekly-assessments",
-      type: "special"
-    },
+  
     {
       icon: "bi-cpu",
       title: "CT Foundation",
@@ -437,29 +430,7 @@ const Programming = () => {
           </div>
         )}
 
-        {/* Special Diagnostic Section */}
-        <div className="mb-4">
-          <div className="alert alert-warning border-0 shadow-sm">
-            <div className="row align-items-center">
-              <div className="col-md-8">
-                <h5 className="alert-heading mb-2">
-                  <i className="bi bi-clipboard-check me-2"></i>
-                  Start with a Diagnostic Assessment
-                </h5>
-                <p className="mb-0">
-                  Not sure where to begin? Take our comprehensive diagnostic test to assess your current 
-                  programming knowledge and get personalized learning recommendations.
-                </p>
-              </div>
-              <div className="col-md-4 text-end">
-                <Link to="/programming/programming-diagnostic" className="btn btn-warning">
-                  <i className="bi bi-play-circle me-2"></i>
-                  Take Diagnostic Test
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+        
 
         {/* Course List */}
         <div className="course-list" style={{ maxWidth: '900px', margin: '0 auto' }}>
