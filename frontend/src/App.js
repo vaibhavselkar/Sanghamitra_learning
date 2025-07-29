@@ -53,7 +53,7 @@ function Layout({ children }) {
   const location = useLocation();
   
   // Routes that should not show Header and Footer
-  const routesWithoutLayout = ['/tutor/dashboard']; // Add new routes here if they shouldn't show Header/Footer
+  const routesWithoutLayout = ['/tutor-dashboard']; // Add new routes here if they shouldn't show Header/Footer
   
   const shouldShowLayout = !routesWithoutLayout.includes(location.pathname);
   
@@ -75,7 +75,7 @@ function App() {
         <Layout>
           <Routes>
             {/* Tutor dashboard route */}
-            <Route path="/tutor/dashboard" element={<TutorDashboard />} />
+            <Route path="/tutor-dashboard" element={<TutorDashboard />} />
             
             {/* Regular routes with Header and Footer */}
             <Route path="/" element={<><Hero /><Courses /><HomeAbout/></>} />
