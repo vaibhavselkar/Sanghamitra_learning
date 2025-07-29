@@ -331,7 +331,7 @@ const StudentDashboard = () => {
   };
 
   const redirectToVocab = () => {
-    navigate("/english/vocabulary");
+    navigate("/vocabulary");
   };
   
   const redirectToMath = () => {
