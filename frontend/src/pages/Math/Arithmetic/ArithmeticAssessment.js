@@ -470,9 +470,9 @@ const ArithmeticAssessment = () => {
           <nav className="breadcrumbs">
             <div className="container">
               <ol>
-                <li><a href="../index.html">Home</a></li>
-                <li><a href="../math.html">Math</a></li>
-                <li><a href="arithmetic.html">Arithmetic</a></li>
+                <li><Link to="/">Home</Link></li>
+                <li><Link to="/math">Math</Link></li>
+                <li><Link to="/math/arithmetic">Arithmetic</Link></li>
                 <li className="current">Assessment</li>
               </ol>
             </div>
