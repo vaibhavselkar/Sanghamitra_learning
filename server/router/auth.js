@@ -502,6 +502,226 @@ router.post('/mathematicsDiagnosticScores', async (req, res) => {
   }
 });
 
+// GET route for diagnostic analytics - supports multiple query parameters
+router.get('/mathematicsDiagnosticsAnalytics', async (req, res) => {
+  try {
+    const { 
+      email, 
+      topicArea, 
+      testType, 
+      testPhase,
+      limit = 100,
+      sortBy = 'testDate',
+      sortOrder = 'desc'
+    } = req.query;
+
+    // Build query object dynamically
+    let query = {};
+    
+    if (email) {
+      query.email = email.toLowerCase().trim();
+    }
+    
+    if (topicArea) {
+      query.topicArea = topicArea;
+    }
+    
+    if (testType) {
+      query.testType = testType;
+    }
+    
+    if (testPhase) {
+      query.testPhase = testPhase;
+    }
+    // Build sort object
+    const sortObj = {};
+    sortObj[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+    // Fetch diagnostic scores with filters - using correct field names
+    const diagnosticScores = await MathematicsDiagnosticScore
+      .find(query)
+      .sort(sortObj)
+      .limit(parseInt(limit))
+      .lean();
+
+    if (!diagnosticScores || diagnosticScores.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No diagnostic test results found for the specified criteria',
+        data: [],
+        summary: {
+          totalTests: 0,
+          users: 0,
+          topicAreas: 0
+        }
+      });
+    }
+
+    // Generate summary statistics
+    const summary = {
+      totalTests: diagnosticScores.length,
+      users: [...new Set(diagnosticScores.map(score => score.email))].length,
+      topicAreas: [...new Set(diagnosticScores.map(score => score.topicArea))].length,
+      testTypes: [...new Set(diagnosticScores.map(score => score.testType))].length,
+      averageScore: Math.round(diagnosticScores.reduce((sum, score) => sum + score.totalScore, 0) / diagnosticScores.length),
+      averageDuration: Math.round(diagnosticScores.reduce((sum, score) => sum + score.testDuration, 0) / diagnosticScores.length),
+      dateRange: {
+        earliest: diagnosticScores[diagnosticScores.length - 1]?.testDate,
+        latest: diagnosticScores[0]?.testDate
+      }
+    };
+
+    // Group data for easier frontend processing
+    const groupedData = {
+      byUser: {},
+      byTopicArea: {},
+      byTestType: {},
+      byTestPhase: { pre: [], post: [] }
+    };
+
+    diagnosticScores.forEach(score => {
+      // Group by user (using email as key)
+      if (!groupedData.byUser[score.email]) {
+        groupedData.byUser[score.email] = {
+          username: score.username,
+          email: score.email,
+          tests: []
+        };
+      }
+      groupedData.byUser[score.email].tests.push(score);
+
+      // Group by topic area
+      if (!groupedData.byTopicArea[score.topicArea]) {
+        groupedData.byTopicArea[score.topicArea] = [];
+      }
+      groupedData.byTopicArea[score.topicArea].push(score);
+
+      // Group by test type
+      if (!groupedData.byTestType[score.testType]) {
+        groupedData.byTestType[score.testType] = [];
+      }
+      groupedData.byTestType[score.testType].push(score);
+
+      // Group by test phase
+      if (score.testPhase === 'pre' || score.testPhase === 'post') {
+        groupedData.byTestPhase[score.testPhase].push(score);
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Diagnostic analytics retrieved successfully',
+      data: diagnosticScores,
+      grouped: groupedData,
+      summary: summary,
+      query: query
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching diagnostic analytics',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET route for user-specific analytics comparison (pre vs post)
+router.get('/mathematicsDiagnosticsComparison/:email/:topicArea', async (req, res) => {
+  try {
+    const { email, topicArea } = req.params;
+
+    // Fetch both pre and post tests for the user and topic area
+    const preTest = await MathematicsDiagnosticScore
+      .findOne({
+        email: email.toLowerCase().trim(),
+        topicArea: topicArea,
+        testPhase: 'pre'
+      })
+      .sort({ testDate: -1 }) // Get the latest pre-test
+      .lean();
+
+    const postTest = await MathematicsDiagnosticScore
+      .findOne({
+        email: email.toLowerCase().trim(),
+        topicArea: topicArea,
+        testPhase: 'post'
+      })
+      .sort({ testDate: -1 }) // Get the latest post-test
+      .lean();
+
+    if (!preTest && !postTest) {
+      return res.status(404).json({
+        success: false,
+        message: `No diagnostic test results found for ${email} in ${topicArea}`,
+        data: null
+      });
+    }
+
+    // Calculate improvement metrics
+    let improvement = null;
+    if (preTest && postTest) {
+      improvement = {
+        scoreImprovement: postTest.totalScore - preTest.totalScore,
+        scorePercentageImprovement: preTest.totalScore > 0 ? 
+          Math.round(((postTest.totalScore - preTest.totalScore) / preTest.totalScore) * 100) : 0,
+        timeImprovement: preTest.averageTimePerQuestion - postTest.averageTimePerQuestion,
+        accuracyImprovement: (postTest.totalCorrect / postTest.totalQuestions) - (preTest.totalCorrect / preTest.totalQuestions),
+        
+        // Difficulty-based improvement
+        difficultyImprovement: {
+          easy: postTest.easyQuestions.percentage - preTest.easyQuestions.percentage,
+          medium: postTest.mediumQuestions.percentage - preTest.mediumQuestions.percentage,
+          hard: postTest.hardQuestions.percentage - preTest.hardQuestions.percentage
+        },
+
+        // Topic-based improvement
+        topicImprovement: {}
+      };
+
+      // Calculate topic-based improvements
+      if (preTest.topicPerformance && postTest.topicPerformance) {
+        const preTopics = {};
+        const postTopics = {};
+        
+        preTest.topicPerformance.forEach(topic => {
+          preTopics[topic.topic] = topic.percentage;
+        });
+        
+        postTest.topicPerformance.forEach(topic => {
+          postTopics[topic.topic] = topic.percentage;
+          if (preTopics[topic.topic] !== undefined) {
+            improvement.topicImprovement[topic.topic] = topic.percentage - preTopics[topic.topic];
+          }
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Diagnostic comparison retrieved successfully',
+      data: {
+        email,
+        username: preTest?.username || postTest?.username,
+        topicArea,
+        preTest,
+        postTest,
+        improvement,
+        hasPreTest: !!preTest,
+        hasPostTest: !!postTest,
+        canCompare: !!(preTest && postTest)
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while fetching diagnostic comparison',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 
 router.get('/dashboard', async (req, res) => {
   try {
