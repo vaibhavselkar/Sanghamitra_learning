@@ -30,9 +30,9 @@ const MathDiagnosticTest = ({
   });
 
   // API endpoints - Updated to match your backend
-  const QUESTIONS_API = 'http://localhost:4000/api/mathematicsDiagnosticQuestionsDatabase';
-  const SUBMIT_API = 'http://localhost:4000/api/mathematicsDiagnosticScores';
-  const SESSION_API = 'http://localhost:4000/api/session-info';
+  const QUESTIONS_API = 'http://3.111.49.131:4000/api/mathematicsDiagnosticQuestionsDatabase';
+  const SUBMIT_API = 'http://3.111.49.131:4000/api/mathematicsDiagnosticScores';
+  const SESSION_API = 'http://3.111.49.131:4000/api/session-info';
 
   // Initialize test when component mounts
   useEffect(() => {
