@@ -311,7 +311,7 @@ _capture = FastCapture()
   const executePythonCode = async (code, testCases = null) => {
     if (!pyodideRef.current) {
       try {
-        const endpoint = testCases ? 'http://3.111.49.131:4000/test' : 'http://3.111.49.131:4000/run-python';
+        const endpoint = testCases ? 'http://localhost:4000/test' : 'http://localhost:4000/run-python';
         const payload = testCases ? { code, test_cases: testCases } : { code };
         
         const response = await fetch(endpoint, {
@@ -484,7 +484,7 @@ _capture = FastCapture()
       }
 
       try {
-        const submitResponse = await fetch('http://3.111.49.131:4000/api/finger-exercise/submit', {
+        const submitResponse = await fetch('http://localhost:4000/api/finger-exercise/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -559,7 +559,7 @@ _capture = FastCapture()
   // Reset all questions
   const resetAllQuestions = async () => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/finger-exercise/reset', {
+      const response = await fetch('http://localhost:4000/api/finger-exercise/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -595,7 +595,7 @@ _capture = FastCapture()
   // Fetch session information
   const fetchSessionInfo = async () => {
     try {
-      const sessionResponse = await fetch('http://3.111.49.131:4000/api/session-info', { 
+      const sessionResponse = await fetch('http://localhost:4000/api/session-info', { 
         credentials: 'include' 
       });
       
@@ -632,7 +632,7 @@ _capture = FastCapture()
         return;
       }
       
-      const response = await fetch(`http://3.111.49.131:4000/api/finger-exercise?email=${email}&topic=python_functions`, {
+      const response = await fetch(`http://localhost:4000/api/finger-exercise?email=${email}&topic=python_functions`, {
         credentials: 'include'
       });
       
@@ -660,7 +660,7 @@ _capture = FastCapture()
     try {
       setQuizState(prev => ({ ...prev, isLoading: true }));
       
-      const response = await fetch('http://3.111.49.131:4000/api/finger-questions?topic=python_functions', {
+      const response = await fetch('http://localhost:4000/api/finger-questions?topic=python_functions', {
         credentials: 'include'
       });
       
