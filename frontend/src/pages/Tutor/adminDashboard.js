@@ -1144,7 +1144,7 @@ const TutorDashboard = () => {
                   <div className="col-12">
                     <div className="card">
                       <div className="card-header">
-                        <h5 className="mb-0">Vocabulary Assessment</h5>
+                        <h5 className="mb-0">Vocabulary Diagnostic Assessment</h5>
                       </div>
                       <div className="card-body">
                         <div className="text-center py-4">
