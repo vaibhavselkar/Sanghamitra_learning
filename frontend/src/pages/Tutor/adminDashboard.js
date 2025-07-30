@@ -806,9 +806,6 @@ const TutorDashboard = () => {
                 {user?.name || 'Tutor'}
               </a>
               <ul className="dropdown-menu dropdown-menu-end">
-                <li><a className="dropdown-item" href="#"><i className="bi bi-person me-2"></i>Profile</a></li>
-                <li><a className="dropdown-item" href="#"><i className="bi bi-gear me-2"></i>Settings</a></li>
-                <li><hr className="dropdown-divider" /></li>
                 <li><button className="dropdown-item" onClick={handleLogout}><i className="bi bi-box-arrow-right me-2"></i>Logout</button></li>
               </ul>
             </div>
