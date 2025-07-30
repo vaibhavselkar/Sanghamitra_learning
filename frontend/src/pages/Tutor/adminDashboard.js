@@ -60,10 +60,13 @@ const TutorDashboard = () => {
   const [arithmeticData, setArithmeticData] = useState([]);
   const [selectedArithmeticOperation, setSelectedArithmeticOperation] = useState('');
   const [loadingArithmetic, setLoadingArithmetic] = useState(false);
+  const [diagnosticComparisonData, setDiagnosticComparisonData] = useState([]);
+  const [selectedDiagnosticTopic, setSelectedDiagnosticTopic] = useState('arithmetic');
+  const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
 
   const arithmeticOperations = [
     'addition', 'subtraction', 'multiplication', 
-    'division', 'mixed-operations', 'word-problems'
+    'division', 'decimals', 'fractions', 'dealing-with-negative-sign', 'ratio-proportion-percentage'
   ];
 
   // Chart data states
@@ -100,7 +103,7 @@ const TutorDashboard = () => {
       setError('');
       
       try {
-        const response = await fetch('http://3.111.49.131:4000/api/classrooms', {
+        const response = await fetch('http://localhost:4000/api/classrooms', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -187,8 +190,8 @@ const TutorDashboard = () => {
     try {
       // Use your existing endpoint with optional userEmail filter
       const url = studentEmails.length > 0
-        ? `http://3.111.49.131:4000/api/arithmetic-scores?${studentEmails.map(email => `userEmail=${email}`).join('&')}`
-        : 'http://3.111.49.131:4000/api/arithmetic-scores';
+        ? `http://localhost:4000/api/arithmetic-scores?${studentEmails.map(email => `userEmail=${email}`).join('&')}`
+        : 'http://localhost:4000/api/arithmetic-scores';
       
       const response = await fetch(url);
       const data = await response.json();
@@ -202,7 +205,7 @@ const TutorDashboard = () => {
 
   const fetchEnglishDiagnosticData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/eng_diagnostic_scores');
+      const response = await fetch('http://localhost:4000/api/eng_diagnostic_scores');
       if (!response.ok) throw new Error('Failed to fetch English diagnostic data');
       
       const data = await response.json();
@@ -220,7 +223,7 @@ const TutorDashboard = () => {
 
   const fetchVocabularyData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/vocabscores');
+      const response = await fetch('http://localhost:4000/api/vocabscores');
       if (!response.ok) throw new Error('Failed to fetch vocabulary data');
       
       const data = await response.json();
@@ -266,7 +269,7 @@ const TutorDashboard = () => {
 
   const fetchAlgebraData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/algebra_scores');
+      const response = await fetch('http://localhost:4000/api/algebra_scores');
       if (!response.ok) throw new Error('Failed to fetch algebra data');
       
       const data = await response.json();
@@ -302,9 +305,97 @@ const TutorDashboard = () => {
     }
   };
 
+  const prepareDiagnosticChartData = () => {
+    const labels = diagnosticComparisonData.map(data => data.username);
+    const preScores = diagnosticComparisonData.map(data => 
+      data.hasPreTest ? data.preTest.totalScore : null
+    );
+    const postScores = diagnosticComparisonData.map(data => 
+      data.hasPostTest ? data.postTest.totalScore : null
+    );
+  
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Pre-Test Score',
+          data: preScores,
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Post-Test Score',
+          data: postScores,
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }
+      ]
+    };
+  };
+  
+  const diagnosticChartOptions = {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: {
+        display: true,
+        text: `Math Diagnostic Comparison (${selectedDiagnosticTopic})`
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${context.raw}%`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        max: 100,
+        title: { display: true, text: 'Score (%)' }
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (allStudents.length > 0) {
+      fetchDiagnosticComparisons();
+    }
+  }, [allStudents, selectedDiagnosticTopic]);
+
+  const fetchDiagnosticComparisons = async () => {
+    setLoadingDiagnostics(true);
+    try {
+      const comparisons = await Promise.all(
+        allStudents.map(async student => {
+          try {
+            const response = await fetch(
+              `http://localhost:4000/api/mathematicsDiagnosticsComparison/${student.email}/${selectedDiagnosticTopic}`
+            );
+            const data = await response.json();
+            return data.success ? data.data : null;
+          } catch (error) {
+            console.error(`Error fetching diagnostics for ${student.email}:`, error);
+            return null;
+          }
+        })
+      );
+      
+      setDiagnosticComparisonData(comparisons.filter(Boolean));
+    } catch (error) {
+      console.error('Error fetching diagnostic comparisons:', error);
+    } finally {
+      setLoadingDiagnostics(false);
+    }
+  };
+
   const fetchReadingComprehensionData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/readingcomprehensionscore');
+      const response = await fetch('http://localhost:4000/api/readingcomprehensionscore');
       if (!response.ok) throw new Error('Failed to fetch reading comprehension data');
       
       const data = await response.json();
@@ -353,7 +444,7 @@ const TutorDashboard = () => {
 
   const fetchCTData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/CT_finger_scores');
+      const response = await fetch('http://localhost:4000/api/CT_finger_scores');
       if (!response.ok) throw new Error('Failed to fetch CT data');
       
       const data = await response.json();
@@ -370,7 +461,7 @@ const TutorDashboard = () => {
 
   const fetchPythonFingerData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/finger-exercise');
+      const response = await fetch('http://localhost:4000/api/finger-exercise');
       if (!response.ok) throw new Error('Failed to fetch Python finger data');
       
       const data = await response.json();
@@ -417,7 +508,7 @@ const TutorDashboard = () => {
 
   const fetchDiagnosticsData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/programming');
+      const response = await fetch('http://localhost:4000/api/programming');
       if (!response.ok) throw new Error('Failed to fetch diagnostics data');
       
       const data = await response.json();
@@ -749,7 +840,7 @@ const TutorDashboard = () => {
     setError('');
     
     try {
-      const response = await fetch(`http://3.111.49.131:4000/api/classroom/${classroomId}`, {
+      const response = await fetch(`http://localhost:4000/api/classroom/${classroomId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -845,7 +936,7 @@ const TutorDashboard = () => {
                       <div className="card h-100">
                         <div className="card-header bg-success text-white">
                           <h5 className="mb-0">
-                            Classroom: {classroom.name}
+                            {classroom.name}
                           </h5>
                         </div>
                         <div className="card-body">
@@ -1081,6 +1172,143 @@ const TutorDashboard = () => {
                 </h4>
               </div>
               <div className="card-body">
+                {/* Diagnostic Comparison Section */}
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card shadow-sm">
+                      <div className="card-header bg-info text-white">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <h5 className="mb-0">
+                            <i className="bi bi-graph-up me-2"></i>Math Diagnostic Comparison
+                          </h5>
+                          <select
+                            className="form-select w-auto"
+                            value={selectedDiagnosticTopic}
+                            onChange={(e) => setSelectedDiagnosticTopic(e.target.value)}
+                          >
+                            <option value="arithmetic">Arithmetic</option>
+                            <option value="pre-algebra">Pre-Algebra</option>
+                            <option value="algebra">Algebra</option>
+                            <option value="geometry">Geometry</option>
+                            <option value="trigonometry">Trigonometry</option>
+                            <option value="calculus">Calculus</option>
+                            <option value="statistics">Statistics</option>
+                            <option value="probability">Probability</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="card-body">
+                        {loadingDiagnostics ? (
+                          <div className="text-center py-4">
+                            <div className="spinner-border text-primary" role="status">
+                              <span className="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading diagnostic comparisons...</p>
+                          </div>
+                        ) : diagnosticComparisonData.length > 0 ? (
+                          <>
+                            <div style={{ height: '500px' }}>
+                              <Bar 
+                                data={prepareDiagnosticChartData()} 
+                                options={diagnosticChartOptions} 
+                              />
+                            </div>
+                            
+                            {/* Detailed Comparison Table */}
+                            <div className="mt-4">
+                              <h6>Detailed Comparison</h6>
+                              <div className="table-responsive">
+                                <table className="table table-striped">
+                                  <thead>
+                                    <tr>
+                                      <th>Student</th>
+                                      <th>Pre-Test</th>
+                                      <th>Post-Test</th>
+                                      <th>Improvement</th>
+                                      <th>Time Improvement</th>
+                                      <th>Accuracy Gain</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {diagnosticComparisonData.map((data, index) => (
+                                      <tr key={index}>
+                                        <td>{data.username}</td>
+                                        <td>
+                                          {data.hasPreTest ? (
+                                            <>
+                                              <strong>{data.preTest.totalScore}%</strong>
+                                              <div className="progress mt-1" style={{height: '8px'}}>
+                                                <div 
+                                                  className="progress-bar bg-primary" 
+                                                  style={{width: `${data.preTest.totalScore}%`}}
+                                                ></div>
+                                              </div>
+                                            </>
+                                          ) : 'N/A'}
+                                        </td>
+                                        <td>
+                                          {data.hasPostTest ? (
+                                            <>
+                                              <strong>{data.postTest.totalScore}%</strong>
+                                              <div className="progress mt-1" style={{height: '8px'}}>
+                                                <div 
+                                                  className="progress-bar bg-success" 
+                                                  style={{width: `${data.postTest.totalScore}%`}}
+                                                ></div>
+                                              </div>
+                                            </>
+                                          ) : 'N/A'}
+                                        </td>
+                                        <td>
+                                          {data.canCompare ? (
+                                            <>
+                                              <span className={`badge ${data.improvement.scorePercentageImprovement >= 0 ? 'bg-success' : 'bg-danger'}`}>
+                                                {data.improvement.scorePercentageImprovement >= 0 ? '+' : ''}
+                                                {data.improvement.scorePercentageImprovement}%
+                                              </span>
+                                              <div className="progress mt-1" style={{height: '8px'}}>
+                                                <div 
+                                                  className={`progress-bar ${data.improvement.scorePercentageImprovement >= 0 ? 'bg-success' : 'bg-danger'}`} 
+                                                  style={{width: `${Math.abs(data.improvement.scorePercentageImprovement)}%`}}
+                                                ></div>
+                                              </div>
+                                            </>
+                                          ) : 'N/A'}
+                                        </td>
+                                        <td>
+                                          {data.canCompare ? (
+                                            <span className={`badge ${data.improvement.timeImprovement >= 0 ? 'bg-success' : 'bg-danger'}`}>
+                                              {data.improvement.timeImprovement >= 0 ? '+' : ''}
+                                              {Math.abs(data.improvement.timeImprovement).toFixed(1)}s
+                                            </span>
+                                          ) : 'N/A'}
+                                        </td>
+                                        <td>
+                                          {data.canCompare ? (
+                                            <span className={`badge ${data.improvement.accuracyImprovement >= 0 ? 'bg-success' : 'bg-danger'}`}>
+                                              {data.improvement.accuracyImprovement >= 0 ? '+' : ''}
+                                              {(data.improvement.accuracyImprovement * 100).toFixed(1)}%
+                                            </span>
+                                          ) : 'N/A'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-center py-4">
+                            <i className="bi bi-graph-up fs-1 text-muted"></i>
+                            <h6 className="mt-3 text-muted">No Diagnostic Data Available</h6>
+                            <p className="text-muted">No diagnostic test results found for your students in this topic area.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 {/* Arithmetic Scores Table */}
                 <div className="row mb-4">
                   <div className="col-12">
@@ -1115,50 +1343,64 @@ const TutorDashboard = () => {
                                 <tr>
                                   <th>Student</th>
                                   <th>Overall Accuracy</th>
-                                  <th>Operations</th>
+                                  <th>Operation</th>
+                                  <th>Correct</th>
+                                  <th>Speed</th>
                                   <th>Last Activity</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {arithmeticUsers.map((user, index) => (
-                                  <tr key={index}>
-                                    <td>
-                                      <strong>{user.username}</strong>
-                                      <br />
-                                      <small className="text-muted">{user.email}</small>
-                                    </td>
-                                    <td>
-                                      <div className="d-flex align-items-center">
-                                        <span className="me-2">{Math.round(user.accuracy)}%</span>
-                                        <div className="progress flex-grow-1" style={{height: '8px'}}>
-                                          <div 
-                                            className={`progress-bar ${user.accuracy >= 80 ? 'bg-success' : user.accuracy >= 50 ? 'bg-warning' : 'bg-danger'}`}
-                                            style={{ width: `${Math.round(user.accuracy)}%` }}
-                                          ></div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td>
-                                      {user.operations.map((op, i) => (
-                                        <div key={i} className="mb-2">
-                                          <strong>
+                                  <>
+                                    {user.operations
+                                      .filter(op => 
+                                        !selectedArithmeticOperation || 
+                                        op.type === selectedArithmeticOperation
+                                      )
+                                      .map((op, i) => (
+                                        <tr key={`${index}-${i}`}>
+                                          {i === 0 && (
+                                            <>
+                                              <td rowSpan={user.operations.filter(op => 
+                                                !selectedArithmeticOperation || 
+                                                op.type === selectedArithmeticOperation
+                                              ).length}>
+                                                <strong>{user.username}</strong>
+                                              </td>
+                                              <td rowSpan={user.operations.filter(op => 
+                                                !selectedArithmeticOperation || 
+                                                op.type === selectedArithmeticOperation
+                                              ).length}>
+                                                <div className="d-flex align-items-center">
+                                                  <div className="progress flex-grow-1" style={{height: '8px'}}>
+                                                    <div 
+                                                      className={`progress-bar ${user.accuracy >= 80 ? 'bg-success' : user.accuracy >= 50 ? 'bg-warning' : 'bg-danger'}`}
+                                                      style={{ width: `${Math.round(user.accuracy)}%` }}
+                                                    ></div>
+                                                  </div>
+                                                  <span className="ms-2">{Math.round(user.accuracy)}%</span>
+                                                </div>
+                                              </td>
+                                            </>
+                                          )}
+                                          <td>
                                             {op.type.split('-').map(w => 
                                               w.charAt(0).toUpperCase() + w.slice(1)
                                             ).join(' ')}
-                                          </strong>
-                                          <div className="d-flex align-items-center">
-                                            <i className="bi bi-check-circle-fill text-success me-1"></i>
-                                            <span>{op.correct}/{op.questions}</span>
-                                            <i className="bi bi-clock-fill text-secondary ms-2 me-1"></i>
-                                            <span>{(op.timeTaken / op.questions).toFixed(1)}s/q</span>
-                                          </div>
-                                        </div>
+                                          </td>
+                                          <td>
+                                            <span className="badge bg-primary rounded-pill">
+                                              {op.correct}/{op.questions}
+                                            </span>
+                                            <span className="ms-2">
+                                              ({Math.round((op.correct / op.questions) * 100)}%)
+                                            </span>
+                                          </td>
+                                          <td>{(op.timeTaken / op.questions).toFixed(1)}s/q</td>
+                                          <td>{new Date(op.date).toLocaleDateString()}</td>
+                                        </tr>
                                       ))}
-                                    </td>
-                                    <td>
-                                      {new Date(Math.max(...user.operations.map(op => new Date(op.date)))).toLocaleDateString()}
-                                    </td>
-                                  </tr>
+                                  </>
                                 ))}
                               </tbody>
                             </table>
@@ -1169,7 +1411,7 @@ const TutorDashboard = () => {
                   </div>
                 </div>
                 
-                {/* Algebra Scores */}
+              {/* Algebra Scores */}
               {algebraData.length > 0 ? (
                 <div className="row mb-4">
                   <div className="col-12">
@@ -1208,9 +1450,7 @@ const TutorDashboard = () => {
                 </div>
               ) : allStudents.length > 0 ? (
                 <div className="text-center py-4">
-                  <i className="bi bi-calculator fs-1 text-muted"></i>
-                  <h6 className="mt-3 text-muted">No Math Data Available</h6>
-                  <p className="text-muted">No math assessment data available for your students yet.</p>
+                  
                 </div>
               ) : null}
             </div>
