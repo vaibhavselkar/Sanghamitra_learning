@@ -24,6 +24,10 @@ export const AuthProvider = ({ children }) => {
           if (data.user) {
             setUser(data.user);
             setToken(data.token || null);
+            if (data.user.role === 'tutor' && window.location.pathname !== '/tutor-dashboard') {
+              window.location.href = '/tutor-dashboard';
+              return; // Important to stop further execution
+            }
           } else {
             // Handle case where user data isn't provided
             console.warn('User authenticated but no user data provided');
