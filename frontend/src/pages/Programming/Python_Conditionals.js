@@ -292,7 +292,7 @@ _capture = FastCapture()
   const executePythonCode = async (code, testCases = null) => {
     if (!pyodideRef.current) {
       try {
-        const endpoint = testCases ? 'http://3.111.49.131:4000/test' : 'http://3.111.49.131:4000/run-python';
+        const endpoint = testCases ? 'http://localhost:4000/test' : 'http://localhost:4000/run-python';
         const payload = testCases ? { code, test_cases: testCases } : { code };
         
         const response = await fetch(endpoint, {
@@ -465,7 +465,7 @@ _capture = FastCapture()
       }
 
       try {
-        const submitResponse = await fetch('http://3.111.49.131:4000/api/finger-exercise/submit', {
+        const submitResponse = await fetch('http://localhost:4000/api/finger-exercise/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -540,7 +540,7 @@ _capture = FastCapture()
   // Reset all questions
   const resetAllQuestions = async () => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/finger-exercise/reset', {
+      const response = await fetch('http://localhost:4000/api/finger-exercise/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -576,7 +576,7 @@ _capture = FastCapture()
   // Fetch session information
   const fetchSessionInfo = async () => {
     try {
-      const sessionResponse = await fetch('http://3.111.49.131:4000/api/session-info', { 
+      const sessionResponse = await fetch('http://localhost:4000/api/session-info', { 
         credentials: 'include' 
       });
       
@@ -613,7 +613,7 @@ _capture = FastCapture()
         return;
       }
       
-      const response = await fetch(`http://3.111.49.131:4000/api/finger-exercise?email=${email}&topic=python_conditionals`, {
+      const response = await fetch(`http://localhost:4000/api/finger-exercise?email=${email}&topic=python_conditionals`, {
         credentials: 'include'
       });
       
@@ -641,7 +641,7 @@ _capture = FastCapture()
     try {
       setQuizState(prev => ({ ...prev, isLoading: true }));
       
-      const response = await fetch('http://3.111.49.131:4000/api/finger-questions?topic=python_conditionals', {
+      const response = await fetch('http://localhost:4000/api/finger-questions?topic=python_conditionals', {
         credentials: 'include'
       });
       
@@ -1489,100 +1489,131 @@ if temperature > 30:
       </div>
 
       {/* If-Else Statements */}
-      <div className="container">
-        <div className="section">
-          <h2><i className="bi bi-2-circle"></i> If-Else Statements</h2>
-          
-          <div className="flowchart-example">
-            <p>The <code>if-else</code> structure lets you choose between two paths.</p>
-            
-            <h4><i className="bi bi-file-code"></i> Syntax</h4>
-            <pre><code>if condition:
+<div className="container">
+  <div className="section">
+    <h2><i className="bi bi-2-circle"></i> If-Else Statements</h2>
+    
+    <div className="flowchart-example">
+      <p>The <code>if-else</code> structure lets you choose between two paths.</p>
+      
+      <h4><i className="bi bi-file-code"></i> Syntax</h4>
+      <pre><code>if condition:
     # code when true
 else:
     # code when false
 # code that always runs</code></pre>
 
-            <div className="comparison-container">
-              <div className="code-comparison incorrect">
-                <div className="code-header">
-                  <i className="bi bi-x-circle-fill"></i> Problematic Code
-                </div>
-                <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Unbalanced conditions
+      {/* Problematic Examples */}
+      <div className="example-section">
+        <h4 className="section-title text-danger">
+          <i className="bi bi-exclamation-triangle-fill"></i> Problematic Code Examples
+        </h4>
+        
+        {/* Example 1 - Unbalanced conditions */}
+        <div className="code-example">
+          <div className="code-header">
+            <span>Unbalanced conditions</span>
+          </div>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`# Unbalanced conditions
 if password == "secret":
     print("Access granted")
         print("Welcome!")  # Executes regardless
 else:
     print("Access denied")`}></textarea>
-                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                  <div className="output"></div>
-                </div>
-              </div>
-              
-              <div className="code-comparison incorrect">
-                <div className="code-header">
-                  <i className="bi bi-x-circle-fill"></i> Problematic Code
-                </div>
-                <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Redundant else
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
+          </div>
+        </div>
+
+        {/* Example 2 - Redundant else */}
+        <div className="code-example">
+          <div className="code-header">
+            <span>Redundant else</span>
+          </div>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`# Redundant else
 if score >= 60:
     print("Pass")
 else:
     if score < 60:  # Already implied
       print("Fail")`}></textarea>
-                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                  <div className="output"></div>
-                </div>
-              </div>
-              
-              <div className="code-comparison correct">
-                <div className="code-header">
-                  <i className="bi bi-check-circle-fill"></i> Clean Code
-                </div>
-                <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Proper if-else structure
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Correct Examples */}
+      <div className="example-section">
+        <h4 className="section-title text-success">
+          <i className="bi bi-check-circle-fill"></i> Correct Code Examples
+        </h4>
+        
+        {/* Example 1 - Proper structure */}
+        <div className="code-example">
+          <div className="code-header">
+            <span>Proper if-else structure</span>
+          </div>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`# Proper if-else structure
 password = "secret123"
 if password == "secret123":
     print("Access granted")
 else:
     print("Access denied")
 print("System check complete")`}></textarea>
-                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                  <div className="output"></div>
-                </div>
-                <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Simple if-else
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
+          </div>
+        </div>
+
+        {/* Example 2 - Simple if-else */}
+        <div className="code-example">
+          <div className="code-header">
+            <span>Simple if-else</span>
+          </div>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`# Simple if-else
 score = 85
 if score >= 60:
     print("Pass")
 else:
     print("Fail")`}></textarea>
-                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                  <div className="output"></div>
-                </div>
-                <div className="code-body">
-                  <textarea className="codeInput" defaultValue={`# Readable formatting
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
+          </div>
+        </div>
+
+        {/* Example 3 - Readable formatting */}
+        <div className="code-example">
+          <div className="code-header">
+            <span>Readable formatting</span>
+          </div>
+          <div className="code-body">
+            <textarea className="codeInput" defaultValue={`# Readable formatting
 temperature = 25
 if temperature > 30:
     print("Hot weather")
 else:
     print("Moderate weather")`}></textarea>
-                  <button onClick={(e) => runCode(e.target)}>Run Code</button>
-                  <div className="output"></div>
-                </div>
-              </div>
-            </div>
-
-            <h4><i className="bi bi-lightbulb"></i> When to Use</h4>
-            <ul>
-              <li>When you have exactly two possible outcomes</li>
-              <li>For simple true/false decisions</li>
-              <li>When you need to handle both cases</li>
-            </ul>
+            <button onClick={(e) => runCode(e.target)}>Run Code</button>
+            <div className="output"></div>
           </div>
         </div>
       </div>
+
+      <h4><i className="bi bi-lightbulb"></i> Best Practices</h4>
+      <ul>
+        <li>Maintain consistent indentation (4 spaces recommended)</li>
+        <li>Avoid redundant conditions in else clauses</li>
+        <li>Keep code blocks properly aligned under their conditions</li>
+        <li>Use clear variable names that describe their purpose</li>
+        <li>Include comments to explain complex conditions</li>
+      </ul>
+    </div>
+  </div>
+</div>
 
       {/* If-Elif-Else Statements */}
       <div className="container">
