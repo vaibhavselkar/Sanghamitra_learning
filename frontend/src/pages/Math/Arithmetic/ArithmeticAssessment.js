@@ -554,26 +554,7 @@ const ArithmeticAssessment = () => {
             </select>
           </div>
 
-          {/* Debug Info */}
-          <div style={{
-            padding: '10px',
-            backgroundColor: '#e7f3ff',
-            borderRadius: '5px',
-            marginBottom: '20px',
-            fontSize: '0.9rem',
-            color: '#0066cc'
-          }}>
-            <strong>Status:</strong> {debugInfo}<br />
-            {userData.username && (
-              <>
-                <strong>User:</strong> {userData.username} | 
-                <strong> Answered:</strong> {answeredQuestions.length} | 
-                <strong> Level:</strong> {difficultyLevel} | 
-                <strong> Streak:</strong> ✅{consecutiveCorrect} ❌{consecutiveWrong}
-              </>
-            )}
-          </div>
-
+         
           {/* Question Container */}
           {!userData.email ? (
             <div>
