@@ -28,8 +28,13 @@ import Decimals from "./pages/Math/Arithmetic/Decimals";
 import PreDiagnosticTest from './pages/Math/Arithmetic/PreDiagnosticTest';
 import PostDiagnosticTest from './pages/Math/Arithmetic/PostDiagnosticTest';
 import PreDiagnosticResults from './pages/Math/Arithmetic/PreDiagnosticResults';
+
+
 import LoginPage from './pages/loginPage';
 import Register from './pages/register';
+import EmailVerificationPage from './pages/emailVerificationPage';
+import ForgotPasswordPage from './pages/forgotPassword';
+import ResetPasswordPage from './pages/resetPassword';
 import VocabularyDiagnosticTest from './pages/English/vocabulary/VocabularyDiagnosticTest';
 import Programming from './pages/Programming/programming';
 import VocabularyGuide from './pages/English/vocabulary/vocabularyGuide';
@@ -87,6 +92,9 @@ function App() {
             <Route path="/programming" element={<><Programming /></>} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<EmailVerificationPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             
