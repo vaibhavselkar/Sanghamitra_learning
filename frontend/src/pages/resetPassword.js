@@ -34,7 +34,7 @@ const ResetPasswordPage = () => {
 
     const verifyToken = async (token) => {
         try {
-            const response = await fetch(`http://localhost:4000/api/verify-reset-token?token=${token}`);
+            const response = await fetch(`http://3.111.49.131:4000/api/verify-reset-token?token=${token}`);
             const data = await response.json();
             
             if (response.ok) {
@@ -116,7 +116,7 @@ const ResetPasswordPage = () => {
         setFormState(prev => ({ ...prev, isLoading: true, message: '' }));
 
         try {
-            const response = await fetch('http://localhost:4000/api/reset-password', {
+            const response = await fetch('http://3.111.49.131:4000/api/reset-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -654,5 +654,6 @@ styleSheet.innerText = `
     }
 `;
 document.head.appendChild(styleSheet);
+
 
 export default ResetPasswordPage;
