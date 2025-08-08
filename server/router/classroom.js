@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const { sendPasswordResetEmail } = require('../utils/emailService');
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 const { sendVerificationEmail } = require('../utils/emailService');
 const { 
   authenticate, 
@@ -22,6 +23,7 @@ const {
 const generateJoinCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
+
 router.get('/verify-email', async (req, res) => {
   try {
       const { token } = req.query;
@@ -57,6 +59,7 @@ router.get('/verify-email', async (req, res) => {
       res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // Enhanced registration route
 // Enhanced registration route - FIXED
 router.post('/register', async (req, res) => {
@@ -420,7 +423,6 @@ router.post('/resend-verification', async (req, res) => {
   }
 });
 
-
 router.get('/classrooms', async (req, res) => {
   try {
     const classrooms = await Classroom.find()
@@ -431,6 +433,7 @@ router.get('/classrooms', async (req, res) => {
     res.status(500).json({ message: 'Error retrieving classrooms', error: err });
   }
 });
+
 
 // POST /api/forgot-password - Send password reset email
 router.post('/forgot-password', async (req, res) => {
@@ -558,6 +561,8 @@ router.post('/reset-password', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+
 
 // Join classroom (students only)
 router.post('/classroom/join', 
