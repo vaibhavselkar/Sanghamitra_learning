@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../components/AuthContext";
+import { CheckCircle, XCircle, Envelope } from "react-bootstrap-icons";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showResendLink, setShowResendLink] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const redirectPath = searchParams.get("redirectPath");
@@ -15,10 +18,42 @@ const LoginPage = () => {
   const auth = useAuth();
   console.log("Auth Context:", auth);
 
+  const handleResendVerification = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("http://3.111.49.131:4000/api/resend-verification", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setErrorMessage(data.error || "Failed to resend verification email");
+        return;
+      }
+
+      setResendSuccess(true);
+      setShowResendLink(false);
+      setErrorMessage("");
+    } catch (error) {
+      console.error('Resend error:', error);
+      setErrorMessage("Network error. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage("");
+    setShowResendLink(false);
+    setResendSuccess(false);
 
     // Basic validation
     if (!email || !password) {
@@ -49,6 +84,11 @@ const LoginPage = () => {
         let errorData;
         try {
           errorData = await response.json();
+          if (response.status === 403 && errorData.unverified) {
+            setErrorMessage(errorData.error);
+            setShowResendLink(true);
+            return;
+          }
         } catch (parseError) {
           console.error('Error parsing response:', parseError);
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -198,11 +238,41 @@ const LoginPage = () => {
 
 
                 {errorMessage && (
-                  <div className="alert alert-danger mb-3">
-                    <i className="bi bi-exclamation-circle me-2"></i>
-                    {errorMessage}
+                <div className="alert alert-danger mb-3">
+                  <div className="d-flex align-items-center">
+                    <XCircle className="me-2" />
+                    <div>
+                      {errorMessage}
+                      {showResendLink && (
+                        <div className="mt-2">
+                          <button
+                            onClick={handleResendVerification}
+                            className="btn btn-sm btn-outline-primary"
+                            disabled={isLoading}
+                          >
+                            Resend Verification Email
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
+              )}
+
+              {resendSuccess && (
+                <div className="alert alert-success mb-3">
+                  <div className="d-flex align-items-center">
+                    <CheckCircle className="me-2" />
+                    <div>
+                      Verification email resent! Please check your inbox.
+                      <div className="small mt-1">
+                        <Envelope className="me-1" />
+                        Sent to: {email}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
                 <button 
                   type="submit" 
