@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const { sendPasswordResetEmail } = require('../utils/emailService');
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
+const { sendVerificationEmail } = require('../utils/emailService');
 const { 
   authenticate, 
   authorizeClassroom, 
