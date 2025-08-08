@@ -32,7 +32,7 @@ const EmailVerificationPage = () => {
         
         try {
             console.log('Verifying token:', token); // Debug log
-            const response = await fetch(`http://localhost:4000/api/verify-email?token=${token}`);
+            const response = await fetch(`http://3.111.49.131:4000/api/verify-email?token=${token}`);
             const data = await response.json();
             
             console.log('Verification response:', response.status, data); // Debug log
@@ -97,7 +97,7 @@ const EmailVerificationPage = () => {
         setVerificationState(prev => ({ ...prev, isLoading: true }));
         
         try {
-            const response = await fetch('http://localhost:4000/api/resend-verification', {
+            const response = await fetch('http://3.111.49.131:4000/api/resend-verification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: verificationState.userEmail }),
@@ -495,5 +495,6 @@ styleSheet.innerText = `
     }
 `;
 document.head.appendChild(styleSheet);
+
 
 export default EmailVerificationPage;
