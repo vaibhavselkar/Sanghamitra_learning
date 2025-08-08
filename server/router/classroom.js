@@ -5,6 +5,11 @@ const validator = require('validator');
 const bcrypt = require('bcryptjs');
 const User = require('../model/userSchema');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+const { sendPasswordResetEmail } = require('../utils/emailService');
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 const { 
   authenticate, 
   authorizeClassroom, 
@@ -17,7 +22,41 @@ const {
 const generateJoinCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
+router.get('/verify-email', async (req, res) => {
+  try {
+      const { token } = req.query;
+      
+      if (!token) {
+          return res.status(400).json({ error: 'Verification token is required' });
+      }
 
+      const user = await User.findOne({ 
+          verificationToken: token,
+          verificationTokenExpires: { $gt: Date.now() }
+      });
+
+      if (!user) {
+          return res.status(400).json({ 
+              error: 'Invalid or expired verification token' 
+          });
+      }
+
+      user.isVerified = true;
+      user.verificationToken = undefined;
+      user.verificationTokenExpires = undefined;
+      await user.save();
+
+      // You can redirect to a success page or return a JSON response
+      res.status(200).json({ 
+          success: true,
+          message: 'Email verified successfully! You can now log in.'
+      });
+
+  } catch (error) {
+      console.error('Verification error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
 // Enhanced registration route
 // Enhanced registration route - FIXED
 router.post('/register', async (req, res) => {
@@ -94,15 +133,27 @@ router.post('/register', async (req, res) => {
 
       // REMOVED MANUAL HASHING - Let the pre('save') middleware handle it
       // Create user with plain password (will be hashed by middleware)
+      const crypto = require('crypto');
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
+      // Create user with verification fields
       const user = new User({
           name: name.trim(),
           email: email.toLowerCase().trim(),
-          password: password, // Plain password - will be hashed by pre('save')
+          password: password,
           role,
-          classroomCode: classroomCode
+          classroomCode: classroomCode,
+          verificationToken,
+          verificationTokenExpires,
+          isVerified: false // Explicitly set to false
       });
 
       await user.save();
+
+      // Update classroom relationships
+      const { sendVerificationEmail } = require('../utils/emailService');
+      await sendVerificationEmail(user.email, verificationToken, user.name);
 
       // Update classroom relationships
       if (classroom) {
@@ -119,13 +170,14 @@ router.post('/register', async (req, res) => {
 
       // Prepare response data (never send password back)
       const responseData = {
-          message: 'User registered successfully',
+          message: 'Registration successful! Please check your email to verify your account.',
           user: {
               id: user._id,
               name: user.name,
               email: user.email,
               role: user.role,
-              classroomCode: user.classroomCode
+              classroomCode: user.classroomCode,
+              isVerified: user.isVerified
           }
       };
 
@@ -157,6 +209,218 @@ router.post('/register', async (req, res) => {
   }
 });
 
+router.post('/auth/google', async (req, res) => {
+  try {
+      const { credential, role = 'student', tutorCode, classroomName } = req.body;
+
+      if (!credential) {
+          return res.status(400).json({ error: 'Google credential is required' });
+      }
+
+      // Verify Google token
+      const ticket = await client.verifyIdToken({
+          idToken: credential,
+          audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      const googleId = payload.sub;
+      const email = payload.email;
+      const name = payload.name;
+      const picture = payload.picture;
+
+      if (!email || !name) {
+          return res.status(400).json({ error: 'Invalid Google token - missing required fields' });
+      }
+
+      // Check if user already exists
+      let user = await User.findOne({ email: email.toLowerCase() });
+
+      if (user) {
+          // User exists - this is a login attempt, redirect to login
+          if (!user.isVerified) {
+              // For Google users, mark as verified immediately
+              user.isVerified = true;
+              await user.save();
+          }
+
+          // Generate auth token for existing user
+          const token = await user.generateAuthToken();
+
+          return res.status(200).json({
+              success: true,
+              isNewUser: false,
+              message: 'User already exists. Redirecting to login...',
+              user: {
+                  id: user._id,
+                  name: user.name,
+                  email: user.email,
+                  role: user.role,
+                  picture: user.picture || picture
+              },
+              token
+          });
+      }
+
+      // Role-specific validation for new users
+      if (role === 'tutor' && !classroomName?.trim()) {
+          return res.status(400).json({ error: 'Classroom name is required for tutors' });
+      }
+
+      if (role === 'student' && tutorCode && tutorCode.trim().length > 0) {
+          // Validate tutor code if provided
+          const classroom = await Classroom.findOne({ joinCode: tutorCode.trim() });
+          if (!classroom) {
+              return res.status(400).json({ error: 'Invalid tutor enrollment code' });
+          }
+      }
+
+      // Create new user with Google data
+      let classroom = null;
+      let classroomCode = null;
+
+      if (role === 'tutor') {
+          // Create classroom for tutor
+          let joinCode = generateJoinCode();
+          
+          // Ensure join code is unique
+          let existingClassroom = await Classroom.findOne({ joinCode });
+          while (existingClassroom) {
+              joinCode = generateJoinCode();
+              existingClassroom = await Classroom.findOne({ joinCode });
+          }
+
+          classroom = new Classroom({
+              name: classroomName.trim(),
+              joinCode: joinCode
+          });
+
+          await classroom.save();
+          classroomCode = joinCode;
+
+      } else if (role === 'student' && tutorCode && tutorCode.trim().length > 0) {
+          // Student with tutor code
+          classroom = await Classroom.findOne({ joinCode: tutorCode.trim() });
+          classroomCode = tutorCode.trim();
+      }
+
+      // Create new user
+      const newUser = new User({
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          password: Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8), // Random password for Google users
+          role: role,
+          classroomCode: classroomCode,
+          googleId: googleId,
+          picture: picture,
+          isVerified: true, // Google users are automatically verified
+          authProvider: 'google'
+      });
+
+      await newUser.save();
+
+      // Update classroom relationships
+      if (classroom) {
+          if (role === 'tutor') {
+              classroom.tutor = newUser._id;
+              newUser.ownedClassrooms.push(classroom._id);
+          } else if (role === 'student') {
+              classroom.students.push(newUser._id);
+          }
+          
+          await classroom.save();
+          await newUser.save();
+      }
+
+      // Generate auth token
+      const token = await newUser.generateAuthToken();
+
+      // Prepare response data
+      const responseData = {
+          success: true,
+          isNewUser: true,
+          message: 'Account created successfully with Google!',
+          user: {
+              id: newUser._id,
+              name: newUser.name,
+              email: newUser.email,
+              role: newUser.role,
+              classroomCode: newUser.classroomCode,
+              isVerified: newUser.isVerified,
+              picture: newUser.picture
+          },
+          token
+      };
+
+      // Add classroom info for tutors
+      if (role === 'tutor' && classroom) {
+          responseData.classroom = {
+              id: classroom._id,
+              name: classroom.name,
+              joinCode: classroom.joinCode
+          };
+      }
+
+      res.status(201).json(responseData);
+
+  } catch (error) {
+      console.error('Google OAuth error:', error);
+      
+      if (error.message && error.message.includes('Token used too late')) {
+          return res.status(400).json({ error: 'Google token has expired. Please try again.' });
+      }
+      
+      if (error.code === 11000) {
+          return res.status(422).json({ error: 'User already exists with this email' });
+      }
+      
+      if (error.name === 'ValidationError') {
+          const validationErrors = Object.values(error.errors).map(e => e.message);
+          return res.status(422).json({ error: validationErrors.join(', ') });
+      }
+      
+      res.status(500).json({ error: 'Internal server error during Google authentication' });
+  }
+});
+
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ error: 'Email is already verified' });
+    }
+
+    // Generate new token
+    const crypto = require('crypto');
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    
+    await user.save();
+    
+    // Send email
+    await sendVerificationEmail(user.email, verificationToken, user.name);
+    
+    res.json({ message: 'Verification email resent successfully' });
+    
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 router.get('/classrooms', async (req, res) => {
   try {
     const classrooms = await Classroom.find()
@@ -168,7 +432,132 @@ router.get('/classrooms', async (req, res) => {
   }
 });
 
+// POST /api/forgot-password - Send password reset email
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email || !email.trim()) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
 
+        // Validate email format
+        if (!validator.isEmail(email)) {
+            return res.status(400).json({ error: 'Please enter a valid email address' });
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase().trim() });
+        
+        if (!user) {
+            // For security, don't reveal if email exists or not
+            return res.status(200).json({ 
+                message: 'If an account with that email exists, we\'ve sent a password reset link.' 
+            });
+        }
+
+        if (!user.isVerified) {
+            return res.status(400).json({ 
+                error: 'Please verify your email address before resetting your password.' 
+            });
+        }
+
+        // Generate password reset token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenExpires = Date.now() + 60 * 60 * 1000; // 1 hour from now
+
+        // Save token to user
+        user.passwordResetToken = resetToken;
+        user.passwordResetTokenExpires = resetTokenExpires;
+        await user.save();
+
+        // Send password reset email
+        await sendPasswordResetEmail(user.email, resetToken, user.name);
+
+        res.status(200).json({ 
+            message: `Password reset email sent to ${email}. Please check your inbox.` 
+        });
+
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// GET /api/verify-reset-token - Verify if reset token is valid
+router.get('/verify-reset-token', async (req, res) => {
+    try {
+        const { token } = req.query;
+        
+        if (!token) {
+            return res.status(400).json({ error: 'Reset token is required' });
+        }
+
+        const user = await User.findOne({
+            passwordResetToken: token,
+            passwordResetTokenExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ 
+                error: 'Invalid or expired reset token' 
+            });
+        }
+
+        res.status(200).json({ 
+            success: true,
+            message: 'Reset token is valid' 
+        });
+
+    } catch (error) {
+        console.error('Token verification error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// POST /api/reset-password - Reset password with token
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        
+        if (!token || !newPassword) {
+            return res.status(400).json({ error: 'Token and new password are required' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+        }
+
+        const user = await User.findOne({
+            passwordResetToken: token,
+            passwordResetTokenExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ 
+                error: 'Invalid or expired reset token' 
+            });
+        }
+
+        // Update password (will be hashed by pre-save middleware)
+        user.password = newPassword;
+        user.passwordResetToken = undefined;
+        user.passwordResetTokenExpires = undefined;
+        
+        // Clear all existing login tokens for security
+        user.tokens = [];
+        
+        await user.save();
+
+        res.status(200).json({ 
+            success: true,
+            message: 'Password has been reset successfully. You can now log in with your new password.' 
+        });
+
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 // Join classroom (students only)
 router.post('/classroom/join', 
