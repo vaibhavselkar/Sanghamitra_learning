@@ -60,6 +60,14 @@ router.post('/signin', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
+    // NEW: Check if email is verified
+    if (!user.isVerified) {
+      return res.status(403).json({ 
+        error: "Email not verified. Please check your email for verification link.",
+        unverified: true, // Flag for frontend to handle specially
+        email: user.email // Include email for resend functionality
+      });
+    }
     
     // 4. Verify password - SIMPLIFIED (no double hashing)
     // Compare plain password with stored hashed password
