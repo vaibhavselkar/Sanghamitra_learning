@@ -21,7 +21,7 @@ const LoginPage = () => {
   const handleResendVerification = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("http://3.111.49.131:4000/api/resend-verification", {
+      const response = await fetch("http://3.111.49.131/api/resend-verification", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -65,7 +65,7 @@ const LoginPage = () => {
     try {
       console.log('Attempting login with:', { email }); // Debug log
       
-      const response = await fetch("http://3.111.49.131:4000/api/signin", {
+      const response = await fetch("http://3.111.49.131/api/signin", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
