@@ -14,7 +14,7 @@ const app = express();
 // CORS configuration
 const corsOptions = {
     origin: [
-      'http://3.111.49.131:4000',
+      'http://3.111.49.131',
       'http://localhost:3000',  // Add this for development
       'http://localhost:4000'   // Add this for same-origin
     ],
