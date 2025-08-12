@@ -204,7 +204,7 @@ const VocabularyDiagnosticTest = () => {
 }, []);
   const fetchSessionInfo = async () => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/session-info', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/session-info`, {
         credentials: 'include'
       });
 
@@ -365,7 +365,7 @@ const VocabularyDiagnosticTest = () => {
 
   const postUserData = async (userData) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/vocabscoreadd', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/vocabscoreadd`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
