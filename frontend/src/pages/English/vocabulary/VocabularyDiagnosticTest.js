@@ -229,7 +229,7 @@ const VocabularyDiagnosticTest = () => {
 
     try {
       const fetchPromises = cefrLevels.map(level =>
-        fetch(`http://3.111.49.131:4000/api/vocab-questions?cefrLevel=${level}`)
+        fetch(`${process.env.REACT_APP_API_URL}/api/vocab-questions?cefrLevel=${level}`)
           .then(response => {
             if (!response.ok) throw new Error(`Failed to fetch ${level} questions`);
             return response.json();
