@@ -14,6 +14,8 @@ const app = express();
 // CORS configuration
 const corsOptions = {
     origin: [
+      'https://sanghamitra-learning.duckdns.org',
+      'http://sanghamitra-learning.duckdns.org',
       'http://3.111.49.131',
       'http://localhost:3000',  // Add this for development
       'http://localhost:4000'   // Add this for same-origin
