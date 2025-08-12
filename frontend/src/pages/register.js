@@ -30,7 +30,6 @@ const RegisterPage = () => {
 
     // Load Google OAuth script
     useEffect(() => {
-        console.log('Frontend Google Client ID:', process.env.REACT_APP_GOOGLE_CLIENT_ID);
         const loadGoogleScript = () => {
             if (window.google) return;
             
@@ -47,14 +46,13 @@ const RegisterPage = () => {
         };
 
         const initializeGoogleOAuth = () => {
-            console.log('Initializing Google OAuth with Client ID:', process.env.REACT_APP_GOOGLE_CLIENT_ID);
     
             if (!process.env.REACT_APP_GOOGLE_CLIENT_ID) {
                 console.error('REACT_APP_GOOGLE_CLIENT_ID is not set!');
                 return;
             }
             window.google.accounts.id.initialize({
-                client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || "your-google-client-id.googleusercontent.com",
+                client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID ,
                 callback: handleGoogleResponse,
                 auto_select: false,
                 cancel_on_tap_outside: true
@@ -69,7 +67,7 @@ const RegisterPage = () => {
         
         try {
             // Send the Google credential token to your backend
-            const backendResponse = await fetch('http://3.111.49.131:4000/api/auth/google', {
+            const backendResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/google`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -204,7 +202,7 @@ const RegisterPage = () => {
         setUiState(prev => ({ ...prev, validatingCode: true }));
         
         try {
-            const response = await fetch(`http://3.111.49.131:4000/api/classrooms/validate/${code}`);
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/classrooms/validate/${code}`);
             if (response.ok) {
                 const classroom = await response.json();
                 setUiState(prev => ({ 
@@ -250,7 +248,7 @@ const RegisterPage = () => {
         setUiState(prev => ({ ...prev, isLoading: true, error: '' }));
         
         try {
-            const response = await fetch('http://3.111.49.131:4000/api/resend-verification', {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/resend-verification`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: formData.email.trim() }),
@@ -305,7 +303,7 @@ const RegisterPage = () => {
                 registrationData.tutorCode = formData.tutorCode.trim();
             }
 
-            const response = await fetch('http://3.111.49.131:4000/api/register', {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(registrationData),
