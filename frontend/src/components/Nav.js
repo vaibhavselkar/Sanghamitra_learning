@@ -11,7 +11,7 @@ const Navbar = () => {
     const confirmLogout = window.confirm("Do you really want to logout?");
     if (confirmLogout) {
       try {
-        await fetch('http://3.111.49.131:4000/api/logout', {
+        await fetch(`${process.env.REACT_APP_API_URL}/api/logout`, {
           method: 'GET',
           credentials: 'include',
         });
