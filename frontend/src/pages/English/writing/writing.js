@@ -8,7 +8,7 @@ const Writing = () => {
   return (
     <main className="main">
       {/* Page Title */}
-      <div className="page-title" data-aos="fade">
+      <div className="page-title">
         <div className="heading">
           <div className="container">
             <div className="row d-flex justify-content-center text-center">
@@ -40,7 +40,7 @@ const Writing = () => {
         <div className="container">
           <div className="row">
             {/* Writing Guide */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={writingGuideImg} className="img-fluid" alt="Comprehensive Writing Guide" />
                 <div className="course-content">
@@ -62,7 +62,7 @@ const Writing = () => {
             </div>
 
             {/* Analytical Writing */}
-            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" data-aos="zoom-in">
+            <div className="col-lg-4 col-md-6 d-flex align-items-stretch" >
               <div className="course-item">
                 <img src={analyticalWritingImg} className="img-fluid" alt="Analytical Writing" />
                 <div className="course-content">
@@ -89,7 +89,7 @@ const Writing = () => {
 
       {/* Feedback Button */}
       <section id="feedback-section" className="section">
-        <div className="container text-center" data-aos="fade-up">
+        <div className="container text-center">
           <a href="https://forms.gle/86sDMaDVhkWvw5Lt5" target="_blank" rel="noopener noreferrer">
             <button className="btn btn-primary">Give Feedback on Writing Guide</button>
           </a>
