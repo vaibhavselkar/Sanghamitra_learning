@@ -14,9 +14,9 @@ const AdditionQuiz = ({ operationType = 'addition' }) => {
   });
 
   // API endpoints
-  const QUESTIONS_API = 'http://3.111.49.131:4000/api/arithmeticQuestionsDatabase';
-  const SCORES_API = 'http://3.111.49.131:4000/api/arithmetic-scores';
-  const SESSION_API = 'http://3.111.49.131:4000/api/session-info';
+  const QUESTIONS_API = `${process.env.REACT_APP_API_URL}/api/arithmeticQuestionsDatabase`;
+  const SCORES_API = `${process.env.REACT_APP_API_URL}/api/arithmetic-scores`;
+  const SESSION_API = `${process.env.REACT_APP_API_URL}/api/session-info`;
 
   // Helper functions for safe checking
   const isQuestionAttempted = (question) => {
