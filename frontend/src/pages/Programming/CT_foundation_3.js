@@ -43,7 +43,7 @@ const CTFoundation3 = () => {
 
   const fetchSessionInfo = async () => {
     try {
-      const sessionResponse = await fetch('http://3.111.49.131:4000/api/session-info', { 
+      const sessionResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/session-info`, { 
         credentials: 'include' 
       });
       
@@ -104,7 +104,7 @@ const CTFoundation3 = () => {
 
   const fetchPreviousAnswers = async (email) => {
     try {
-      const response = await fetch(`http://3.111.49.131:4000/api/CT_finger_scores/${email}/CT_foundation_2`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/CT_finger_scores/${email}/CT_foundation_2`, {
         credentials: 'include'
       });
       
@@ -234,7 +234,7 @@ const CTFoundation3 = () => {
         }]
       };
       
-      fetch('http://3.111.49.131:4000/api/CT_finger_scores', {
+      fetch(`${process.env.REACT_APP_API_URL}/api/CT_finger_scores`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -265,7 +265,7 @@ const CTFoundation3 = () => {
         }))
       };
       
-      const response = await fetch('http://3.111.49.131:4000/api/CT_finger_scores', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/CT_finger_scores`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
