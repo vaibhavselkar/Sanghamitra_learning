@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
  
   const checkAuth = async () => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/check-auth', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/check-auth`, {
         method: 'GET',
         credentials: 'include',
       });
@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('http://3.111.49.131:4000/api/logout', {
+      await fetch(`${process.env.REACT_APP_API_URL}/api/logout`, {
         method: 'POST',
         credentials: 'include',
       });
