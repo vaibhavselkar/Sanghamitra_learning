@@ -97,7 +97,7 @@ const EmailVerificationPage = () => {
         setVerificationState(prev => ({ ...prev, isLoading: true }));
         
         try {
-            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/resend-verification', {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/resend-verification`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: verificationState.userEmail }),
@@ -498,4 +498,5 @@ document.head.appendChild(styleSheet);
 
 
 export default EmailVerificationPage;
+
 
