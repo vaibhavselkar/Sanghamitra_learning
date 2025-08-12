@@ -17,7 +17,7 @@ const Footer = () => {
               <p>GacchiBowli</p>
               <p>Hyderabad, TS 500032</p>
               <p className="mt-3"><strong>Phone:</strong> <span>+91 7020102729</span></p>
-              <p><strong>Email:</strong> <span>sanghamitra.learnworlds@gmail.com</span></p>
+              <p><strong>Email:</strong> <span>sanghamitra.learn@gmail.com</span></p>
             </div>
             {/* Social Links */}
             <div className="social-links d-flex mt-4">
