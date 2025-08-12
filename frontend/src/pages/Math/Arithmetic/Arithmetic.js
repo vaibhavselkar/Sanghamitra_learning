@@ -25,7 +25,7 @@ const Arithmetic = () => {
       try {
         // Fetch session info
         const sessionResponse = await fetch(
-          "http://3.111.49.131:4000/api/session-info",
+          `${process.env.REACT_APP_API_URL}/api/session-info`,
           { credentials: 'include' }
         );
         
@@ -41,7 +41,7 @@ const Arithmetic = () => {
 
         // Fetch test attempts
       const testResponse = await fetch(
-        `http://3.111.49.131:4000/api/mathematicsDiagnosticsAnalytics?email=${encodeURIComponent(email)}&topicArea=arithmetic`,
+        `${process.env.REACT_APP_API_URL}/api/mathematicsDiagnosticsAnalytics?email=${encodeURIComponent(email)}&topicArea=arithmetic`,
         { credentials: 'include' }
       );
 
@@ -90,7 +90,7 @@ const Arithmetic = () => {
         for (const topic of topics) {
           try {
             const response = await fetch(
-              `http://3.111.49.131:4000/api/arithmetic-scores?userEmail=${encodeURIComponent(email)}&operationType=${topic.id}`,
+              `${process.env.REACT_APP_API_URL}/api/arithmetic-scores?userEmail=${encodeURIComponent(email)}&operationType=${topic.id}`,
               { credentials: 'include' }
             );
             
