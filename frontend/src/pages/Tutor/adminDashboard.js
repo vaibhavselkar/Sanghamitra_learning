@@ -103,7 +103,7 @@ const TutorDashboard = () => {
       setError('');
       
       try {
-        const response = await fetch('http://3.111.49.131:4000/api/classrooms', {
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/classrooms`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -190,8 +190,8 @@ const TutorDashboard = () => {
     try {
       // Use your existing endpoint with optional userEmail filter
       const url = studentEmails.length > 0
-        ? `http://3.111.49.131:4000/api/arithmetic-scores?${studentEmails.map(email => `userEmail=${email}`).join('&')}`
-        : 'http://3.111.49.131:4000/api/arithmetic-scores';
+        ? `${process.env.REACT_APP_API_URL}/api/arithmetic-scores?${studentEmails.map(email => `userEmail=${email}`).join('&')}`
+        : `${process.env.REACT_APP_API_URL}/api/arithmetic-scores`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -205,7 +205,7 @@ const TutorDashboard = () => {
 
   const fetchEnglishDiagnosticData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/eng_diagnostic_scores');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/eng_diagnostic_scores`);
       if (!response.ok) throw new Error('Failed to fetch English diagnostic data');
       
       const data = await response.json();
@@ -223,7 +223,7 @@ const TutorDashboard = () => {
 
   const fetchVocabularyData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/vocabscores');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/vocabscores`);
       if (!response.ok) throw new Error('Failed to fetch vocabulary data');
       
       const data = await response.json();
@@ -269,7 +269,7 @@ const TutorDashboard = () => {
 
   const fetchAlgebraData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/algebra_scores');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/algebra_scores`);
       if (!response.ok) throw new Error('Failed to fetch algebra data');
       
       const data = await response.json();
@@ -374,7 +374,7 @@ const TutorDashboard = () => {
         allStudents.map(async student => {
           try {
             const response = await fetch(
-              `http://3.111.49.131:4000/api/mathematicsDiagnosticsComparison/${student.email}/${selectedDiagnosticTopic}`
+              `${process.env.REACT_APP_API_URL}/api/mathematicsDiagnosticsComparison/${student.email}/${selectedDiagnosticTopic}`
             );
             const data = await response.json();
             return data.success ? data.data : null;
@@ -395,7 +395,7 @@ const TutorDashboard = () => {
 
   const fetchReadingComprehensionData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/readingcomprehensionscore');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/readingcomprehensionscore`);
       if (!response.ok) throw new Error('Failed to fetch reading comprehension data');
       
       const data = await response.json();
@@ -444,7 +444,7 @@ const TutorDashboard = () => {
 
   const fetchCTData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/CT_finger_scores');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/CT_finger_scores`);
       if (!response.ok) throw new Error('Failed to fetch CT data');
       
       const data = await response.json();
@@ -461,7 +461,7 @@ const TutorDashboard = () => {
 
   const fetchPythonFingerData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/finger-exercise');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/finger-exercise`);
       if (!response.ok) throw new Error('Failed to fetch Python finger data');
       
       const data = await response.json();
@@ -508,7 +508,7 @@ const TutorDashboard = () => {
 
   const fetchDiagnosticsData = async (studentEmails) => {
     try {
-      const response = await fetch('http://3.111.49.131:4000/api/programming');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/programming`);
       if (!response.ok) throw new Error('Failed to fetch diagnostics data');
       
       const data = await response.json();
@@ -840,7 +840,7 @@ const TutorDashboard = () => {
     setError('');
     
     try {
-      const response = await fetch(`http://3.111.49.131:4000/api/classroom/${classroomId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/classroom/${classroomId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
