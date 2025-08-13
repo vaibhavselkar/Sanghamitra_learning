@@ -43,7 +43,11 @@ const StudentDashboard = () => {
   // API Helper function
   const apiCall = async (url, options = {}) => {
     try {
+<<<<<<< Updated upstream
       const response = await fetch(`${process.env.REACT_APP_API_URL}${url}`, {
+=======
+      const response = await fetch(`http://localhost:4000${url}`, {
+>>>>>>> Stashed changes
         ...options,
         credentials: 'include',
         headers: {
@@ -436,7 +440,11 @@ const StudentDashboard = () => {
 
   const fetchClassroomInfo = async () => {
     try {
+<<<<<<< Updated upstream
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/student/classroom-info`, {
+=======
+      const response = await fetch('http://localhost:4000/api/student/classroom-info', {
+>>>>>>> Stashed changes
         method: 'GET',
         credentials: 'include', // Important: sends session cookie
         headers: {

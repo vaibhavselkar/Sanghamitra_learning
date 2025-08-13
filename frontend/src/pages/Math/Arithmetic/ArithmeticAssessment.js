@@ -33,7 +33,7 @@ const ArithmeticAssessment = () => {
 
   ];
 
-  const API_BASE_URL = `${process.env.REACT_APP_API_URL}/api`;
+  const API_BASE_URL = 'http://3.111.49.131:4000/api';
   const totalRequiredQuestions = 20;
 
   // Load MathJax
