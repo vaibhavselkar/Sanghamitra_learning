@@ -6,23 +6,17 @@ const mongoose = require('mongoose');
 const User = require('./model/userSchema');
 const authRouter = require('./router/auth');
 const classroomRoutes = require('./router/classroom');
-const analyticsRouter = require('./router/analytics'); // ADD THIS LINE
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
 
 const app = express();
-
 // CORS configuration
 const corsOptions = {
     origin: [
-<<<<<<< Updated upstream
       'https://sanghamitra-learning.duckdns.org',
       'http://sanghamitra-learning.duckdns.org',
       'http://3.111.49.131',
-=======
-      'http://localhost:4000',
->>>>>>> Stashed changes
       'http://localhost:3000',  // Add this for development
       'http://localhost:4000'   // Add this for same-origin
     ],
@@ -38,13 +32,15 @@ const corsOptions = {
       'x-access-token'
     ],
     optionsSuccessStatus: 200 // For legacy browser support
-};
-
-// Apply CORS middleware BEFORE your routes
-app.use(cors(corsOptions));
+  };
+  
+  // Apply CORS middleware BEFORE your routes
+  app.use(cors(corsOptions));
 
 // Load environment variables
 dotenv.config({ path: './.env' });
+
+// CORS configuration - MUST be before other middleware
 
 // Cookie parser BEFORE session
 app.use(cookieParser());
@@ -82,36 +78,20 @@ mongoose.connect(process.env.DATABASE, {
     console.log("Connected to MongoDB");
 }).catch(err => console.error("MongoDB connection error:", err));
 
+
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, '../frontend/build')));
 
 // API Routes
 app.use('/api', authRouter);
 app.use('/api', classroomRoutes);
-app.use('/api/analytics', analyticsRouter); // ADD THIS LINE
 
 app.get('/api/', (req, res) => {
-    res.json({ 
-        message: 'Server is running!', 
-        port: process.env.PORT || 4000,
-        analytics: 'Analytics endpoints available at /api/analytics' // ADD THIS
-    });
+    res.json({ message: 'Server is running!', port: process.env.PORT || 4000 });
 });
 
 app.get('/api/test', (req, res) => {
     res.json({ message: 'CORS is working!', timestamp: new Date() });
-});
-
-// ADD: Test endpoint for analytics
-app.get('/api/analytics/test', (req, res) => {
-    res.json({ 
-        message: 'Analytics endpoint is working!', 
-        endpoints: [
-            '/api/analytics/overview',
-            '/api/analytics/student/:userId'
-        ],
-        timestamp: new Date() 
-    });
 });
 
 // Error handling middleware
@@ -130,6 +110,5 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Express server running on port ${PORT}`);
     console.log(`API endpoints available at: http://localhost:${PORT}/api`);
-    console.log(`Analytics endpoints available at: http://localhost:${PORT}/api/analytics`); // ADD THIS
     console.log(`Frontend served from: http://localhost:${PORT}`);
 });
