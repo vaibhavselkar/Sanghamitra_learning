@@ -31,6 +31,13 @@ const StudentDashboard = () => {
   });
   const [vocabScores, setVocabScores] = useState({ assessments: [] });
   const [mathTopics, setMathTopics] = useState([]);
+  // Mathematics specific state (added from the math section)
+  const [diagnosticData, setDiagnosticData] = useState({
+    preTest: null,
+    postTest: null
+  });
+  const [fingerExercises, setFingerExercises] = useState([]);
+  const [selectedExercise, setSelectedExercise] = useState('');
   const [classroomName, setClassroomName] = useState('');
   const [rcData, setRcData] = useState(null);
   const [programmingData, setProgrammingData] = useState(null);
@@ -43,11 +50,7 @@ const StudentDashboard = () => {
   // API Helper function
   const apiCall = async (url, options = {}) => {
     try {
-<<<<<<< Updated upstream
       const response = await fetch(`${process.env.REACT_APP_API_URL}${url}`, {
-=======
-      const response = await fetch(`http://localhost:4000${url}`, {
->>>>>>> Stashed changes
         ...options,
         credentials: 'include',
         headers: {
@@ -117,6 +120,80 @@ const StudentDashboard = () => {
     }
   };
 
+  const fetchMathDiagnostics = async (email) => {
+    try {
+      const response = await apiCall(`/api/mathematicsDiagnosticsAnalytics?email=${email}`);
+     
+      if (response && response.success && Array.isArray(response.data)) {
+        // Find the most recent pre and post tests
+        const sortedData = response.data.sort((a, b) => 
+          new Date(b.testDate) - new Date(a.testDate)
+        );
+        
+        const preTest = sortedData.find(test => test.testPhase === 'pre');
+        const postTest = sortedData.find(test => test.testPhase === 'post');
+         
+        
+        setDiagnosticData({ preTest, postTest });
+        
+        return { preTest, postTest };
+      } else {
+        debugLog('No valid diagnostic data received:', response);
+        return null;
+      }
+    } catch (error) {
+      debugError('Error in fetchMathDiagnostics:', error);
+      return null;
+    }
+  };
+
+  // NEW: Fetch finger exercises
+  const fetchFingerExercises = async (email) => {
+    try {
+      const response = await apiCall(`/api/arithmetic-scores?userEmail=${email}`);
+      
+      // Handle both array and object responses
+      let exercisesData = [];
+      if (Array.isArray(response)) {
+        exercisesData = response;
+      } else if (response && typeof response === 'object' && !response.questionsAttempted) {
+        // This handles when the API returns multiple exercises as object properties
+        exercisesData = Object.values(response);
+      } else if (response) {
+        // This handles when the API returns a single exercise
+        exercisesData = [response];
+      }
+
+      // Transform data with proper fallbacks
+      const transformedData = exercisesData
+        .filter(ex => ex && ex.operationType) // Ensure we have valid exercises with operationType
+        .map((item) => ({
+          _id: item._id,
+          operationType: item.operationType,
+          correctAnswers: item.correctAnswers || 0,
+          totalQuestions: item.totalQuestions || (item.questionsAttempted?.length || 0),
+          ...item
+        }))
+        .filter(ex => ex.totalQuestions > 0); // Only include exercises with attempts
+
+      
+      setFingerExercises(transformedData);
+      
+      if (transformedData.length > 0) {
+        setSelectedExercise(transformedData[0].operationType);
+      } else {
+        setSelectedExercise('');
+      }
+      
+      return transformedData;
+    } catch (error) {
+      debugError('Error in fetchFingerExercises:', error);
+      setFingerExercises([]);
+      setSelectedExercise('');
+      return [];
+    }
+  };
+
   // Fetch RC scores
   const fetchRCScores = async (email) => {
     const data = await apiCall(`/api/readingcomprehensionscore?email=${email}`);
@@ -182,11 +259,43 @@ const StudentDashboard = () => {
   // Fetch quiz counts
   const fetchQuizCounts = async (email) => {
     try {
-      // Math count
-      const mathData = await apiCall(`/api/algebra_scores?email=${email}`);
-      const mathCount = Array.isArray(mathData) && mathData.length > 0 
-        ? mathData.reduce((count, entry) => count + (entry.topics ? entry.topics.length : 0), 0)
+      // Math count (includes algebra topics + diagnostics + finger exercises)
+      const algebraData = await apiCall(`/api/algebra_scores?email=${email}`);
+      const algebraCount = Array.isArray(algebraData) && algebraData.length > 0 
+        ? algebraData.reduce((count, entry) => count + (entry.topics ? entry.topics.length : 0), 0)
         : 0;
+
+      // Get diagnostic count
+      const diagnosticResponse = await apiCall(`/api/mathematicsDiagnosticsAnalytics?email=${email}`);
+      let diagnosticCount = 0;
+      if (diagnosticResponse && diagnosticResponse.success && Array.isArray(diagnosticResponse.data)) {
+        const sortedData = diagnosticResponse.data.sort((a, b) => 
+          new Date(b.testDate) - new Date(a.testDate)
+        );
+        const preTest = sortedData.find(test => test.testPhase === 'pre');
+        const postTest = sortedData.find(test => test.testPhase === 'post');
+        diagnosticCount = (preTest ? 1 : 0) + (postTest ? 1 : 0);
+      }
+
+      // Get finger exercises count
+      const fingerResponse = await apiCall(`/api/arithmetic-scores?userEmail=${email}`);
+      let fingerCount = 0;
+      if (fingerResponse) {
+        let exercisesData = [];
+        if (Array.isArray(fingerResponse)) {
+          exercisesData = fingerResponse;
+        } else if (fingerResponse && typeof fingerResponse === 'object' && !fingerResponse.questionsAttempted) {
+          exercisesData = Object.values(fingerResponse);
+        } else if (fingerResponse) {
+          exercisesData = [fingerResponse];
+        }
+        fingerCount = exercisesData
+          .filter(ex => ex && ex.operationType && (ex.totalQuestions || ex.questionsAttempted?.length) > 0)
+          .length;
+      }
+
+      const totalMathCount = algebraCount + diagnosticCount + fingerCount;
+
 
       // Vocab count
       const vocabData = await apiCall(`/api/vocabscores?email=${email}`);
@@ -202,7 +311,7 @@ const StudentDashboard = () => {
       const progCount = await calculateCompletedTopics(email);
 
       setQuizCounts({
-        math: mathCount,
+        math: totalMathCount,
         vocab: vocabCount,
         rc: rcCount,
         prog: progCount
@@ -212,48 +321,127 @@ const StudentDashboard = () => {
     }
   };
 
-  // Create doughnut chart
-  const createDoughnutChart = (canvasId, correctAnswers, incorrectAnswers) => {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
+  // NEW: Chart update effect for finger exercises
+  useEffect(() => {
+    const updateFingerExerciseChart = () => {
+      debugLog('Updating finger exercise chart with:', {
+        selectedExercise,
+        fingerExercises
+      });
 
-    const ctx = canvas.getContext('2d');
-    
-    // Clear any existing chart
-    if (chartRefs.current[canvasId]) {
-      chartRefs.current[canvasId].destroy();
-    }
-
-    chartRefs.current[canvasId] = new ChartJS(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Correct Answers', 'Incorrect Answers'],
-        datasets: [{
-          data: [correctAnswers, incorrectAnswers],
-          backgroundColor: ['#1C4E80', '#A5D8DD'],
-          hoverBackgroundColor: ['#1C4E80', '#A5D8DD'],
-          borderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        cutout: '70%',
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-          tooltip: {
-            callbacks: {
-              label: function (tooltipItem) {
-                return tooltipItem.label + ': ' + tooltipItem.raw;
-              }
-            }
-          }
+      if (!selectedExercise || fingerExercises.length === 0) {
+        debugLog('No selected exercise or empty finger exercises - clearing chart');
+        // Clear chart if no data
+        const canvasId = 'finger-exercise-chart';
+        const canvas = document.getElementById(canvasId);
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Add a message when no data is available
+          ctx.fillStyle = '#666';
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('No data available', canvas.width/2, canvas.height/2);
         }
+        return;
       }
-    });
-  };
 
+      const selectedData = fingerExercises.find(
+        ex => ex.operationType === selectedExercise
+      );
+
+      debugLog('Selected exercise data:', selectedData);
+
+      if (!selectedData) {
+        debugLog('No data found for selected exercise');
+        return;
+      }
+
+      const canvasId = 'finger-exercise-chart';
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) {
+        debugError('Canvas element not found with ID:', canvasId);
+        return;
+      }
+
+      const ctx = canvas.getContext('2d');
+      
+      // Destroy previous chart if exists
+      if (chartRefs.current[canvasId]) {
+        debugLog('Destroying previous chart instance');
+        chartRefs.current[canvasId].destroy();
+      }
+
+      const correctAnswers = selectedData.correctAnswers || 0;
+      const totalQuestions = selectedData.totalQuestions || 1;
+      const incorrectAnswers = totalQuestions - correctAnswers;
+
+      debugLog('Chart data:', {
+        correctAnswers,
+        incorrectAnswers,
+        totalQuestions
+      });
+
+      // Create new chart
+      try {
+        chartRefs.current[canvasId] = new ChartJS(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Correct Answers', 'Incorrect Answers'],
+            datasets: [{
+              data: [correctAnswers, incorrectAnswers],
+              backgroundColor: ['#4CAF50', '#F44336'],
+              borderWidth: 1,
+              hoverOffset: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  font: {
+                    size: 14
+                  }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.raw || 0;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = Math.round((value / total) * 100);
+                    return `${label}: ${value} (${percentage}%)`;
+                  }
+                }
+              }
+            },
+            cutout: '65%'
+          }
+        });
+        debugLog('Successfully created new chart instance');
+      } catch (error) {
+        debugError('Error creating chart:', error);
+      }
+    };
+
+    updateFingerExerciseChart();
+
+    return () => {
+      // Cleanup on unmount
+      Object.values(chartRefs.current).forEach(chart => {
+        if (chart) {
+          debugLog('Destroying chart on unmount');
+          chart.destroy();
+        }
+      });
+    };
+  }, [selectedExercise, fingerExercises]);
+  
   // Initialize dashboard
   useEffect(() => {
     const initDashboard = async () => {
@@ -281,6 +469,8 @@ const StudentDashboard = () => {
           fetchQuizCounts(email),
           fetchVocabScores(email),
           fetchMathTopicsScores(email),
+          fetchMathDiagnostics(email), 
+          fetchFingerExercises(email),
           fetchRCScores(email),
           fetchProgrammingScores(email),
           fetchCTFingerExercises(email),
@@ -295,18 +485,6 @@ const StudentDashboard = () => {
     initDashboard();
   }, [user, isAuthenticated, navigate]);
 
-  // Create charts after math topics data is loaded
-  useEffect(() => {
-    if (mathTopics.length > 0) {
-      setTimeout(() => {
-        mathTopics.forEach((topic) => {
-          const correctAnswers = topic.questions.filter(q => q.correct).length;
-          const incorrectAnswers = topic.questions.length - correctAnswers;
-          createDoughnutChart(`${topic.topic}-performance-chart`, correctAnswers, incorrectAnswers);
-        });
-      }, 100);
-    }
-  }, [mathTopics]);
 
   // Utility functions
   const capitalizeFirstLetter = (string) => {
@@ -349,6 +527,199 @@ const StudentDashboard = () => {
   const redirectToProgramming = () => {
     navigate("/programming");
   };
+
+  const renderDiagnosticTests = () => {
+    debugLog('Rendering diagnostic tests with:', diagnosticData);
+    const { preTest, postTest } = diagnosticData;
+
+    // Check if data exists and has the expected structure
+    const isValidTest = (test) => {
+      return test && typeof test === 'object' && 
+             'totalCorrect' in test && 'totalQuestions' in test;
+    };
+
+    return (
+      <div className="row">
+        <div className="col-lg-6 col-md-12 mb-4">
+          <div className="card h-100">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Pre-Diagnostic Test</h5>
+            </div>
+            <div className="card-body">
+              {isValidTest(preTest) ? (
+                <>
+                  <p><strong>Topic Area:</strong> {preTest.topicArea || 'General Math'}</p>
+                  <p><strong>Score:</strong> {preTest.totalCorrect}/{preTest.totalQuestions}</p>
+                  <p><strong>Percentage:</strong> {Math.round((preTest.totalCorrect / preTest.totalQuestions) * 100)}%</p>
+                  {preTest.testDate && (
+                    <p><strong>Date:</strong> {new Date(preTest.testDate).toLocaleDateString()}</p>
+                  )}
+                  <div className="progress mt-3">
+                    <div 
+                      className="progress-bar" 
+                      role="progressbar" 
+                      style={{ 
+                        width: `${(preTest.totalCorrect / preTest.totalQuestions) * 100}%` 
+                      }}
+                    ></div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-3">
+                  <p className="text-muted">No pre-test data available</p>
+                  <button 
+                    className="btn btn-sm btn-primary"
+                    onClick={() => navigate('/math/diagnostic')}
+                  >
+                    Take Pre-Test
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="col-lg-6 col-md-12 mb-4">
+          <div className="card h-100">
+            <div className="card-header bg-success text-white">
+              <h5 className="mb-0">Post-Diagnostic Test</h5>
+            </div>
+            <div className="card-body">
+              {isValidTest(postTest) ? (
+                <>
+                  <p><strong>Topic Area:</strong> {postTest.topicArea || 'General Math'}</p>
+                  <p><strong>Score:</strong> {postTest.totalCorrect}/{postTest.totalQuestions}</p>
+                  <p><strong>Percentage:</strong> {Math.round((postTest.totalCorrect / postTest.totalQuestions) * 100)}%</p>
+                  {postTest.testDate && (
+                    <p><strong>Date:</strong> {new Date(postTest.testDate).toLocaleDateString()}</p>
+                  )}
+                  <div className="progress mt-3">
+                    <div 
+                      className="progress-bar" 
+                      role="progressbar" 
+                      style={{ 
+                        width: `${(postTest.totalCorrect / postTest.totalQuestions) * 100}%` 
+                      }}
+                    ></div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-3">
+                  <p className="text-muted">No post-test data available</p>
+                  <button 
+                    className="btn btn-sm btn-primary"
+                    onClick={() => navigate('/math/diagnostic')}
+                  >
+                    Take Post-Test
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // NEW: Render finger exercises
+  const renderFingerExercises = () => {
+    debugLog('Rendering finger exercises with:', {
+      fingerExercises,
+      selectedExercise,
+      loading
+    });
+
+    if (loading) {
+      debugLog('Showing loading state for finger exercises');
+      return (
+        <div className="text-center py-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (fingerExercises.length === 0) {
+      debugLog('No finger exercises data available');
+      return (
+        <div className="text-center py-3">
+          <p className="text-muted">No finger exercises data available</p>
+          <button 
+            className="btn btn-sm btn-primary"
+            onClick={() => navigate('/math/practice')}
+          >
+            Start Practicing
+          </button>
+        </div>
+      );
+    }
+
+    const selectedData = fingerExercises.find(
+      ex => ex.operationType === selectedExercise
+    ) || fingerExercises[0];
+
+    debugLog('Selected exercise data for rendering:', selectedData);
+
+    return (
+      <div className="card">
+        <div className="card-header bg-info text-white d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">Finger Exercises</h5>
+          <div className="exercise-selector">
+            <select
+              className="form-select form-select-sm"
+              value={selectedExercise || ''}
+              onChange={(e) => {
+                debugLog('Exercise selection changed to:', e.target.value);
+                setSelectedExercise(e.target.value);
+              }}
+              style={{ width: '200px' }}
+            >
+              {fingerExercises.map((exercise) => (
+                <option 
+                  key={exercise._id} 
+                  value={exercise.operationType}
+                >
+                  {exercise.operationType.replace(/-/g, ' ').toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className="card-body">
+          <div className="row align-items-center">
+            <div className="col-md-4">
+              <div className="exercise-stats">
+                <p>
+                  <strong>Type:</strong> {(selectedData?.operationType || '').replace(/-/g, ' ').toUpperCase()}
+                </p>
+                <p>
+                  <strong>Attempted:</strong> {selectedData?.totalQuestions || 0}
+                </p>
+                <p>
+                  <strong>Correct:</strong> {selectedData?.correctAnswers || 0}
+                </p>
+                <p>
+                  <strong>Accuracy:</strong> {selectedData?.totalQuestions ? 
+                    Math.round(
+                      (selectedData.correctAnswers / selectedData.totalQuestions) * 100
+                    ) : 0}%
+                </p>
+              </div>
+            </div>
+            
+            <div className="col-md-8">
+              <div style={{ height: '200px', position: 'relative' }}>
+                <canvas id="finger-exercise-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   // Render vocabulary scores
   const renderVocabScores = () => {
@@ -402,49 +773,10 @@ const StudentDashboard = () => {
     );
   };
 
-  // Render math topics
-  const renderMathTopics = () => {
-    if (!mathTopics || mathTopics.length === 0) {
-      return <p className="text-muted">No data available for any topic</p>;
-    }
-
-    return (
-      <div className="row">
-        {mathTopics.map((topic) => {
-          const correctAnswers = topic.questions.filter(q => q.correct).length;
-          const incorrectAnswers = topic.questions.length - correctAnswers;
-
-          return (
-            <div key={topic.topic} className="col-lg-6 col-md-12 mb-4">
-              <div className="card-custom" style={{
-                background: '#fff',
-                padding: '20px',
-                margin: '10px 0',
-                boxShadow: '0 0 10px #6c757d'
-              }}>
-                <div>
-                  <h4>{capitalizeFirstLetter(topic.topic)} Performance</h4>
-                  <p><strong>Accuracy:</strong> {correctAnswers}/{topic.questions.length}</p>
-                  <p><strong>Current Level:</strong> {capitalizeFirstLetter(topic.current_level)}</p>
-                </div>
-                <div className="canvas-container" style={{ width: '200px', height: '200px' }}>
-                  <canvas id={`${topic.topic}-performance-chart`} width="500" height="500"></canvas>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
+  
   const fetchClassroomInfo = async () => {
     try {
-<<<<<<< Updated upstream
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/student/classroom-info`, {
-=======
-      const response = await fetch('http://localhost:4000/api/student/classroom-info', {
->>>>>>> Stashed changes
         method: 'GET',
         credentials: 'include', // Important: sends session cookie
         headers: {
@@ -803,7 +1135,7 @@ const StudentDashboard = () => {
 
                 {/* Vocabulary and Mathematics Section */}
                 <div className="row mb-4">
-                  <div className="col-lg-6 col-md-12">
+                  <div className="">
                     <div className="card-custom" style={{
                       background: '#fff',
                       padding: '20px',
@@ -822,17 +1154,27 @@ const StudentDashboard = () => {
                       </button>
                     </div>
                   </div>
-                  
-                  <div className="col-lg-6 col-md-12">
+                </div>
+                <div className="row mb-4">
+                  <div className="">
                     <div className="card-custom" style={{
                       background: '#fff',
                       padding: '20px',
                       margin: '10px 0',
                       boxShadow: '0 0 10px #6c757d'
                     }}>
-                      <h3>Mathematics Quizzes Performance</h3>
-                      <div className="mb-4">
-                        {renderMathTopics()}
+                      <h3>Mathematics Performance</h3>
+                      
+                      {/* NEW: Diagnostic Tests Section */}
+                      <div className="row mb-4">
+                        <div className="col-md-6">
+                          <h4>Diagnostic Tests</h4>
+                          {renderDiagnosticTests()}
+                        </div>
+                        <div className="col-md-6">
+                          <h4>Finger Exercises</h4>
+                          {renderFingerExercises()}
+                        </div>
                       </div>
                       <button 
                         className="btn btn-primary solve-more-btn"
