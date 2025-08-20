@@ -138,11 +138,11 @@ const StudentDashboard = () => {
         
         return { preTest, postTest };
       } else {
-        debugLog('No valid diagnostic data received:', response);
+        
         return null;
       }
     } catch (error) {
-      debugError('Error in fetchMathDiagnostics:', error);
+      
       return null;
     }
   };
@@ -187,7 +187,6 @@ const StudentDashboard = () => {
       
       return transformedData;
     } catch (error) {
-      debugError('Error in fetchFingerExercises:', error);
       setFingerExercises([]);
       setSelectedExercise('');
       return [];
@@ -324,21 +323,14 @@ const StudentDashboard = () => {
   // NEW: Chart update effect for finger exercises
   useEffect(() => {
   const updateFingerExerciseChart = () => {
-    debugLog('Chart update triggered', {
-      selectedExercise,
-      fingerExercises: fingerExercises.length,
-      loading
-    });
-
     // Don't try to render chart while still loading
     if (loading) {
-      debugLog('Still loading, skipping chart update');
       return;
     }
 
     // If no exercises available, show no data message
     if (fingerExercises.length === 0) {
-      debugLog('No finger exercises available');
+
       const canvasId = 'finger-exercise-chart';
       const canvas = document.getElementById(canvasId);
       if (canvas) {
@@ -356,7 +348,6 @@ const StudentDashboard = () => {
 
     // Set default exercise if none selected
     if (!selectedExercise && fingerExercises.length > 0) {
-      debugLog('Setting default exercise to first available:', fingerExercises[0].operationType);
       setSelectedExercise(fingerExercises[0].operationType);
       return; // This will trigger a re-render
     }
@@ -366,17 +357,14 @@ const StudentDashboard = () => {
       ex => ex.operationType === selectedExercise
     );
 
-    debugLog('Selected exercise data:', selectedData);
 
     if (!selectedData) {
-      debugLog('No data found for selected exercise:', selectedExercise);
       return;
     }
 
     const canvasId = 'finger-exercise-chart';
     const canvas = document.getElementById(canvasId);
     if (!canvas) {
-      debugError('Canvas element not found with ID:', canvasId);
       return;
     }
 
@@ -384,7 +372,6 @@ const StudentDashboard = () => {
     
     // Destroy previous chart if exists
     if (chartRefs.current[canvasId]) {
-      debugLog('Destroying previous chart instance');
       chartRefs.current[canvasId].destroy();
       chartRefs.current[canvasId] = null;
     }
@@ -393,11 +380,6 @@ const StudentDashboard = () => {
     const totalQuestions = selectedData.totalQuestions || 1;
     const incorrectAnswers = Math.max(0, totalQuestions - correctAnswers);
 
-    debugLog('Chart data:', {
-      correctAnswers,
-      incorrectAnswers,
-      totalQuestions
-    });
 
     // Create new chart
     try {
@@ -439,9 +421,7 @@ const StudentDashboard = () => {
           cutout: '65%'
         }
       });
-      debugLog('Successfully created new chart instance');
     } catch (error) {
-      debugError('Error creating chart:', error);
     }
   };
 
@@ -453,7 +433,6 @@ const StudentDashboard = () => {
     // Cleanup on unmount
     Object.values(chartRefs.current).forEach(chart => {
       if (chart) {
-        debugLog('Destroying chart on unmount');
         chart.destroy();
       }
     });
@@ -547,7 +526,6 @@ const StudentDashboard = () => {
   };
 
   const renderDiagnosticTests = () => {
-    debugLog('Rendering diagnostic tests with:', diagnosticData);
     const { preTest, postTest } = diagnosticData;
 
     // Check if data exists and has the expected structure
@@ -641,14 +619,8 @@ const StudentDashboard = () => {
 
   // NEW: Render finger exercises
   const renderFingerExercises = () => {
-    debugLog('Rendering finger exercises with:', {
-      fingerExercises,
-      selectedExercise,
-      loading
-    });
 
     if (loading) {
-      debugLog('Showing loading state for finger exercises');
       return (
         <div className="text-center py-4">
           <div className="spinner-border text-primary" role="status">
@@ -659,7 +631,6 @@ const StudentDashboard = () => {
     }
 
     if (fingerExercises.length === 0) {
-      debugLog('No finger exercises data available');
       return (
         <div className="text-center py-3">
           <p className="text-muted">No finger exercises data available</p>
@@ -678,7 +649,7 @@ const StudentDashboard = () => {
       ex => ex.operationType === currentSelected
     ) || fingerExercises[0];
 
-    debugLog('Selected exercise data for rendering:', selectedData);
+    
 
     return (
       <div className="card">
@@ -689,7 +660,6 @@ const StudentDashboard = () => {
               className="form-select form-select-sm"
               value={selectedExercise || ''}
               onChange={(e) => {
-                debugLog('Exercise selection changed to:', e.target.value);
                 setSelectedExercise(e.target.value);
               }}
               style={{ width: '200px' }}
