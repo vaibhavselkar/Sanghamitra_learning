@@ -55,7 +55,7 @@ const Navbar = () => {
               <Link className="nav-link" to="/contact"><b>Contact</b></Link>
             </li>
             <li className="nav-item">
-              <Link className="nav-link" to="/student/dashboard"><b>Dashboard</b></Link>
+              <Link className="nav-link" to="/dashboard"><b>Dashboard</b></Link>
             </li>
             <li className="nav-item">
               {isAuthenticated ? (
