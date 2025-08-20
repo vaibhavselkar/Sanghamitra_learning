@@ -11,11 +11,8 @@ const PreDiagnosticResults = () => {
   });
 
   // API endpoint
-<<<<<<< Updated upstream
   const RESULTS_API = `${process.env.REACT_APP_API_URL}/api/testresponses`;
-=======
-  const RESULTS_API = 'http://localhost:4000/api/testresponses';
->>>>>>> Stashed changes
+
 
   useEffect(() => {
     const userEmail = searchParams.get('email');
