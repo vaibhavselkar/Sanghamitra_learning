@@ -96,7 +96,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             
-            <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/dashboard" element={<StudentDashboard />} />
             
             <Route path="/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
