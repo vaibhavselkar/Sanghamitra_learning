@@ -1,151 +1,708 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../components/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
   Title,
   Tooltip,
   Legend,
-  ArcElement
 } from 'chart.js';
-import { Bar, Line, Doughnut, Pie } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 
+
+
+// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
   Title,
   Tooltip,
-  Legend,
-  ArcElement
+  Legend
 );
 
-const EnhancedTutorDashboard = () => {
-  // Core state management
-  const [dashboardState, setDashboardState] = useState({
-    loading: true,
-    error: null,
-    lastUpdated: new Date(),
-    selectedClassroom: null,
-    selectedStudent: null,
-    timeRange: 'week',
-    activeTab: 'overview'
+
+
+
+// Enhanced Skill Gap Color Coding System
+const getSkillGapColor = (skillGap) => {
+  const gap = skillGap.toLowerCase();
+  
+  if (gap.includes('concept') || gap.includes('understanding') || gap.includes('fundamental')) {
+    return {
+      style: { backgroundColor: '#6f42c1', color: 'white' },
+      icon: '🧠',
+      priority: 'high',
+      description: 'Conceptual Understanding'
+    };
+  }
+  
+  if (gap.includes('easy') || gap.includes('basic')) {
+    return {
+      style: { backgroundColor: '#28a745', color: 'white' },
+      icon: '📗',
+      priority: 'critical',
+      description: 'Basic Skills Gap'
+    };
+  }
+  
+  if (gap.includes('medium') || gap.includes('intermediate')) {
+    return {
+      style: { backgroundColor: '#ffc107', color: '#212529' },
+      icon: '📙',
+      priority: 'moderate',
+      description: 'Intermediate Skills Gap'
+    };
+  }
+  
+  if (gap.includes('hard') || gap.includes('advanced') || gap.includes('difficult')) {
+    return {
+      style: { backgroundColor: '#dc3545', color: 'white' },
+      icon: '📕',
+      priority: 'low',
+      description: 'Advanced Skills Gap'
+    };
+  }
+  
+  if (gap.includes('problem') || gap.includes('strategy') || gap.includes('solving')) {
+    return {
+      style: { backgroundColor: '#17a2b8', color: 'white' },
+      icon: '🧩',
+      priority: 'moderate',
+      description: 'Problem-Solving Skills'
+    };
+  }
+  
+  if (gap.includes('fluency') || gap.includes('speed') || gap.includes('timing')) {
+    return {
+      style: { backgroundColor: '#20c997', color: 'white' },
+      icon: '⚡',
+      priority: 'low',
+      description: 'Fluency & Speed'
+    };
+  }
+  
+  return {
+    style: { backgroundColor: '#6c757d', color: 'white' },
+    icon: '❓',
+    priority: 'moderate',
+    description: 'General Skills Gap'
+  };
+};
+
+const EnhancedSkillGapsDisplay = ({ skillGaps, studentName }) => {
+  const [showAll, setShowAll] = useState(false);
+  
+  if (!skillGaps || skillGaps.length === 0) {
+    return <span className="text-success">✅ No gaps identified</span>;
+  }
+
+  const visibleGaps = showAll ? skillGaps : skillGaps.slice(0, 3);
+  const remainingCount = skillGaps.length - 3;
+
+  // Sort gaps by priority (critical first)
+  const priorityOrder = { critical: 1, high: 2, moderate: 3, low: 4 };
+  const sortedGaps = visibleGaps.sort((a, b) => {
+    const aColor = getSkillGapColor(a);
+    const bColor = getSkillGapColor(b);
+    return priorityOrder[aColor.priority] - priorityOrder[bColor.priority];
   });
 
-  const [classroomData, setClassroomData] = useState({
-    classrooms: [],
-    selectedClassroomStudents: [],
-    classroomStats: {}
+  return (
+    <div>
+      <div className="d-flex flex-wrap gap-1">
+        {sortedGaps.map((gap, i) => {
+          const colorData = getSkillGapColor(gap);
+          return (
+            <span 
+              key={i} 
+              className="badge d-flex align-items-center"
+              style={{ 
+                ...colorData.style, 
+                fontSize: '0.75rem',
+                position: 'relative'
+              }}
+              title={`${colorData.description} - Priority: ${colorData.priority}`}
+            >
+              <span className="me-1">{colorData.icon}</span>
+              {gap}
+              {colorData.priority === 'critical' && (
+                <span 
+                  style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    right: '-2px',
+                    fontSize: '8px'
+                  }}
+                >
+                  ⚠️
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+      
+      {remainingCount > 0 && (
+        <div className="mt-1">
+          {!showAll ? (
+            <button 
+              className="btn btn-link btn-sm p-0 text-decoration-none"
+              onClick={() => setShowAll(true)}
+              style={{ fontSize: '0.75rem' }}
+            >
+              <i className="bi bi-plus-circle me-1"></i>
+              +{remainingCount} more gaps
+            </button>
+          ) : (
+            <button 
+              className="btn btn-link btn-sm p-0 text-decoration-none"
+              onClick={() => setShowAll(false)}
+              style={{ fontSize: '0.75rem' }}
+            >
+              <i className="bi bi-dash-circle me-1"></i>
+              Show less
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const EnhancedPrePostDiagnosticTable = ({ comparisonData }) => {
+  if (!comparisonData || comparisonData.length === 0) return null;
+
+  return (
+    <div className="table-responsive">
+      <table className="table table-striped">
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>Topic Area</th>
+            <th>Pre-Test</th>
+            <th>Post-Test</th>
+            <th>Improvement</th>
+            <th>Category</th>
+            <th>Skill Gaps</th>
+          </tr>
+        </thead>
+        <tbody>
+          {comparisonData
+            .sort((a, b) => b.improvement - a.improvement)
+            .map((comp, index) => (
+              <tr key={index}>
+                <td><strong>{comp.username}</strong></td>
+                <td>{comp.topicArea}</td>
+                <td>{comp.preScore}%</td>
+                <td>{comp.postScore}%</td>
+                <td>
+                  <span className={`badge ${comp.improvement > 0 ? 'bg-success' : 'bg-danger'}`}>
+                    {comp.improvement > 0 ? '+' : ''}{comp.improvement.toFixed(1)}%
+                  </span>
+                </td>
+                <td>
+                  <span className={`badge ${
+                    comp.improvementCategory === 'excellent' ? 'bg-success' :
+                    comp.improvementCategory === 'good' ? 'bg-info' :
+                    comp.improvementCategory === 'moderate' ? 'bg-warning' : 'bg-danger'
+                  }`}>
+                    {comp.improvementCategory}
+                  </span>
+                </td>
+                <td>
+                  <EnhancedSkillGapsDisplay 
+                    skillGaps={comp.skillGaps} 
+                    studentName={comp.username}
+                  />
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const EnhancedInterventionRecommendations = ({ interventionData }) => {
+  const [selectedStudent, setSelectedStudent] = useState('');
+  const [showAllInterventions, setShowAllInterventions] = useState(true);
+
+  if (!interventionData || interventionData.length === 0) return null;
+
+  const studentOptions = interventionData.map(intervention => ({
+    value: intervention.student,
+    label: `${intervention.student} - ${intervention.topicArea}`,
+    data: intervention
+  }));
+
+  const selectedIntervention = selectedStudent 
+    ? interventionData.find(i => i.student === selectedStudent)
+    : interventionData[0];
+
+  return (
+    <div className="row mb-4">
+      <div className="col-12">
+        <div className="card border-danger">
+          <div className="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+            <h5 className="mb-0">🚨 Recommended Interventions</h5>
+            <div className="d-flex align-items-center gap-2">
+              <select 
+                className="form-select form-select-sm"
+                style={{ minWidth: '200px' }}
+                value={selectedStudent}
+                onChange={(e) => setSelectedStudent(e.target.value)}
+              >
+                <option value="">Select Student</option>
+                {studentOptions.map((option, index) => (
+                  <option key={index} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button 
+                className="btn btn-outline-light btn-sm"
+                onClick={() => setShowAllInterventions(!showAllInterventions)}
+              >
+                {showAllInterventions ? 'Show Selected' : 'Show All'}
+              </button>
+            </div>
+          </div>
+          <div className="card-body">
+            {showAllInterventions ? (
+              interventionData.map((intervention, index) => (
+                <InterventionCard key={index} intervention={intervention} />
+              ))
+            ) : (
+              selectedIntervention && <InterventionCard intervention={selectedIntervention} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const InterventionCard = ({ intervention }) => (
+  <div className="alert alert-danger mb-3">
+    <h6 className="alert-heading">
+      {intervention.student} - {intervention.topicArea}
+      <span className={`badge ms-2 ${
+        intervention.priority === 'critical' ? 'bg-danger' : 'bg-warning'
+      }`}>
+        {intervention.priority}
+      </span>
+    </h6>
+    <p className="mb-2">{intervention.recommendation}</p>
+    
+    <div className="mb-3">
+      <strong>Specific Actions:</strong>
+      <ul className="mb-0 mt-1">
+        {intervention.specificActions && intervention.specificActions.map((action, i) => (
+          <li key={i}>{action}</li>
+        ))}
+      </ul>
+    </div>
+    
+    {intervention.skillGaps && intervention.skillGaps.length > 0 && (
+      <div>
+        <strong>Skill Gaps:</strong>
+        <div className="mt-1">
+          {intervention.skillGaps.map((gap, i) => (
+            <span key={i} className="badge bg-secondary me-1 mb-1">{gap}</span>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+);
+const TutorDashboard = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  
+  
+  // Existing states
+  const [classrooms, setClassrooms] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedClassroom, setSelectedClassroom] = useState(null);
+  const [studentList, setStudentList] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // New analytics states
+  const [showStudentList, setShowStudentList] = useState(false);
+  const [allStudents, setAllStudents] = useState([]);
+  const [englishDiagnosticData, setEnglishDiagnosticData] = useState([]);
+  const [vocabularyData, setVocabularyData] = useState([]);
+  const [vocabularyInsights, setVocabularyInsights] = useState({
+    cefrLevelDistribution: {},
+    topicPerformance: {},
+    difficultyAnalysis: {},
+    learningProgress: [],
+    weakAreas: [],
+    strongAreas: [],
+    recommendedTopics: []
+  });
+  const [vocabularyMetrics, setVocabularyMetrics] = useState({
+    averageSessionLength: 0,
+    improvementRate: 0,
+    engagementScore: 0,
+    completionRate: 0
+  });
+  const [showMoreVocab, setShowMoreVocab] = useState(false);
+  const [algebraData, setAlgebraData] = useState([]);
+  const [mathDiagnosticData, setMathDiagnosticData] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [availableTopics, setAvailableTopics] = useState([]);
+  const [readingComprehensionData, setReadingComprehensionData] = useState([]);
+  const [rcTopics, setRcTopics] = useState([]);
+  
+  // Programming states
+  const [ctData, setCTData] = useState([]);
+  const [pythonFingerData, setPythonFingerData] = useState([]);
+  const [pythonTopics, setPythonTopics] = useState([]);
+  const [selectedPythonTopic, setSelectedPythonTopic] = useState('');
+  const [diagnosticsData, setDiagnosticsData] = useState([]);
+  
+  //Math states
+  const [arithmeticData, setArithmeticData] = useState([]);
+  const [selectedArithmeticOperation, setSelectedArithmeticOperation] = useState('');
+  const [loadingArithmetic, setLoadingArithmetic] = useState(false);
+  const [diagnosticComparisonData, setDiagnosticComparisonData] = useState([]);
+  const [selectedDiagnosticTopic, setSelectedDiagnosticTopic] = useState('arithmetic');
+  const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
+  const [mathInsights, setMathInsights] = useState({
+    overallPerformance: {},
+    topicMastery: {},
+    difficultyAnalysis: [], // ← Must be an empty array
+    conceptualGaps: [],
+    strengthAreas: [],
+    learningTrajectory: [],
+    prerequisiteIssues: [],
+    gradeAppropriatePerformance: {},
+    timeEfficiency: {},
+    commonErrors: []
   });
 
-  const [analyticsData, setAnalyticsData] = useState({
-    mathFingerExercises: [],
-    mathTopicPerformance: {},
-    englishFingerExercises: [],
-    englishTopicPerformance: {},
-    programmingFingerExercises: [],
-    programmingTopicPerformance: {},
-    studentProgress: [],
-    overallStats: {},
-    availableTopics: {
-      math: ['Arithmetic', 'Algebra', 'Geometry', 'Trigonometry', 'Calculus', 'Computational Thinking'],
-      english: ['Reading', 'Writing', 'Vocabulary', 'Grammar'],
-      programming: ['Python Basics', 'Python Functions', 'Python Conditionals', 'Python Loops', 'CT Foundation']
-    }
+  const [mathMetrics, setMathMetrics] = useState({
+    averageMasteryLevel: 0,
+    studentsAtRisk: 0,
+    conceptualUnderstanding: 0,
+    practiceEfficiency: 0,
+    overallEngagement: 0
   });
 
-  // Get user from context or session (replace with your auth implementation)
-  const user = {
-    userId: 'user123',
-    name: 'John Doe',
-    token: 'sample-token'
+  const [enhancedDiagnosticInsights, setEnhancedDiagnosticInsights] = useState({
+    prePostComparison: [], // ← Must be an empty array
+    skillProgression: {},
+    interventionRecommendations: [], // ← Must be an empty array
+    readinessIndicators: {},
+    conceptualMisconceptions: [] // ← Must be an empty array
+});
+
+// ✅ ADD THESE TWO LINES:
+const [programmingInsights, setProgrammingInsights] = useState({
+    overallPerformance: {},
+    topicMastery: {},
+    difficultyAnalysis: [],
+    conceptualGaps: [],
+    strengthAreas: [],
+    learningProgress: [],
+    prerequisiteIssues: [],
+    codeQuality: {},
+    problemSolvingSkills: {},
+    commonErrors: []
+  });
+
+  const [programmingMetrics, setProgrammingMetrics] = useState({
+    averageCompletionRate: 0,
+    studentsAtRisk: 0,
+    codeEfficiency: 0,
+    conceptualUnderstanding: 0,
+    overallEngagement: 0
+  });
+  const arithmeticOperations = [
+    'addition', 'subtraction', 'multiplication', 
+    'division', 'decimals', 'fractions', 'dealing-with-negative-sign', 'ratio-proportion-percentage'
+  ];
+
+  // Chart data states
+  const [englishChartData, setEnglishChartData] = useState(null);
+  const [algebraChartData, setAlgebraChartData] = useState(null);
+  const [pythonChartData, setPythonChartData] = useState(null);
+
+  // Add these custom styles
+const customStyles = `
+.bg-purple {
+  background-color: #6f42c1 !important;
+  color: white !important;
+}
+
+.text-purple {
+  color: #6f42c1 !important;
+}
+
+.border-purple {
+  border-color: #6f42c1 !important;
+}
+
+.bg-cyan {
+  background-color: #17a2b8 !important;
+  color: white !important;
+}
+
+.text-cyan {
+  color: #17a2b8 !important;
+}
+
+.border-cyan {
+  border-color: #17a2b8 !important;
+}
+
+.skill-gaps-container .badge {
+  position: relative;
+  overflow: visible;
+}
+
+.skill-gaps-container .badge[title*="critical"]::before {
+  content: "⚠️";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  font-size: 8px;
+}
+`;
+
+// Add this useEffect to inject styles
+useEffect(() => {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = customStyles;
+  document.head.appendChild(styleElement);
+  
+  return () => {
+    document.head.removeChild(styleElement);
+  };
+}, []);
+
+  // Get all students from tutor's classrooms
+  const getAllTutorStudents = () => {
+    const allStudentEmails = new Set();
+    const allStudentData = [];
+    
+    classrooms.forEach(classroom => {
+      classroom.students.forEach(student => {
+        if (!allStudentEmails.has(student.email)) {
+          allStudentEmails.add(student.email);
+          allStudentData.push(student);
+        }
+      });
+    });
+    
+    return allStudentData;
   };
 
-  // Enhanced API call function with better error handling
-  const apiCall = useCallback(async (endpoint, options = {}, retries = 3) => {
-    for (let attempt = 0; attempt < retries; attempt++) {
+  // Fetch classrooms data
+  useEffect(() => {
+    const fetchClassrooms = async () => {
+      if (!user || !user.id) {
+        navigate('/login');
+        return;
+      }
+      
+      setIsLoading(true);
+      setError('');
+      
       try {
-<<<<<<< Updated upstream
         const response = await fetch(`${process.env.REACT_APP_API_URL}/api/classrooms`, {
           method: 'GET',
-=======
-        const response = await fetch(`http://localhost:4000${endpoint}`, {
-          ...options,
-          credentials: 'include',
->>>>>>> Stashed changes
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': user?.token ? `Bearer ${user.token}` : '',
-            ...options.headers
-          }
+          },
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`API Error for ${endpoint}:`, response.status, errorText);
-          
-          if (attempt === retries - 1) {
-            throw new Error(`API Error: ${response.status} - ${errorText}`);
-          }
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-          continue;
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        
+        // Filter classrooms to show only those belonging to the current tutor
+        const tutorClassrooms = data.filter(classroom => 
+          classroom.tutor && classroom.tutor._id === user.id
+        );
+        
+        setClassrooms(tutorClassrooms);
+        
+        // Set all students for analytics
+        const students = [];
+        tutorClassrooms.forEach(classroom => {
+          classroom.students.forEach(student => {
+            if (!students.find(s => s.email === student.email)) {
+              students.push(student);
+            }
+          });
+        });
+        setAllStudents(students);
+        
       } catch (error) {
-        console.error(`Attempt ${attempt + 1} failed for ${endpoint}:`, error.message);
-        if (attempt === retries - 1) {
-          throw error;
-        }
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        console.error('Error fetching classrooms:', error);
+        setError('Failed to load classroom data. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [user?.token]);
+    };
 
-  // Fetch classrooms with real API integration
-  const fetchClassrooms = useCallback(async () => {
+    fetchClassrooms();
+  }, [user, navigate]);
+
+  // Fetch analytics data when classrooms are loaded
+ useEffect(() => {
+  if (classrooms.length > 0) {
+    fetchAnalyticsData(); // ✅ This now handles insights generation internally
+  }
+}, [classrooms]);
+
+  const fetchAnalyticsData = async () => {
+    const students = getAllTutorStudents();
+    const studentEmails = students.map(student => student.email);
+    
+    if (studentEmails.length === 0) return;
+    
     try {
-      setDashboardState(prev => ({ ...prev, loading: true, error: null }));
+      console.log('🚀 Starting analytics data fetch...');
       
-      // First get session info
-      const sessionResponse = await apiCall('/api/session-info');
-      console.log('Session response:', sessionResponse);
+      // Fetch all data and wait for completion
+      const results = await Promise.all([
+        fetchEnglishDiagnosticData(studentEmails),
+        fetchVocabularyData(studentEmails),
+        fetchAlgebraData(studentEmails),
+        fetchReadingComprehensionData(studentEmails),
+        fetchCTData(studentEmails),
+        fetchPythonFingerData(studentEmails),
+        fetchDiagnosticsData(studentEmails),
+        fetchArithmeticData(studentEmails),
+        fetchMathDiagnosticDataFixed(studentEmails) // ✅ This now returns the data
+      ]);
       
-      // Then fetch tutor's classrooms using your existing endpoint
-      const classroomsResponse = await apiCall('/api/tutor/classrooms');
-      console.log('Classrooms response:', classroomsResponse);
+      // Get the diagnostic data from the results
+      const diagnosticData = results[8]; // Index 8 is fetchMathDiagnosticDataFixed
       
-      // Filter classrooms for this tutor
-      const tutorClassrooms = Array.isArray(classroomsResponse) 
-        ? classroomsResponse.filter(classroom => 
-            classroom.tutor?._id === user?.userId || 
-            classroom.tutorId === user?.userId ||
-            classroom.tutor?.toString() === user?.userId
-          )
-        : [];
-
-      setClassroomData(prev => ({
-        ...prev,
-        classrooms: tutorClassrooms
-      }));
-
-      // Auto-select first classroom if none selected
-      if (tutorClassrooms.length > 0 && !dashboardState.selectedClassroom) {
-        setDashboardState(prev => ({
-          ...prev,
-          selectedClassroom: tutorClassrooms[0]._id
-        }));
+      console.log('⏳ All fetches complete, diagnostic data received:', diagnosticData?.length || 0);
+      
+      // ✅ Generate insights immediately with the fresh data
+      if (diagnosticData && diagnosticData.length > 0) {
+        console.log('🔄 Generating insights with fresh diagnostic data...');
+        await generateMathInsightsWithData(diagnosticData);
+      } else {
+        console.log('⚠️ No diagnostic data available, generating insights with existing data...');
+        // Small delay to ensure state updates
+        await new Promise(resolve => setTimeout(resolve, 200));
+        await generateMathInsights();
       }
+      
+      console.log('✅ All analytics data fetched and insights generated!');
+      
     } catch (error) {
-<<<<<<< Updated upstream
       console.error('Error fetching analytics data:', error);
     }
+};
+  const fetchMathDiagnosticData = async (studentEmails) => {
+    try {
+      // Use your existing diagnostic comparison endpoint
+      const diagnosticPromises = studentEmails.map(email => 
+        fetch(`${process.env.REACT_APP_API_URL}/api/mathematicsDiagnosticsComparison/${email}/arithmetic`)
+          .then(res => res.json())
+          .then(data => data.success ? data.data : null)
+          .catch(err => {
+            console.error(`Error fetching diagnostics for ${email}:`, err);
+            return null;
+          })
+      );
+      
+      const diagnosticResults = await Promise.all(diagnosticPromises);
+      const validDiagnostics = diagnosticResults.filter(Boolean);
+      
+      // Store in a state variable for math insights
+      setMathDiagnosticData(validDiagnostics);
+      
+    } catch (error) {
+      console.error('Error fetching math diagnostic data:', error);
+      setMathDiagnosticData([]);
+    }
   };
+
+   // FIXED: Update the fetchMathDiagnosticData function to properly set the data
+const fetchMathDiagnosticDataFixed = async (studentEmails) => {
+  try {
+    console.log('🔍 Fetching math diagnostic data for students:', studentEmails);
+    
+    // Fetch diagnostic comparison data
+    const diagnosticPromises = studentEmails.map(email => 
+      fetch(`${process.env.REACT_APP_API_URL}/api/mathematicsDiagnosticsComparison/${email}/arithmetic`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            console.log(`✅ Got diagnostic data for ${email}:`, data.data);
+            return data.data;
+          }
+          return null;
+        })
+        .catch(err => {
+          console.error(`❌ Error fetching diagnostics for ${email}:`, err);
+          return null;
+        })
+    );
+    
+    const diagnosticResults = await Promise.all(diagnosticPromises);
+    const validDiagnostics = diagnosticResults.filter(Boolean);
+    
+    console.log('📊 Valid diagnostic results:', validDiagnostics.length);
+    console.log('📊 Diagnostic data details:', validDiagnostics);
+    
+    // Try to fetch raw diagnostic test data (handle 404 gracefully)
+    try {
+      console.log('🔍 Attempting to fetch raw diagnostic data...');
+      const rawDiagnosticResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/mathematics-diagnostic-scores`);
+      console.log('📡 Raw diagnostic response status:', rawDiagnosticResponse.status);
+      
+      if (rawDiagnosticResponse.ok) {
+        const rawData = await rawDiagnosticResponse.json();
+        const filteredRawData = rawData.filter(test => studentEmails.includes(test.email));
+        console.log('📊 Raw diagnostic data:', filteredRawData.length);
+        
+        // Combine both datasets
+        const combinedData = [...validDiagnostics, ...filteredRawData];
+        console.log('🔄 About to set combined data:', combinedData.length);
+        setMathDiagnosticData(combinedData);
+        console.log('✅ Set math diagnostic data:', combinedData.length, 'records');
+        return combinedData; // ✅ Return the data for immediate use
+      } else {
+        console.log('⚠️ Raw diagnostic endpoint not available, using comparison data only');
+        console.log('🔄 About to set comparison data only:', validDiagnostics.length);
+        setMathDiagnosticData(validDiagnostics);
+        console.log('✅ Set math diagnostic data:', validDiagnostics.length, 'records');
+        return validDiagnostics; // ✅ Return the data for immediate use
+      }
+    } catch (rawError) {
+      console.log('⚠️ Raw diagnostic endpoint error, using comparison data only');
+      console.log('🔄 About to set comparison data (error case):', validDiagnostics.length);
+      setMathDiagnosticData(validDiagnostics);
+      console.log('✅ Set math diagnostic data:', validDiagnostics.length, 'records');
+      return validDiagnostics; // ✅ Return the data for immediate use
+    }
+    
+  } catch (error) {
+    console.error('Error fetching math diagnostic data:', error);
+    setMathDiagnosticData([]);
+    return []; // ✅ Return empty array on error
+  }
+};
 
 
   const fetchArithmeticData = async (studentEmails) => {
@@ -155,51 +712,28 @@ const EnhancedTutorDashboard = () => {
       const url = studentEmails.length > 0
         ? `${process.env.REACT_APP_API_URL}/api/arithmetic-scores?${studentEmails.map(email => `userEmail=${email}`).join('&')}`
         : `${process.env.REACT_APP_API_URL}/api/arithmetic-scores`;
-=======
-      console.error('Error fetching classrooms:', error);
-      // Fallback to mock data if API fails
-      const mockClassrooms = [
-        {
-          _id: 'classroom1',
-          name: 'Grade 8 Mathematics',
-          joinCode: 'ABC123',
-          students: [
-            { _id: 'student1', name: 'Alice Johnson', email: 'alice@example.com' },
-            { _id: 'student2', name: 'Bob Smith', email: 'bob@example.com' },
-            { _id: 'student3', name: 'Carol Davis', email: 'carol@example.com' }
-          ]
-        }
-      ];
->>>>>>> Stashed changes
       
-      setClassroomData(prev => ({ ...prev, classrooms: mockClassrooms }));
-      setDashboardState(prev => ({
-        ...prev,
-        selectedClassroom: mockClassrooms[0]._id,
-        error: `Using demo data. API Error: ${error.message}`
-      }));
+      const response = await fetch(url);
+      const data = await response.json();
+      setArithmeticData(data);
+    } catch (error) {
+      console.error('Error fetching arithmetic data:', error);
     } finally {
-      setDashboardState(prev => ({ ...prev, loading: false }));
+      setLoadingArithmetic(false);
     }
-  }, [apiCall, user?.userId, dashboardState.selectedClassroom]);
+  };
 
-  // Enhanced analytics fetching with real API integration
-  const fetchClassroomAnalytics = useCallback(async (classroomId) => {
-    if (!classroomId) return;
-
+  const fetchEnglishDiagnosticData = async (studentEmails) => {
     try {
-<<<<<<< Updated upstream
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/eng_diagnostic_scores`);
       if (!response.ok) throw new Error('Failed to fetch English diagnostic data');
-=======
-      setDashboardState(prev => ({ ...prev, loading: true, error: null }));
->>>>>>> Stashed changes
       
-      // Get classroom details using your existing endpoint
-      const classroom = await apiCall(`/api/classroom/${classroomId}`);
-      console.log('Classroom details:', classroom);
+      const data = await response.json();
+      // Filter data to only include students from tutor's classrooms
+      const filteredData = data.filter(student => 
+        studentEmails.includes(student.email) || studentEmails.includes(student.username)
+      );
       
-<<<<<<< Updated upstream
       setEnglishDiagnosticData(filteredData);
       prepareEnglishChartData(filteredData);
     } catch (error) {
@@ -218,16 +752,24 @@ const EnhancedTutorDashboard = () => {
         studentEmails.includes(student.email) || studentEmails.includes(student.username)
       );
       
+      // Process basic vocabulary data
       const processedData = filteredData.map(user => {
         let totalAssessments = user.assessments.length;
         let totalQuestions = 0;
         let correctAnswers = 0;
         let lastActivity = "No Activity";
+        let topic = "No Topic"; // Initialize topic variable
 
         if (user.assessments.length > 0) {
           lastActivity = new Date(
             Math.max(...user.assessments.map(a => new Date(a.date)))
           ).toLocaleDateString();
+          
+          // Get the topic from the most recent assessment
+          const mostRecentAssessment = user.assessments.reduce((latest, current) => 
+            new Date(current.date) > new Date(latest.date) ? current : latest
+          );
+          topic = mostRecentAssessment.assess_topic || "No Topic";
         }
 
         user.assessments.forEach(assessment => {
@@ -239,19 +781,27 @@ const EnhancedTutorDashboard = () => {
 
         return {
           username: user.username,
+          email: user.email,
           lastActivity,
+          topic, // Add topic to the returned object
           totalAssessments,
           totalQuestions,
           correctAnswers,
-          averagePercentage
+          averagePercentage,
+          rawData: user // Keep raw data for insights processing
         };
       });
       
       setVocabularyData(processedData);
+      
+      // Generate comprehensive insights
+      generateVocabularyInsights(filteredData);
+      calculateVocabularyMetrics(filteredData);
+      
     } catch (error) {
       console.error('Error fetching vocabulary data:', error);
     }
-  };
+  };  
 
   const fetchAlgebraData = async (studentEmails) => {
     try {
@@ -285,23 +835,96 @@ const EnhancedTutorDashboard = () => {
       if (topicsArray.length > 0) {
         setSelectedTopic(topicsArray[0]);
         prepareAlgebraChartData(filteredData, topicsArray[0]);
-=======
-      if (!classroom || !classroom.students) {
-        console.warn('No classroom or students found');
-        setDashboardState(prev => ({ ...prev, loading: false }));
-        return;
->>>>>>> Stashed changes
       }
+    } catch (error) {
+      console.error('Error fetching algebra data:', error);
+    }
+  };
 
-      const studentIds = classroom.students.map(s => s._id);
-      console.log('Student IDs for analytics:', studentIds);
+  const prepareDiagnosticChartData = () => {
+    const labels = diagnosticComparisonData.map(data => data.username);
+    const preScores = diagnosticComparisonData.map(data => 
+      data.hasPreTest ? data.preTest.totalScore : null
+    );
+    const postScores = diagnosticComparisonData.map(data => 
+      data.hasPostTest ? data.postTest.totalScore : null
+    );
+  
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Pre-Test Score',
+          data: preScores,
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Post-Test Score',
+          data: postScores,
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }
+      ]
+    };
+  };
+  
+  const diagnosticChartOptions = {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: {
+        display: true,
+        text: `Math Diagnostic Comparison (${selectedDiagnosticTopic})`
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${context.raw}%`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        max: 100,
+        title: { display: true, text: 'Score (%)' }
+      }
+    }
+  };
 
-<<<<<<< Updated upstream
   useEffect(() => {
     if (allStudents.length > 0) {
       fetchDiagnosticComparisons();
     }
   }, [allStudents, selectedDiagnosticTopic]);
+
+  useEffect(() => {
+  console.log('🔍 Math Insights Updated:', {
+    topicMastery: Object.keys(mathInsights.topicMastery || {}).length,
+    conceptualGaps: mathInsights.conceptualGaps?.length || 0,
+    strengthAreas: mathInsights.strengthAreas?.length || 0,
+    overallPerformance: Object.keys(mathInsights.overallPerformance || {}).length
+  });
+}, [mathInsights]);
+
+  useEffect(() => {
+    if (ctData.length > 0 || pythonFingerData.size > 0 || diagnosticsData.length > 0) {
+      generateAllProgrammingInsights();
+    }
+  }, [ctData, pythonFingerData, diagnosticsData]);
+
+useEffect(() => {
+  console.log('📊 Enhanced Diagnostic Insights Updated:', {
+    prePostComparison: enhancedDiagnosticInsights.prePostComparison?.length || 0,
+    interventionRecommendations: enhancedDiagnosticInsights.interventionRecommendations?.length || 0,
+    conceptualMisconceptions: enhancedDiagnosticInsights.conceptualMisconceptions?.length || 0
+  });
+}, [enhancedDiagnosticInsights]);
 
   const fetchDiagnosticComparisons = async () => {
     setLoadingDiagnostics(true);
@@ -318,126 +941,1090 @@ const EnhancedTutorDashboard = () => {
             console.error(`Error fetching diagnostics for ${student.email}:`, error);
             return null;
           }
-=======
-      // Fetch analytics data using your existing endpoints
-      const [mathResult, englishResult, programmingResult] = await Promise.allSettled([
-        apiCall('/api/analytics/math-progress', {
-          method: 'POST',
-          body: JSON.stringify({ 
-            studentIds, 
-            timeRange: dashboardState.timeRange 
-          })
-        }),
-        apiCall('/api/analytics/english-progress', {
-          method: 'POST',
-          body: JSON.stringify({ 
-            studentIds, 
-            timeRange: dashboardState.timeRange 
-          })
-        }),
-        apiCall('/api/analytics/programming-progress', {
-          method: 'POST',
-          body: JSON.stringify({ 
-            studentIds, 
-            timeRange: dashboardState.timeRange 
-          })
->>>>>>> Stashed changes
         })
-      ]);
-
-      // Process results with fallbacks
-      const mathData = mathResult.status === 'fulfilled' ? mathResult.value : getEmptySubjectData('math');
-      const englishData = englishResult.status === 'fulfilled' ? englishResult.value : getEmptySubjectData('english');
-      const programmingData = programmingResult.status === 'fulfilled' ? programmingResult.value : getEmptySubjectData('programming');
-
-      // If API calls failed, generate mock data
-      const finalMathData = mathData.fingerExercises?.length > 0 ? mathData : {
-        fingerExercises: generateMockProgressData(studentIds, 'math', 200)
-      };
-      const finalEnglishData = englishData.fingerExercises?.length > 0 ? englishData : {
-        fingerExercises: generateMockProgressData(studentIds, 'english', 150)
-      };
-      const finalProgrammingData = programmingData.fingerExercises?.length > 0 ? programmingData : {
-        fingerExercises: generateMockProgressData(studentIds, 'programming', 100)
-      };
-
-      // Calculate topic performances
-      const mathTopicPerformance = calculateTopicPerformance(finalMathData.fingerExercises || [], 'math');
-      const englishTopicPerformance = calculateTopicPerformance(finalEnglishData.fingerExercises || [], 'english');
-      const programmingTopicPerformance = calculateTopicPerformance(finalProgrammingData.fingerExercises || [], 'programming');
-
-      // Update analytics data
-      setAnalyticsData(prev => ({
-        ...prev,
-        mathFingerExercises: finalMathData.fingerExercises || [],
-        mathTopicPerformance,
-        englishFingerExercises: finalEnglishData.fingerExercises || [],
-        englishTopicPerformance,
-        programmingFingerExercises: finalProgrammingData.fingerExercises || [],
-        programmingTopicPerformance,
-        studentProgress: generateStudentProgressSummary(
-          classroom.students, 
-          finalMathData.fingerExercises || [], 
-          finalEnglishData.fingerExercises || [], 
-          finalProgrammingData.fingerExercises || []
-        )
-      }));
-
-      // Update classroom data
-      setClassroomData(prev => ({
-        ...prev,
-        selectedClassroomStudents: classroom.students || [],
-        classroomStats: calculateClassroomStats(
-          finalMathData.fingerExercises || [], 
-          finalEnglishData.fingerExercises || [], 
-          finalProgrammingData.fingerExercises || [],
-          classroom.students.length
-        )
-      }));
-
+      );
+      
+      setDiagnosticComparisonData(comparisons.filter(Boolean));
     } catch (error) {
-      console.error('Error fetching classroom analytics:', error);
-      setDashboardState(prev => ({
-        ...prev,
-        error: `Failed to load classroom analytics: ${error.message}`
-      }));
-      
-      // Generate fallback mock data
-      const mockStudentIds = ['student1', 'student2', 'student3'];
-      const mockMathData = generateMockProgressData(mockStudentIds, 'math', 200);
-      const mockEnglishData = generateMockProgressData(mockStudentIds, 'english', 150);
-      const mockProgrammingData = generateMockProgressData(mockStudentIds, 'programming', 100);
-      
-      setAnalyticsData(prev => ({
-        ...prev,
-        mathFingerExercises: mockMathData,
-        mathTopicPerformance: calculateTopicPerformance(mockMathData, 'math'),
-        englishFingerExercises: mockEnglishData,
-        englishTopicPerformance: calculateTopicPerformance(mockEnglishData, 'english'),
-        programmingFingerExercises: mockProgrammingData,
-        programmingTopicPerformance: calculateTopicPerformance(mockProgrammingData, 'programming'),
-        studentProgress: generateStudentProgressSummary(
-          [
-            { _id: 'student1', name: 'Alice Johnson', email: 'alice@example.com' },
-            { _id: 'student2', name: 'Bob Smith', email: 'bob@example.com' },
-            { _id: 'student3', name: 'Carol Davis', email: 'carol@example.com' }
-          ], 
-          mockMathData, 
-          mockEnglishData, 
-          mockProgrammingData
-        )
-      }));
+      console.error('Error fetching diagnostic comparisons:', error);
     } finally {
-      setDashboardState(prev => ({ 
-        ...prev, 
-        loading: false,
-        lastUpdated: new Date()
-      }));
+      setLoadingDiagnostics(false);
     }
-  }, [apiCall, dashboardState.timeRange]);
+  };
+  // FIXED MATH ANALYTICS FUNCTIONS FOR TUTORDASHBOARD
+// Replace your existing math analytics functions with these corrected versions
 
-<<<<<<< Updated upstream
-  const fetchReadingComprehensionData = async (studentEmails) => {
+const debugMathData = () => {
+  console.log('🔍 DEBUG: Math Data Sources');
+  console.log('📊 Arithmetic Data:', {
+    count: arithmeticData.length,
+    sampleData: arithmeticData[0],
+    userEmails: arithmeticData.map(d => d.userEmail)
+  });
+  
+  console.log('📐 Algebra Data:', {
+    count: algebraData.length,
+    sampleData: algebraData[0],
+    hasTopics: algebraData.filter(d => d.topics && d.topics.length > 0).length
+  });
+  
+  console.log('🧮 Math Diagnostic Data:', {
+    count: mathDiagnosticData.length,
+    sampleData: mathDiagnosticData[0],
+    types: mathDiagnosticData.map(d => d.testType || 'comparison')
+  });
+  
+  console.log('👥 Student Emails:', getAllTutorStudents().map(s => s.email));
+  
+  // Check data filtering
+  const studentEmails = getAllTutorStudents().map(s => s.email);
+  console.log('🔍 Filtered Data Counts:', {
+    arithmetic: arithmeticData.filter(d => studentEmails.includes(d.userEmail)).length,
+    algebra: algebraData.filter(d => studentEmails.includes(d.email || d.username)).length,
+    diagnostic: mathDiagnosticData.length
+  });
+};
+
+
+
+const generateMathInsights = async () => {
+  try {
+    console.log('🔍 Generating math insights...');
+    debugMathData();
+    
+    const studentEmails = getAllTutorStudents().map(s => s.email);
+    
+    // Use existing data that's already been fetched and filtered
+    const filteredArithmetic = arithmeticData.filter(d => studentEmails.includes(d.userEmail));
+    const filteredAlgebra = algebraData.filter(d => studentEmails.includes(d.email || d.username));
+    const filteredDiagnostic = mathDiagnosticData; // This should already be filtered
+    
+    console.log('📊 Data counts for insights:', {
+      arithmetic: filteredArithmetic.length,
+      algebra: filteredAlgebra.length,
+      diagnostic: filteredDiagnostic.length,
+      students: studentEmails.length
+    });
+
+    // Generate insights with the filtered data
+    await Promise.all([
+      analyzeMathPerformanceFixed(filteredArithmetic, filteredAlgebra, filteredDiagnostic),     // NEW
+      generateDiagnosticInsightsFixed(filteredDiagnostic),                                       // NEW
+      calculateMathMetricsFixed(filteredArithmetic, filteredAlgebra, filteredDiagnostic)       // NEW
+    ]);
+
+    console.log('✅ Math insights generated successfully');
+
+  } catch (error) {
+    console.error('❌ Error generating math insights:', error);
+  }
+};
+
+const generateMathInsightsWithData = async (freshDiagnosticData) => {
+  try {
+    console.log('🔍 Generating math insights with fresh data...');
+    
+    const studentEmails = getAllTutorStudents().map(s => s.email);
+    
+    // Use existing state data and fresh diagnostic data
+    const filteredArithmetic = arithmeticData.filter(d => studentEmails.includes(d.userEmail));
+    const filteredAlgebra = algebraData.filter(d => studentEmails.includes(d.email || d.username));
+    const filteredDiagnostic = freshDiagnosticData; // ✅ Use fresh data directly
+    
+    console.log('📊 Data counts for insights (with fresh data):', {
+      arithmetic: filteredArithmetic.length,
+      algebra: filteredAlgebra.length,
+      diagnostic: filteredDiagnostic.length,
+      students: studentEmails.length
+    });
+
+    // Generate insights with the filtered data
+    await Promise.all([
+      analyzeMathPerformanceFixed(filteredArithmetic, filteredAlgebra, filteredDiagnostic),
+      generateDiagnosticInsightsFixed(filteredDiagnostic), // ✅ Use fresh data
+      calculateMathMetricsFixed(filteredArithmetic, filteredAlgebra, filteredDiagnostic)
+    ]);
+
+    console.log('✅ Math insights generated successfully with fresh data');
+
+  } catch (error) {
+    console.error('❌ Error generating math insights with fresh data:', error);
+  }
+};
+
+
+const analyzeMathPerformanceFixed = async (arithmeticData, algebraData, diagnosticData) => {
+  const insights = {
+    overallPerformance: {},
+    topicMastery: {},
+    difficultyAnalysis: [], // ✅ Initialize as array
+    conceptualGaps: [],
+    strengthAreas: [],
+    learningTrajectory: [],
+    prerequisiteIssues: [],
+    gradeAppropriatePerformance: {},
+    timeEfficiency: {},
+    commonErrors: []
+  };
+
+  // Process Arithmetic Data
+  const arithmeticByUser = {};
+  arithmeticData.forEach(score => {
+    if (!arithmeticByUser[score.userEmail]) {
+      arithmeticByUser[score.userEmail] = {
+        username: score.username,
+        operations: {},
+        totalQuestions: 0,
+        totalCorrect: 0,
+        totalTime: 0,
+        weaknesses: new Set(),
+        attempts: []
+      };
+    }
+
+    const userData = arithmeticByUser[score.userEmail];
+    userData.totalQuestions += score.totalQuestions;
+    userData.totalCorrect += score.correctAnswers;
+    userData.totalTime += score.timeTaken;
+    userData.attempts.push({
+      date: score.createdAt,
+      operation: score.operationType,
+      accuracy: (score.correctAnswers / score.totalQuestions) * 100,
+      speed: score.timeTaken / score.totalQuestions
+    });
+
+    if (!userData.operations[score.operationType]) {
+      userData.operations[score.operationType] = { correct: 0, total: 0, time: 0 };
+    }
+    userData.operations[score.operationType].correct += score.correctAnswers;
+    userData.operations[score.operationType].total += score.totalQuestions;
+    userData.operations[score.operationType].time += score.timeTaken;
+
+    // Collect weaknesses safely
+    if (score.weaknesses && Array.isArray(score.weaknesses)) {
+      score.weaknesses.forEach(w => userData.weaknesses.add(w));
+    }
+  });
+
+  // Generate Overall Performance Analysis
+  Object.entries(arithmeticByUser).forEach(([email, data]) => {
+    const accuracy = data.totalQuestions > 0 ? (data.totalCorrect / data.totalQuestions) * 100 : 0;
+    const avgTimePerQuestion = data.totalQuestions > 0 ? data.totalTime / data.totalQuestions : 0;
+    
+    insights.overallPerformance[email] = {
+      username: data.username,
+      overallAccuracy: accuracy,
+      avgTimePerQuestion,
+      operationMastery: Object.entries(data.operations).map(([op, stats]) => ({
+        operation: op,
+        accuracy: stats.total > 0 ? (stats.correct / stats.total) * 100 : 0,
+        avgTime: stats.total > 0 ? stats.time / stats.total : 0,
+        mastery: stats.total > 0 ? 
+          ((stats.correct / stats.total) >= 0.8 ? 'mastered' : 
+           (stats.correct / stats.total) >= 0.6 ? 'developing' : 'needs_work') : 'no_data'
+      })),
+      improvementTrend: calculateImprovementTrendFixed(data.attempts),
+      weaknessAreas: Array.from(data.weaknesses)
+    };
+  });
+
+  // Process Algebra Data for Topic Mastery
+  const topicMastery = {};
+  algebraData.forEach(user => {
+    if (user.topics && Array.isArray(user.topics)) {
+      user.topics.forEach(topic => {
+        if (!topic.topic) return; // Skip if no topic name
+        
+        if (!topicMastery[topic.topic]) {
+          topicMastery[topic.topic] = {
+            totalStudents: 0,
+            masteredStudents: 0,
+            averageLevel: [],
+            questionStats: { total: 0, correct: 0 }
+          };
+        }
+        
+        topicMastery[topic.topic].totalStudents++;
+        if (topic.current_level === 'mastered') {
+          topicMastery[topic.topic].masteredStudents++;
+        }
+        topicMastery[topic.topic].averageLevel.push(topic.current_level);
+        
+        if (topic.questions && Array.isArray(topic.questions)) {
+          topic.questions.forEach(q => {
+            topicMastery[topic.topic].questionStats.total++;
+            if (q.correct) topicMastery[topic.topic].questionStats.correct++;
+          });
+        }
+      });
+    }
+  });
+
+  insights.topicMastery = topicMastery;
+
+  // ✅ FIXED: Difficulty Analysis as Array
+  const difficultyStats = { 
+    easy: { total: 0, correct: 0 }, 
+    medium: { total: 0, correct: 0 }, 
+    hard: { total: 0, correct: 0 } 
+  };
+  
+  algebraData.forEach(user => {
+    if (user.topics && Array.isArray(user.topics)) {
+      user.topics.forEach(topic => {
+        if (topic.questions && Array.isArray(topic.questions)) {
+          topic.questions.forEach(q => {
+            if (q.difficultyLevel && difficultyStats[q.difficultyLevel]) {
+              difficultyStats[q.difficultyLevel].total++;
+              if (q.correct) difficultyStats[q.difficultyLevel].correct++;
+            }
+          });
+        }
+      });
+    }
+  });
+
+  // Convert to array format
+  insights.difficultyAnalysis = Object.entries(difficultyStats).map(([level, stats]) => ({
+    level,
+    accuracy: stats.total > 0 ? (stats.correct / stats.total) * 100 : 0,
+    totalQuestions: stats.total,
+    correctAnswers: stats.correct
+  }));
+
+  // Identify Conceptual Gaps and Strengths
+  Object.entries(topicMastery).forEach(([topic, data]) => {
+    const masteryRate = data.totalStudents > 0 ? (data.masteredStudents / data.totalStudents) * 100 : 0;
+    const accuracy = data.questionStats.total > 0 ? (data.questionStats.correct / data.questionStats.total) * 100 : 0;
+    
+    if (masteryRate < 40 || accuracy < 60) {
+      insights.conceptualGaps.push({
+        topic,
+        masteryRate: masteryRate.toFixed(1),
+        accuracy: accuracy.toFixed(1),
+        studentsStrugglingCount: data.totalStudents - data.masteredStudents,
+        totalStudents: data.totalStudents,
+        severity: accuracy < 40 ? 'critical' : accuracy < 60 ? 'moderate' : 'mild'
+      });
+    } else if (masteryRate > 80 && accuracy > 85) {
+      insights.strengthAreas.push({
+        topic,
+        masteryRate: masteryRate.toFixed(1),
+        accuracy: accuracy.toFixed(1),
+        masteredStudents: data.masteredStudents,
+        totalStudents: data.totalStudents
+      });
+    }
+  });
+
+  // Time Efficiency Analysis
+  Object.entries(arithmeticByUser).forEach(([email, data]) => {
+    const efficiency = calculateTimeEfficiencyFixed(data.operations);
+    insights.timeEfficiency[email] = {
+      username: data.username,
+      overallEfficiency: efficiency.overall,
+      operationEfficiency: efficiency.byOperation,
+      recommendation: efficiency.recommendation
+    };
+  });
+
+  console.log('📊 Generated math insights:', {
+    overallPerformance: Object.keys(insights.overallPerformance).length,
+    topicMastery: Object.keys(insights.topicMastery).length,
+    difficultyAnalysis: insights.difficultyAnalysis.length,
+    conceptualGaps: insights.conceptualGaps.length,
+    strengthAreas: insights.strengthAreas.length
+  });
+
+  setMathInsights(insights);
+};
+
+const generateDiagnosticInsightsFixed = async (diagnosticData) => {
+  console.log('🔍 Generating diagnostic insights from:', diagnosticData.length, 'records');
+  
+  const insights = {
+    prePostComparison: [], // ✅ Initialize as array
+    skillProgression: {},
+    interventionRecommendations: [], // ✅ Initialize as array
+    readinessIndicators: {},
+    conceptualMisconceptions: [] // ✅ Initialize as array
+  };
+
+  // Process diagnostic comparison data
+  diagnosticData.forEach(data => {
+    // Handle both possible data structures
+    const email = data.email || data.userEmail;
+    const username = data.username;
+    
+    if (!email || !username) {
+      console.warn('⚠️ Skipping diagnostic data with missing email/username:', data);
+      return;
+    }
+
+    // Check if this is comparison data (from diagnosticComparisonData)
+    if (data.canCompare && data.hasPreTest && data.hasPostTest) {
+      const improvement = data.improvement.scorePercentageImprovement;
+      const timeImprovement = data.improvement.timeImprovement;
+      
+      insights.prePostComparison.push({
+        email: email,
+        username: username,
+        topicArea: data.topic || 'arithmetic',
+        preScore: data.preTest.totalScore,
+        postScore: data.postTest.totalScore,
+        improvement: improvement,
+        timeImprovement: timeImprovement,
+        improvementCategory: improvement > 20 ? 'excellent' : 
+                            improvement > 10 ? 'good' : 
+                            improvement > 0 ? 'moderate' : 'needs_attention',
+        skillGaps: identifySkillGapsFromComparisonFixed(data.preTest, data.postTest)
+      });
+
+      // Generate intervention recommendations for poor performers
+      if (improvement <= 0 || data.postTest.totalScore < 60) {
+        insights.interventionRecommendations.push({
+          student: username,
+          topicArea: data.topic || 'arithmetic',
+          priority: data.postTest.totalScore < 40 ? 'critical' : 'high',
+          recommendation: `Immediate intervention needed in ${data.topic || 'arithmetic'} fundamentals`,
+          specificActions: [
+            'Review basic arithmetic operations',
+            'Practice with manipulatives and visual aids',
+            'Provide additional one-on-one support',
+            'Break down complex problems into smaller steps'
+          ],
+          skillGaps: identifySkillGapsFromComparisonFixed(data.preTest, data.postTest)
+        });
+      }
+    }
+    // Handle raw diagnostic test data
+    else if (data.responses && Array.isArray(data.responses)) {
+      // Process individual diagnostic test data
+      const misconceptions = new Set();
+      data.responses.forEach(response => {
+        if (!response.isCorrect && response.questionData.questionMisconceptions) {
+          response.questionData.questionMisconceptions.forEach(misc => 
+            misconceptions.add(misc)
+          );
+        }
+      });
+
+      if (misconceptions.size > 0) {
+        insights.conceptualMisconceptions.push({
+          student: username,
+          topic: data.topicArea || 'arithmetic',
+          misconceptions: Array.from(misconceptions),
+          testType: data.testType
+        });
+      }
+    }
+  });
+
+  console.log('📊 Generated diagnostic insights:', {
+    prePostComparison: insights.prePostComparison.length,
+    interventionRecommendations: insights.interventionRecommendations.length,
+    conceptualMisconceptions: insights.conceptualMisconceptions.length
+  });
+
+  setEnhancedDiagnosticInsights(insights);
+};
+
+const calculateMathMetricsFixed = async (arithmeticData, algebraData, diagnosticData) => {
+  console.log('📊 Calculating math metrics...');
+  
+  const studentEmails = getAllTutorStudents().map(s => s.email);
+  const metrics = {
+    averageMasteryLevel: 0,
+    studentsAtRisk: 0,
+    conceptualUnderstanding: 0,
+    practiceEfficiency: 0,
+    overallEngagement: 0
+  };
+
+  // Calculate average mastery level from algebra data
+  let totalMastery = 0;
+  let masteryCount = 0;
+  
+  algebraData.forEach(user => {
+    if (user.topics && Array.isArray(user.topics)) {
+      user.topics.forEach(topic => {
+        const levelValues = { 
+          easy: 25, 
+          medium: 50, 
+          hard: 75, 
+          mastered: 100, 
+          intermediate: 62.5 
+        };
+        const value = levelValues[topic.current_level] || 0;
+        totalMastery += value;
+        masteryCount++;
+      });
+    }
+  });
+
+  metrics.averageMasteryLevel = masteryCount > 0 ? (totalMastery / masteryCount).toFixed(1) : 0;
+
+  // Students at risk calculation from arithmetic data
+  let atRiskCount = 0;
+  const userPerformance = {};
+
+  arithmeticData.forEach(score => {
+    if (!userPerformance[score.userEmail]) {
+      userPerformance[score.userEmail] = { correct: 0, total: 0 };
+    }
+    userPerformance[score.userEmail].correct += score.correctAnswers;
+    userPerformance[score.userEmail].total += score.totalQuestions;
+  });
+
+  Object.values(userPerformance).forEach(perf => {
+    if (perf.total > 0 && (perf.correct / perf.total) < 0.6) {
+      atRiskCount++;
+    }
+  });
+
+  metrics.studentsAtRisk = studentEmails.length > 0 ? 
+    ((atRiskCount / Math.max(studentEmails.length, Object.keys(userPerformance).length)) * 100).toFixed(1) : 0;
+
+  // Conceptual understanding from diagnostic data
+  if (diagnosticData.length > 0) {
+    const totalScore = diagnosticData.reduce((sum, test) => {
+      // Handle different data structures
+      if (test.postTest && test.postTest.totalScore) {
+        return sum + test.postTest.totalScore;
+      } else if (test.totalScore) {
+        return sum + test.totalScore;
+      } else if (test.hasPostTest) {
+        return sum + (test.postTest?.totalScore || 0);
+      } else if (test.hasPreTest) {
+        return sum + (test.preTest?.totalScore || 0);
+      }
+      return sum;
+    }, 0);
+    
+    metrics.conceptualUnderstanding = (totalScore / diagnosticData.length).toFixed(1);
+  }
+
+  // Practice efficiency from arithmetic timing
+  const totalQuestions = arithmeticData.reduce((sum, score) => sum + score.totalQuestions, 0);
+  const totalTime = arithmeticData.reduce((sum, score) => sum + score.timeTaken, 0);
+  const avgTimePerQuestion = totalQuestions > 0 ? totalTime / totalQuestions : 0;
+  
+  // Efficiency: lower time = higher efficiency (benchmark: 60 seconds)
+  metrics.practiceEfficiency = Math.max(0, Math.min(100, (60 - avgTimePerQuestion) + 50)).toFixed(1);
+
+  // Overall engagement based on active users
+  const uniqueArithmeticUsers = new Set(arithmeticData.map(d => d.userEmail));
+  const uniqueAlgebraUsers = new Set(algebraData.map(d => d.email || d.username));
+  const uniqueDiagnosticUsers = new Set(diagnosticData.map(d => d.email || d.username));
+  
+  const allActiveUsers = new Set([
+    ...uniqueArithmeticUsers,
+    ...uniqueAlgebraUsers,
+    ...uniqueDiagnosticUsers
+  ]);
+
+  metrics.overallEngagement = studentEmails.length > 0 ? 
+    ((allActiveUsers.size / studentEmails.length) * 100).toFixed(1) : 0;
+
+  console.log('📊 Calculated metrics:', metrics);
+  setMathMetrics(metrics);
+};
+
+// Helper Functions
+const calculateImprovementTrendFixed = (attempts) => {
+  if (!attempts || attempts.length < 2) return 'insufficient_data';
+  
+  const sortedAttempts = attempts.sort((a, b) => new Date(a.date) - new Date(b.date));
+  const firstHalf = sortedAttempts.slice(0, Math.ceil(sortedAttempts.length / 2));
+  const secondHalf = sortedAttempts.slice(Math.ceil(sortedAttempts.length / 2));
+  
+  if (firstHalf.length === 0 || secondHalf.length === 0) return 'insufficient_data';
+  
+  const firstHalfAvg = firstHalf.reduce((sum, att) => sum + (att.accuracy || 0), 0) / firstHalf.length;
+  const secondHalfAvg = secondHalf.reduce((sum, att) => sum + (att.accuracy || 0), 0) / secondHalf.length;
+  
+  const improvement = secondHalfAvg - firstHalfAvg;
+  
+  if (improvement > 10) return 'strong_improvement';
+  if (improvement > 5) return 'moderate_improvement';
+  if (improvement > -5) return 'stable';
+  return 'declining';
+};
+
+const calculateTimeEfficiencyFixed = (operations) => {
+  const benchmarks = {
+    addition: 30,
+    subtraction: 35,
+    multiplication: 45,
+    division: 60,
+    'mixed-operations': 50,
+    'word-problems': 120,
+    'dealing-with-negative-sign': 40,
+    'ratio-proportion-percentage': 70,
+    decimals: 45,
+    fractions: 60
+  };
+
+  let overallEfficiency = 0;
+  let operationCount = 0;
+  const byOperation = {};
+
+  Object.entries(operations).forEach(([op, stats]) => {
+    if (stats.total === 0) return;
+    
+    const avgTime = stats.time / stats.total;
+    const benchmark = benchmarks[op] || 60;
+    const efficiency = Math.max(0, Math.min(100, ((benchmark - avgTime) / benchmark) * 100 + 50));
+    
+    byOperation[op] = {
+      avgTime: avgTime.toFixed(1),
+      benchmark,
+      efficiency: efficiency.toFixed(1),
+      status: efficiency > 70 ? 'efficient' : efficiency > 50 ? 'average' : 'needs_improvement'
+    };
+    
+    overallEfficiency += efficiency;
+    operationCount++;
+  });
+
+  overallEfficiency = operationCount > 0 ? overallEfficiency / operationCount : 0;
+  
+  return {
+    overall: overallEfficiency.toFixed(1),
+    byOperation,
+    recommendation: overallEfficiency > 70 ? 'maintain_pace' : 
+                   overallEfficiency > 50 ? 'practice_speed' : 'focus_on_accuracy_first'
+  };
+};
+
+const identifySkillGapsFromComparisonFixed = (preTest, postTest) => {
+  const gaps = [];
+  
+  if (!preTest || !postTest) return gaps;
+  
+  // Compare difficulty levels if available
+  ['easy', 'medium', 'hard'].forEach(difficulty => {
+    const preDiff = preTest[`${difficulty}Questions`];
+    const postDiff = postTest[`${difficulty}Questions`];
+    
+    if (preDiff && postDiff && postDiff.percentage < preDiff.percentage) {
+      gaps.push(`${difficulty} level questions showing decline`);
+    }
+  });
+  
+  // Compare topic performance if available
+  if (preTest.topicPerformance && postTest.topicPerformance) {
+    preTest.topicPerformance.forEach(preTopic => {
+      const postTopic = postTest.topicPerformance.find(t => t.topic === preTopic.topic);
+      if (postTopic && postTopic.percentage < preTopic.percentage) {
+        gaps.push(`${preTopic.topic} concept understanding`);
+      }
+    });
+  }
+  
+  // If no specific gaps identified but performance declined
+  if (gaps.length === 0 && postTest.totalScore < preTest.totalScore) {
+    gaps.push('General arithmetic fluency', 'Problem-solving strategies');
+  }
+  
+  return gaps;
+};
+
+const generateProgrammingInsights = (ctData, pythonData, diagnosticsData) => {
+  console.log('🔍 Generating programming insights...');
+  
+  const insights = {
+    overallPerformance: {},
+    topicMastery: {},
+    difficultyAnalysis: [],
+    conceptualGaps: [],
+    strengthAreas: [],
+    learningProgress: [],
+    prerequisiteIssues: [],
+    codeQuality: {},
+    problemSolvingSkills: {},
+    commonErrors: []
+  };
+
+  // Process Computational Thinking Data
+  const ctByUser = {};
+  ctData.forEach(user => {
+    ctByUser[user.email] = {
+      username: user.username,
+      totalScore: 0,
+      totalQuestions: 0,
+      topicScores: {},
+      attempts: []
+    };
+
+    user.quizzes.forEach(quiz => {
+      ctByUser[user.email].totalScore += quiz.score;
+      ctByUser[user.email].totalQuestions += quiz.totalQuestions;
+      
+      if (!ctByUser[user.email].topicScores[quiz.topic]) {
+        ctByUser[user.email].topicScores[quiz.topic] = { score: 0, total: 0 };
+      }
+      ctByUser[user.email].topicScores[quiz.topic].score += quiz.score;
+      ctByUser[user.email].topicScores[quiz.topic].total += quiz.totalQuestions;
+      
+      ctByUser[user.email].attempts.push({
+        date: quiz.date,
+        topic: quiz.topic,
+        accuracy: (quiz.score / quiz.totalQuestions) * 100,
+        score: quiz.score
+      });
+    });
+  });
+
+  // Process Python Finger Exercise Data
+  const pythonByUser = {};
+  pythonData.forEach(user => {
+    pythonByUser[user.email] = {
+      username: user.username,
+      totalCorrect: 0,
+      totalAttempted: 0,
+      topicPerformance: {},
+      progressionPath: []
+    };
+
+    user.topics.forEach(topic => {
+      const correct = topic.submissions.filter(s => s.isCorrect).length;
+      const total = topic.submissions.length;
+      
+      pythonByUser[user.email].totalCorrect += correct;
+      pythonByUser[user.email].totalAttempted += total;
+      
+      pythonByUser[user.email].topicPerformance[topic.topicName] = {
+        correct,
+        total,
+        accuracy: total > 0 ? (correct / total) * 100 : 0,
+        lastActivity: topic.submissions.length > 0 ? 
+          new Date(Math.max(...topic.submissions.map(s => new Date(s.timestamp)))) : null
+      };
+    });
+  });
+
+  // Generate Overall Performance Analysis
+  const allUsers = new Set([...Object.keys(ctByUser), ...Object.keys(pythonByUser)]);
+  
+  allUsers.forEach(email => {
+    const ctUser = ctByUser[email];
+    const pythonUser = pythonByUser[email];
+    
+    const ctAccuracy = ctUser ? (ctUser.totalQuestions > 0 ? (ctUser.totalScore / ctUser.totalQuestions) * 100 : 0) : 0;
+    const pythonAccuracy = pythonUser ? (pythonUser.totalAttempted > 0 ? (pythonUser.totalCorrect / pythonUser.totalAttempted) * 100 : 0) : 0;
+    
+    insights.overallPerformance[email] = {
+      username: ctUser?.username || pythonUser?.username || 'Unknown',
+      ctAccuracy,
+      pythonAccuracy,
+      overallAccuracy: (ctAccuracy + pythonAccuracy) / 2,
+      ctProgress: ctUser ? Object.keys(ctUser.topicScores).length : 0,
+      pythonProgress: pythonUser ? Object.keys(pythonUser.topicPerformance).length : 0,
+      improvementTrend: calculateProgrammingTrend(ctUser?.attempts || [], pythonUser),
+      weakAreas: identifyProgrammingWeaknesses(ctUser, pythonUser),
+      strongAreas: identifyProgrammingStrengths(ctUser, pythonUser)
+    };
+  });
+
+  // Topic Mastery Analysis
+  const topicMastery = {};
+  
+  // CT Topic Mastery
+  Object.values(ctByUser).forEach(user => {
+    Object.entries(user.topicScores).forEach(([topic, data]) => {
+      if (!topicMastery[topic]) {
+        topicMastery[topic] = {
+          type: 'computational_thinking',
+          totalStudents: 0,
+          masteredStudents: 0,
+          averageAccuracy: 0,
+          accuracySum: 0
+        };
+      }
+      
+      const accuracy = data.total > 0 ? (data.score / data.total) * 100 : 0;
+      topicMastery[topic].totalStudents++;
+      topicMastery[topic].accuracySum += accuracy;
+      
+      if (accuracy >= 80) {
+        topicMastery[topic].masteredStudents++;
+      }
+    });
+  });
+
+  // Python Topic Mastery
+  Object.values(pythonByUser).forEach(user => {
+    Object.entries(user.topicPerformance).forEach(([topic, data]) => {
+      const topicKey = `python_${topic}`;
+      if (!topicMastery[topicKey]) {
+        topicMastery[topicKey] = {
+          type: 'python_programming',
+          totalStudents: 0,
+          masteredStudents: 0,
+          averageAccuracy: 0,
+          accuracySum: 0
+        };
+      }
+      
+      topicMastery[topicKey].totalStudents++;
+      topicMastery[topicKey].accuracySum += data.accuracy;
+      
+      if (data.accuracy >= 80) {
+        topicMastery[topicKey].masteredStudents++;
+      }
+    });
+  });
+
+  // Calculate average accuracies
+  Object.keys(topicMastery).forEach(topic => {
+    if (topicMastery[topic].totalStudents > 0) {
+      topicMastery[topic].averageAccuracy = topicMastery[topic].accuracySum / topicMastery[topic].totalStudents;
+    }
+  });
+
+  insights.topicMastery = topicMastery;
+
+  // Difficulty Analysis (from diagnostics data)
+  const difficultyStats = { easy: { total: 0, correct: 0 }, medium: { total: 0, correct: 0 }, hard: { total: 0, correct: 0 } };
+  
+  diagnosticsData.forEach(user => {
+    user.quizzes?.forEach(quiz => {
+      quiz.submissions?.forEach(submission => {
+        // Categorize by test cases passed (simple heuristic)
+        const passRate = submission.test_cases_passed || 0;
+        let difficulty = 'medium';
+        if (passRate >= 80) difficulty = 'easy';
+        else if (passRate <= 40) difficulty = 'hard';
+        
+        difficultyStats[difficulty].total++;
+        if (passRate > 60) difficultyStats[difficulty].correct++;
+      });
+    });
+  });
+
+  insights.difficultyAnalysis = Object.entries(difficultyStats).map(([level, stats]) => ({
+    level,
+    accuracy: stats.total > 0 ? (stats.correct / stats.total) * 100 : 0,
+    totalQuestions: stats.total,
+    correctAnswers: stats.correct
+  }));
+
+  // Identify Gaps and Strengths
+  Object.entries(topicMastery).forEach(([topic, data]) => {
+    const masteryRate = data.totalStudents > 0 ? (data.masteredStudents / data.totalStudents) * 100 : 0;
+    
+    if (masteryRate < 40 || data.averageAccuracy < 60) {
+      insights.conceptualGaps.push({
+        topic: topic.replace('python_', ''),
+        type: data.type,
+        masteryRate: masteryRate.toFixed(1),
+        accuracy: data.averageAccuracy.toFixed(1),
+        studentsStrugglingCount: data.totalStudents - data.masteredStudents,
+        totalStudents: data.totalStudents,
+        severity: data.averageAccuracy < 40 ? 'critical' : data.averageAccuracy < 60 ? 'moderate' : 'mild',
+        recommendations: generateTopicRecommendations(topic, data.type, data.averageAccuracy)
+      });
+    } else if (masteryRate > 75 && data.averageAccuracy > 80) {
+      insights.strengthAreas.push({
+        topic: topic.replace('python_', ''),
+        type: data.type,
+        masteryRate: masteryRate.toFixed(1),
+        accuracy: data.averageAccuracy.toFixed(1),
+        masteredStudents: data.masteredStudents,
+        totalStudents: data.totalStudents
+      });
+    }
+  });
+
+  // Learning Progress Analysis
+  Object.entries(insights.overallPerformance).forEach(([email, perf]) => {
+    if (perf.improvementTrend !== 'insufficient_data') {
+      insights.learningProgress.push({
+        email,
+        username: perf.username,
+        ctProgress: perf.ctProgress,
+        pythonProgress: perf.pythonProgress,
+        overallAccuracy: perf.overallAccuracy,
+        trend: perf.improvementTrend,
+        recommendation: generateProgressRecommendation(perf)
+      });
+    }
+  });
+
+  console.log('📊 Generated programming insights:', {
+    overallPerformance: Object.keys(insights.overallPerformance).length,
+    topicMastery: Object.keys(insights.topicMastery).length,
+    conceptualGaps: insights.conceptualGaps.length,
+    strengthAreas: insights.strengthAreas.length
+  });
+
+  setProgrammingInsights(insights);
+}; // ✅ PROPER CLOSING OF generateProgrammingInsights
+
+// ✅ SEPARATE calculateProgrammingMetrics FUNCTION
+const calculateProgrammingMetrics = (ctData, pythonData, diagnosticsData) => {
+  const metrics = {
+    averageCompletionRate: 0,
+    studentsAtRisk: 0,
+    codeEfficiency: 0,
+    conceptualUnderstanding: 0,
+    overallEngagement: 0
+  };
+
+  const allStudentEmails = getAllTutorStudents().map(s => s.email);
+  const activeStudents = new Set();
+
+  // Calculate average completion rate
+  let totalCompletionRate = 0;
+  let studentCount = 0;
+
+  // CT completion analysis
+  ctData.forEach(user => {
+    activeStudents.add(user.email);
+    const maxPossibleQuestions = 90; // 3 topics × 30 questions each
+    const completedQuestions = user.quizzes.reduce((sum, quiz) => sum + quiz.totalQuestions, 0);
+    totalCompletionRate += (completedQuestions / maxPossibleQuestions) * 100;
+    studentCount++;
+  });
+
+  // Python completion analysis
+  pythonData.forEach(user => {
+    activeStudents.add(user.email);
+    if (!ctData.find(ct => ct.email === user.email)) {
+      // Only count if not already counted in CT
+      const totalAttempted = user.topics.reduce((sum, topic) => sum + topic.submissions.length, 0);
+      const estimatedMaxQuestions = user.topics.length * 10; // Estimate 10 questions per topic
+      if (estimatedMaxQuestions > 0) {
+        totalCompletionRate += (totalAttempted / estimatedMaxQuestions) * 100;
+        studentCount++;
+      }
+    }
+  });
+
+  metrics.averageCompletionRate = studentCount > 0 ? (totalCompletionRate / studentCount).toFixed(1) : 0;
+
+  // Students at risk calculation
+  let atRiskCount = 0;
+  const performanceMap = {};
+
+  ctData.forEach(user => {
+    const totalScore = user.quizzes.reduce((sum, quiz) => sum + quiz.score, 0);
+    const totalQuestions = user.quizzes.reduce((sum, quiz) => sum + quiz.totalQuestions, 0);
+    const accuracy = totalQuestions > 0 ? (totalScore / totalQuestions) * 100 : 0;
+    
+    performanceMap[user.email] = { accuracy, hasData: true };
+    if (accuracy < 50) atRiskCount++;
+  });
+
+  pythonData.forEach(user => {
+    if (!performanceMap[user.email]) {
+      const totalCorrect = user.topics.reduce((sum, topic) => 
+        sum + topic.submissions.filter(s => s.isCorrect).length, 0);
+      const totalAttempted = user.topics.reduce((sum, topic) => sum + topic.submissions.length, 0);
+      const accuracy = totalAttempted > 0 ? (totalCorrect / totalAttempted) * 100 : 0;
+      
+      performanceMap[user.email] = { accuracy, hasData: true };
+      if (accuracy < 50) atRiskCount++;
+    }
+  });
+
+  const totalActiveStudents = Object.keys(performanceMap).length;
+  metrics.studentsAtRisk = totalActiveStudents > 0 ? ((atRiskCount / totalActiveStudents) * 100).toFixed(1) : 0;
+
+  // Code efficiency from diagnostics
+  let totalEfficiency = 0;
+  let efficiencyCount = 0;
+
+  diagnosticsData.forEach(user => {
+    user.quizzes?.forEach(quiz => {
+      quiz.submissions?.forEach(submission => {
+        const efficiency = (submission.test_cases_passed || 0);
+        totalEfficiency += efficiency;
+        efficiencyCount++;
+      });
+    });
+  });
+
+  metrics.codeEfficiency = efficiencyCount > 0 ? (totalEfficiency / efficiencyCount).toFixed(1) : 0;
+
+  // Conceptual understanding
+  const totalAccuracy = Object.values(performanceMap).reduce((sum, perf) => sum + perf.accuracy, 0);
+  metrics.conceptualUnderstanding = totalActiveStudents > 0 ? (totalAccuracy / totalActiveStudents).toFixed(1) : 0;
+
+  // Overall engagement
+  metrics.overallEngagement = allStudentEmails.length > 0 ? 
+    ((activeStudents.size / allStudentEmails.length) * 100).toFixed(1) : 0;
+
+  setProgrammingMetrics(metrics);
+};
+
+// Helper functions for programming insights
+const calculateProgrammingTrend = (ctAttempts, pythonUser) => {
+  if (ctAttempts.length < 2 && (!pythonUser || Object.keys(pythonUser.topicPerformance || {}).length < 2)) {
+    return 'insufficient_data';
+  }
+
+  let improvement = 0;
+  let dataPoints = 0;
+
+  // Analyze CT improvement
+  if (ctAttempts.length >= 2) {
+    const sortedAttempts = ctAttempts.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const firstHalf = sortedAttempts.slice(0, Math.ceil(sortedAttempts.length / 2));
+    const secondHalf = sortedAttempts.slice(Math.ceil(sortedAttempts.length / 2));
+    
+    if (firstHalf.length > 0 && secondHalf.length > 0) {
+      const firstAvg = firstHalf.reduce((sum, att) => sum + att.accuracy, 0) / firstHalf.length;
+      const secondAvg = secondHalf.reduce((sum, att) => sum + att.accuracy, 0) / secondHalf.length;
+      improvement += secondAvg - firstAvg;
+      dataPoints++;
+    }
+  }
+
+  // Analyze Python improvement (simplified)
+  if (pythonUser && Object.keys(pythonUser.topicPerformance || {}).length >= 2) {
+    const topicAccuracies = Object.values(pythonUser.topicPerformance).map(t => t.accuracy);
+    const avgAccuracy = topicAccuracies.reduce((a, b) => a + b, 0) / topicAccuracies.length;
+    if (avgAccuracy > 70) improvement += 10;
+    dataPoints++;
+  }
+
+  if (dataPoints === 0) return 'insufficient_data';
+
+  const avgImprovement = improvement / dataPoints;
+  
+  if (avgImprovement > 15) return 'strong_improvement';
+  if (avgImprovement > 5) return 'moderate_improvement';
+  if (avgImprovement > -5) return 'stable';
+  return 'declining';
+};
+
+const identifyProgrammingWeaknesses = (ctUser, pythonUser) => {
+  const weaknesses = [];
+  
+  if (ctUser) {
+    Object.entries(ctUser.topicScores || {}).forEach(([topic, data]) => {
+      const accuracy = data.total > 0 ? (data.score / data.total) * 100 : 0;
+      if (accuracy < 60) {
+        weaknesses.push(`CT: ${topic}`);
+      }
+    });
+  }
+  
+  if (pythonUser) {
+    Object.entries(pythonUser.topicPerformance || {}).forEach(([topic, data]) => {
+      if (data.accuracy < 60) {
+        weaknesses.push(`Python: ${topic}`);
+      }
+    });
+  }
+  
+  return weaknesses;
+};
+
+const identifyProgrammingStrengths = (ctUser, pythonUser) => {
+  const strengths = [];
+  
+  if (ctUser) {
+    Object.entries(ctUser.topicScores || {}).forEach(([topic, data]) => {
+      const accuracy = data.total > 0 ? (data.score / data.total) * 100 : 0;
+      if (accuracy >= 85) {
+        strengths.push(`CT: ${topic}`);
+      }
+    });
+  }
+  
+  if (pythonUser) {
+    Object.entries(pythonUser.topicPerformance || {}).forEach(([topic, data]) => {
+      if (data.accuracy >= 85) {
+        strengths.push(`Python: ${topic}`);
+      }
+    });
+  }
+  
+  return strengths;
+};
+
+const generateTopicRecommendations = (topic, type, accuracy) => {
+  const recommendations = [];
+  
+  if (type === 'computational_thinking') {
+    if (topic.includes('foundation')) {
+      recommendations.push('Practice pattern recognition exercises');
+      recommendations.push('Work on decomposition skills');
+      recommendations.push('Use visual learning aids for algorithm understanding');
+    }
+  } else if (type === 'python_programming') {
+    recommendations.push('Review basic Python syntax');
+    recommendations.push('Practice with simpler examples');
+    recommendations.push('Use debugging tools to understand code flow');
+  }
+  
+  if (accuracy < 40) {
+    recommendations.push('Provide one-on-one tutoring support');
+    recommendations.push('Break down complex concepts into smaller steps');
+  }
+  
+  return recommendations;
+};
+
+const generateProgressRecommendation = (performance) => {
+  if (performance.overallAccuracy >= 85) {
+    return 'Ready for advanced programming concepts';
+  } else if (performance.overallAccuracy >= 70) {
+    return 'Continue current pace with occasional challenges';
+  } else if (performance.overallAccuracy >= 50) {
+    return 'Focus on reinforcing fundamental concepts';
+  } else {
+    return 'Needs immediate intervention and support';
+  }
+};
+
+const generateAllProgrammingInsights = async () => {
+  const studentEmails = getAllTutorStudents().map(s => s.email);
+  
+  // Filter data for current students
+  const filteredCT = ctData.filter(d => studentEmails.includes(d.email));
+  
+  // ✅ FIXED: Correct Python data transformation
+  const filteredPython = Array.from(pythonFingerData.entries()).map(([username, topics]) => {
+    const email = getAllTutorStudents().find(s => s.name === username)?.email || username;
+    
+    // Transform topics correctly - create mock submissions from correct/total data
+    const transformedTopics = Object.entries(topics).map(([topicName, data]) => ({
+      topicName,
+      submissions: Array.from({length: data.total || 0}, (_, i) => ({
+        isCorrect: i < (data.correct || 0),
+        timestamp: new Date() // Mock timestamp
+      }))
+    }));
+    
+    return { 
+      username, 
+      email, 
+      topics: transformedTopics 
+    };
+  }).filter(d => studentEmails.includes(d.email));
+  
+  const filteredDiagnostics = diagnosticsData.filter(d => studentEmails.includes(d.email || d.username));
+  
+  // Add debug logging
+  console.log('🔍 Programming Insights Data:', {
+    ctCount: filteredCT.length,
+    pythonCount: filteredPython.length,
+    samplePython: filteredPython[0],
+    pythonTopics: filteredPython[0]?.topics?.map(t => t.topicName)
+  });
+  
+  await Promise.all([
+    generateProgrammingInsights(filteredCT, filteredPython, filteredDiagnostics),
+    calculateProgrammingMetrics(filteredCT, filteredPython, filteredDiagnostics)
+  ]);
+};
+
+
+const fetchReadingComprehensionData = async (studentEmails) => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/readingcomprehensionscore`);
       if (!response.ok) throw new Error('Failed to fetch reading comprehension data');
@@ -629,143 +2216,409 @@ const EnhancedTutorDashboard = () => {
     const usernames = [];
     const preScoresPercentage = [];
     const postScoresPercentage = [];
-=======
-  // Helper function to get empty subject data structure
-  const getEmptySubjectData = (subject = '') => {
-    const emptyTopics = {};
-    const availableTopics = analyticsData.availableTopics[subject] || [];
->>>>>>> Stashed changes
     
-    availableTopics.forEach(topic => {
-      emptyTopics[topic] = {
-        totalQuestions: 0,
-        correctAnswers: 0,
-        students: new Set(),
-        totalTime: 0,
-        timeCount: 0,
-        successRate: 0,
-        studentCount: 0,
-        averageTime: 0
-      };
+    data.forEach(user => {
+      if (user.username) {
+        usernames.push(user.username);
+        
+        let preScore = null;
+        let postScore = null;
+        
+        if (user.quizzes && user.quizzes.length > 0) {
+          user.quizzes.forEach(quiz => {
+            if (quiz.diagnosticType === "pre") {
+              preScore = (quiz.score / quiz.totalQuestions) * 100;
+            } else if (quiz.diagnosticType === "post") {
+              postScore = (quiz.score / quiz.totalQuestions) * 100;
+            }
+          });
+        }
+        
+        preScoresPercentage.push(preScore !== null ? parseFloat(preScore.toFixed(1)) : null);
+        postScoresPercentage.push(postScore !== null ? parseFloat(postScore.toFixed(1)) : null);
+      }
     });
 
+    setEnglishChartData({
+      labels: usernames,
+      datasets: [
+        {
+          label: 'Pre-Diagnostic (%)',
+          data: preScoresPercentage,
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Post-Diagnostic (%)',
+          data: postScoresPercentage,
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }
+      ]
+    });
+  };
+
+  const prepareAlgebraChartData = (data, topic) => {
+    const topicData = data.map(user => {
+      const topicInfo = user.topics?.find(t => t?.topic === topic);
+      return topicInfo ? {
+        username: user.username || 'Anonymous',
+        mastered: topicInfo.current_level === "mastered",
+        scores: (topicInfo.questions || []).map(q => ({
+          questionId: q.questionId,
+          correct: q.correct === true,
+          difficultyLevel: q.difficultyLevel || 'unknown'
+        }))
+      } : null;
+    }).filter(user => user !== null);
+
+    const usernames = topicData.map(user => user.username);
+    const correctScores = topicData.map(user => user.scores.filter(q => q.correct).length);
+    const totalScores = topicData.map(user => user.scores.length);
+    const masteryColors = topicData.map(user => user.mastered ? 'rgba(75, 192, 192, 0.6)' : 'rgba(54, 162, 235, 0.8)');
+    const borderColorMastery = topicData.map(user => user.mastered ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)');
+
+    setAlgebraChartData({
+      labels: usernames,
+      datasets: [
+        {
+          label: `Correct Answers in ${topic}`,
+          data: correctScores,
+          backgroundColor: masteryColors,
+          borderColor: borderColorMastery,
+          borderWidth: 1
+        },
+        {
+          label: `Total Questions in ${topic}`,
+          data: totalScores,
+          backgroundColor: 'rgba(153, 102, 255, 0.6)',
+          borderColor: 'rgba(153, 102, 255, 1)',
+          borderWidth: 1
+        }
+      ]
+    });
+  };
+
+  // Helper function to calculate user stats
+  const getArithmeticStats = (email) => {
+    const userScores = arithmeticData.filter(score => score.userEmail === email);
+    const totalQuestions = userScores.reduce((sum, score) => sum + score.totalQuestions, 0);
+    const correctAnswers = userScores.reduce((sum, score) => sum + score.correctAnswers, 0);
+    const accuracy = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+  
     return {
-      fingerExercises: [],
-      topicPerformance: emptyTopics
+      totalQuestions,
+      correctAnswers,
+      accuracy,
+      operations: userScores.map(score => ({
+        type: score.operationType,
+        questions: score.totalQuestions,
+        correct: score.correctAnswers,
+        timeTaken: score.timeTaken,
+        date: score.createdAt
+      }))
     };
   };
 
-  // Generate mock progress data (fallback when API fails)
-  const generateMockProgressData = (studentIds, subject, count) => {
-    const data = [];
-    const topics = analyticsData.availableTopics[subject] || [];
-    
-    for (let i = 0; i < count; i++) {
-      const studentId = studentIds[Math.floor(Math.random() * studentIds.length)];
-      const topic = topics[Math.floor(Math.random() * topics.length)];
-      const isCorrect = Math.random() > 0.3; // 70% success rate
-      
-      data.push({
-        userId: studentId,
-        questionId: `q_${i}`,
-        questionType: subject,
-        studentAnswer: `answer_${i}`,
-        correctAnswer: 'correct_answer',
-        isCorrect: isCorrect,
-        responseTime: Math.floor(Math.random() * 120) + 30, // 30-150 seconds
-        score: isCorrect ? 100 : 0,
-        topicArea: topic.toLowerCase().replace(/\s+/g, '-'),
-        difficulty: ['easy', 'medium', 'hard'][Math.floor(Math.random() * 3)],
-        createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000), // Last 30 days
-        sourceCollection: `Mock${subject.charAt(0).toUpperCase() + subject.slice(1)}Data`,
-        errorType: !isCorrect ? ['Calculation Error', 'Concept Misunderstanding', 'Time Pressure'][Math.floor(Math.random() * 3)] : null
+  const generateVocabularyInsights = (rawData) => {
+    const insights = {
+      cefrLevelDistribution: {},
+      topicPerformance: {},
+      difficultyAnalysis: {},
+      learningProgress: [],
+      weakAreas: [],
+      strongAreas: [],
+      recommendedTopics: []
+    };
+
+    const allQuestions = [];
+    const userProgress = {};
+
+    // Collect all questions and track user progress
+    rawData.forEach(user => {
+      userProgress[user.username] = {
+        assessments: user.assessments.map(assessment => ({
+          date: new Date(assessment.date),
+          score: assessment.total_score,
+          questions: assessment.questions
+        })).sort((a, b) => a.date - b.date)
+      };
+
+      user.assessments.forEach(assessment => {
+        assessment.questions.forEach(question => {
+          allQuestions.push({
+            ...question,
+            username: user.username,
+            assessmentDate: assessment.date
+          });
+        });
       });
-    }
-    
-    return data;
+    });
+
+    // CEFR Level Distribution Analysis
+    allQuestions.forEach(q => {
+      if (!insights.cefrLevelDistribution[q.CEFR_level]) {
+        insights.cefrLevelDistribution[q.CEFR_level] = { total: 0, correct: 0 };
+      }
+      insights.cefrLevelDistribution[q.CEFR_level].total++;
+      if (q.is_correct) {
+        insights.cefrLevelDistribution[q.CEFR_level].correct++;
+      }
+    });
+
+    // Topic Performance Analysis
+    allQuestions.forEach(q => {
+      if (!insights.topicPerformance[q.topic]) {
+        insights.topicPerformance[q.topic] = { total: 0, correct: 0, users: new Set() };
+      }
+      insights.topicPerformance[q.topic].total++;
+      insights.topicPerformance[q.topic].users.add(q.username);
+      if (q.is_correct) {
+        insights.topicPerformance[q.topic].correct++;
+      }
+    });
+
+    // Difficulty Analysis
+    allQuestions.forEach(q => {
+      if (!insights.difficultyAnalysis[q.difficulty_level]) {
+        insights.difficultyAnalysis[q.difficulty_level] = { total: 0, correct: 0 };
+      }
+      insights.difficultyAnalysis[q.difficulty_level].total++;
+      if (q.is_correct) {
+        insights.difficultyAnalysis[q.difficulty_level].correct++;
+      }
+    });
+
+    // Learning Progress Analysis
+    Object.entries(userProgress).forEach(([username, data]) => {
+      if (data.assessments.length >= 2) {
+        const firstAssessment = data.assessments[0];
+        const lastAssessment = data.assessments[data.assessments.length - 1];
+        const improvementRate = ((lastAssessment.score - firstAssessment.score) / firstAssessment.score) * 100;
+        
+        insights.learningProgress.push({
+          username,
+          firstScore: firstAssessment.score,
+          lastScore: lastAssessment.score,
+          improvementRate,
+          assessmentCount: data.assessments.length,
+          timeSpan: Math.ceil((lastAssessment.date - firstAssessment.date) / (1000 * 60 * 60 * 24))
+        });
+      }
+    });
+
+    // Identify weak and strong areas
+    Object.entries(insights.topicPerformance).forEach(([topic, data]) => {
+      const accuracy = (data.correct / data.total) * 100;
+      const engagement = data.users.size;
+      
+      if (accuracy < 60) {
+        insights.weakAreas.push({
+          topic,
+          accuracy: accuracy.toFixed(1),
+          totalQuestions: data.total,
+          studentsAttempted: engagement
+        });
+      } else if (accuracy > 85) {
+        insights.strongAreas.push({
+          topic,
+          accuracy: accuracy.toFixed(1),
+          totalQuestions: data.total,
+          studentsAttempted: engagement
+        });
+      }
+    });
+
+    // Generate topic recommendations based on CEFR progression
+    const cefrOrder = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    const currentCefrPerformance = Object.entries(insights.cefrLevelDistribution)
+      .map(([level, data]) => ({
+        level,
+        accuracy: (data.correct / data.total) * 100
+      }))
+      .sort((a, b) => cefrOrder.indexOf(a.level) - cefrOrder.indexOf(b.level));
+
+    currentCefrPerformance.forEach((cefrData, index) => {
+      if (cefrData.accuracy > 80 && index < currentCefrPerformance.length - 1) {
+        const nextLevel = currentCefrPerformance[index + 1];
+        if (!nextLevel || nextLevel.accuracy < 70) {
+          insights.recommendedTopics.push({
+            recommendation: `Students are ready for ${nextLevel ? nextLevel.level : 'advanced'} level vocabulary`,
+            currentLevel: cefrData.level,
+            nextLevel: nextLevel ? nextLevel.level : 'C2+',
+            reason: `High accuracy (${cefrData.accuracy.toFixed(1)}%) at ${cefrData.level} level`
+          });
+        }
+      }
+    });
+
+    setVocabularyInsights(insights);
   };
 
-  // Enhanced topic performance calculation
-  const calculateTopicPerformance = (exerciseData, subject) => {
-    const topicStats = {};
-    const availableTopics = analyticsData.availableTopics[subject] || [];
-    
-    // Initialize all available topics with default values
-    availableTopics.forEach(topic => {
-      topicStats[topic] = {
-        totalQuestions: 0,
-        correctAnswers: 0,
-        students: new Set(),
-        totalTime: 0,
-        timeCount: 0,
-        commonErrors: [],
-        difficultyBreakdown: {
-          easy: { total: 0, correct: 0 },
-          medium: { total: 0, correct: 0 },
-          hard: { total: 0, correct: 0 }
-        }
-      };
-    });
-    
-    if (!Array.isArray(exerciseData)) {
-      console.warn(`Exercise data for ${subject} is not an array:`, exerciseData);
-      return topicStats;
-    }
-    
-    // Process each exercise
-    exerciseData.forEach(exercise => {
-      // Extract topic from various possible fields
-      let topic = exercise.topicArea || exercise.topic || exercise.questionTopic || exercise.subtopic || 'General';
-      
-      // Clean up topic names for better matching
-      topic = topic.replace(/[-_]/g, ' ').toLowerCase();
-      
-      // Try to match with available topics
-      let matchedTopic = availableTopics.find(availableTopic => 
-        availableTopic.toLowerCase().includes(topic) || 
-        topic.includes(availableTopic.toLowerCase())
-      );
-      
-      // If no match, use the original topic but add it to stats
-      if (!matchedTopic) {
-        matchedTopic = topic;
-        if (!topicStats[matchedTopic]) {
-          topicStats[matchedTopic] = {
-            totalQuestions: 0,
-            correctAnswers: 0,
-            students: new Set(),
-            totalTime: 0,
-            timeCount: 0,
-            commonErrors: [],
-            difficultyBreakdown: {
-              easy: { total: 0, correct: 0 },
-              medium: { total: 0, correct: 0 },
-              hard: { total: 0, correct: 0 }
-            }
-          };
-        }
-      }
-      
-      const stats = topicStats[matchedTopic];
-      stats.totalQuestions++;
-      stats.students.add(exercise.userId || exercise.studentId || exercise.email);
-      
-      const isCorrect = exercise.isCorrect || exercise.correct || (exercise.score > 50);
-      if (isCorrect) {
-        stats.correctAnswers++;
-      } else {
-        if (exercise.errorType) {
-          stats.commonErrors.push(exercise.errorType);
-        }
-      }
-      
-      const responseTime = exercise.responseTime || exercise.timeSpent || 0;
-      if (responseTime > 0) {
-        stats.totalTime += responseTime;
-        stats.timeCount++;
-      }
+  const calculateVocabularyMetrics = (rawData) => {
+    let totalSessions = 0;
+    let totalQuestions = 0;
+    let completedAssessments = 0;
+    let totalEngagementTime = 0;
+    let studentsWithImprovement = 0;
 
-<<<<<<< Updated upstream
+    rawData.forEach(user => {
+      totalSessions += user.assessments.length;
+      
+      user.assessments.forEach(assessment => {
+        totalQuestions += assessment.questions.length;
+        completedAssessments++;
+        
+        // Estimate engagement time based on questions answered
+        totalEngagementTime += assessment.questions.length * 1.5; // 1.5 minutes per question average
+      });
+
+      // Check for improvement
+      if (user.assessments.length >= 2) {
+        const scores = user.assessments.map(a => a.total_score);
+        const firstHalf = scores.slice(0, Math.ceil(scores.length / 2));
+        const secondHalf = scores.slice(Math.ceil(scores.length / 2));
+        
+        const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+        const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+        
+        if (secondAvg > firstAvg) {
+          studentsWithImprovement++;
+        }
+      }
+    });
+
+    const metrics = {
+      averageSessionLength: totalSessions > 0 ? (totalQuestions / totalSessions).toFixed(1) : 0,
+      improvementRate: rawData.length > 0 ? ((studentsWithImprovement / rawData.length) * 100).toFixed(1) : 0,
+      engagementScore: rawData.length > 0 ? (totalEngagementTime / rawData.length).toFixed(1) : 0,
+      completionRate: totalSessions > 0 ? ((completedAssessments / totalSessions) * 100).toFixed(1) : 100
+    };
+
+    setVocabularyMetrics(metrics);
+  };
+    
+  const filteredArithmeticData = selectedArithmeticOperation 
+    ? arithmeticData.filter(score => score.operationType === selectedArithmeticOperation)
+    : arithmeticData;
+  
+  const arithmeticUsers = [...new Set(filteredArithmeticData.map(score => score.userEmail))].map(email => {
+    const userData = filteredArithmeticData.find(score => score.userEmail === email);
+    return {
+      email,
+      username: userData?.username || email,
+      ...getArithmeticStats(email)
+    };
+  });
+
+  // Handle topic change for algebra chart
+  const handleTopicChange = (e) => {
+    const topic = e.target.value;
+    setSelectedTopic(topic);
+    if (topic && algebraData.length > 0) {
+      prepareAlgebraChartData(algebraData, topic);
+    }
+  };
+
+  // Handle Python topic change
+  const handlePythonTopicChange = (e) => {
+    const topic = e.target.value;
+    setSelectedPythonTopic(topic);
+    if (topic && pythonFingerData.size > 0) {
+      preparePythonChartData(pythonFingerData, topic);
+    }
+  };
+
+  const formatTopicName = (topic) => {
+    return topic.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  };
+
+  // Chart options
+  const englishChartOptions = {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: {
+        display: true,
+        text: 'English Diagnostic Scores'
+      }
+    },
+    scales: {
+      x: {
+        beginAtZero: true,
+        max: 100,
+        title: { display: true, text: 'Score Percentage (%)' }
+      },
+      y: {
+        title: { display: true, text: 'Students' }
+      }
+    }
+  };
+
+  const algebraChartOptions = {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: {
+        display: true,
+        text: `Performance in ${selectedTopic}`
+      }
+    },
+    scales: {
+      x: { beginAtZero: true },
+      y: {
+        ticks: { font: { size: 14 }, autoSkip: false }
+      }
+    }
+  };
+
+  const pythonChartOptions = {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { position: 'top' },
+      title: {
+        display: true,
+        text: `Python Performance in ${formatTopicName(selectedPythonTopic)}`
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.dataset.label;
+            const value = context.parsed.x;
+            if (label === 'Correct Questions') {
+              const attempts = context.chart.data.datasets[0].data[context.dataIndex];
+              const percentage = attempts > 0 
+                ? ((value / attempts) * 100).toFixed(1) + '%'
+                : '0%';
+              return `${label}: ${value} (${percentage})`;
+            }
+            return `${label}: ${value}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: { 
+        beginAtZero: true,
+        ticks: {
+          callback: function(value) {
+            return value + ' Q';
+          }
+        }
+      },
+      y: {
+        ticks: { font: { size: 14 }, autoSkip: false }
+      }
+    }
+  };
+
   // Existing functions
   const handleLogout = async () => {
     try {
@@ -800,1910 +2653,1588 @@ const EnhancedTutorDashboard = () => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-=======
-      const difficulty = (exercise.difficulty || exercise.questionDifficulty || 'medium').toLowerCase();
-      if (stats.difficultyBreakdown[difficulty]) {
-        stats.difficultyBreakdown[difficulty].total++;
-        if (isCorrect) {
-          stats.difficultyBreakdown[difficulty].correct++;
->>>>>>> Stashed changes
         }
-      }
-    });
-
-    // Calculate derived metrics for all topics
-    Object.keys(topicStats).forEach(topic => {
-      const stats = topicStats[topic];
-      
-      stats.successRate = stats.totalQuestions > 0 
-        ? Math.round((stats.correctAnswers / stats.totalQuestions) * 100)
-        : 0;
-      
-      stats.studentCount = stats.students.size;
-      
-      stats.averageTime = stats.timeCount > 0 
-        ? Math.round(stats.totalTime / stats.timeCount)
-        : 0;
-
-      // Calculate difficulty breakdown percentages
-      Object.keys(stats.difficultyBreakdown).forEach(difficulty => {
-        const diffStats = stats.difficultyBreakdown[difficulty];
-        diffStats.successRate = diffStats.total > 0 
-          ? Math.round((diffStats.correct / diffStats.total) * 100)
-          : 0;
       });
 
-      // Find most common error
-      stats.mostCommonError = stats.commonErrors.length > 0 
-        ? stats.commonErrors.reduce((a, b, i, arr) => 
-            arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
-          )
-        : null;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      // Generate suggestions
-      stats.suggestions = generateTopicSuggestions(stats);
-    });
-
-    return topicStats;
-  };
-
-  // Helper function to generate topic suggestions
-  const generateTopicSuggestions = (topicStats) => {
-    const suggestions = [];
-    
-    if (topicStats.successRate < 50) {
-      suggestions.push('Focus on fundamental concepts');
-      suggestions.push('Provide additional practice exercises');
-    } else if (topicStats.successRate < 70) {
-      suggestions.push('Review problem-solving strategies');
-      suggestions.push('Practice with guided examples');
-    } else if (topicStats.successRate >= 80) {
-      suggestions.push('Ready for advanced challenges');
-      suggestions.push('Consider moving to next difficulty level');
+      const classroomData = await response.json();
+      setSelectedClassroom(classroomData);
+      setStudentList(classroomData.students || []);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      setError('Failed to load student data. Please try again.');
+    } finally {
+      setLoadingStudents(false);
     }
-
-    if (topicStats.averageTime > 120) {
-      suggestions.push('Work on speed and efficiency');
-    }
-
-    if (topicStats.mostCommonError) {
-      suggestions.push(`Address common error: ${topicStats.mostCommonError}`);
-    }
-
-    return suggestions;
   };
 
-  // Calculate classroom-level statistics
-  const calculateClassroomStats = (mathExercises, englishExercises, programmingExercises, totalStudents) => {
-    const getParticipation = (exercises) => {
-      return new Set(exercises.map(e => e.userId || e.studentId || e.email)).size;
-    };
-
-    const mathParticipation = getParticipation(mathExercises);
-    const englishParticipation = getParticipation(englishExercises);
-    const programmingParticipation = getParticipation(programmingExercises);
-
-    return {
-      totalStudents,
-      mathParticipation,
-      englishParticipation,
-      programmingParticipation,
-      overallEngagement: totalStudents > 0 
-        ? Math.round(((mathParticipation + englishParticipation + programmingParticipation) / (totalStudents * 3)) * 100)
-        : 0
-    };
+  const handleCloseStudentView = () => {
+    setSelectedClassroom(null);
+    setStudentList([]);
   };
 
-  // Generate student progress summary
-  const generateStudentProgressSummary = (students, mathExercises, englishExercises, programmingExercises) => {
-    return students.map(student => {
-      const studentId = student._id || student.id;
-      const studentEmail = student.email;
-      
-      // Filter exercises for this student
-      const mathQuestions = mathExercises.filter(q => 
-        (q.userId && q.userId.toString() === studentId) || 
-        (q.email === studentEmail)
-      );
-      const englishQuestions = englishExercises.filter(q => 
-        (q.userId && q.userId.toString() === studentId) || 
-        (q.email === studentEmail)
-      );
-      const programmingQuestions = programmingExercises.filter(q => 
-        (q.userId && q.userId.toString() === studentId) || 
-        (q.email === studentEmail)
-      );
-      
-      // Calculate accuracy for each subject
-      const calculateAccuracy = (questions) => {
-        if (questions.length === 0) return 0;
-        const correct = questions.filter(q => q.isCorrect || q.correct || (q.score > 50)).length;
-        return Math.round((correct / questions.length) * 100);
-      };
-
-      const mathAccuracy = calculateAccuracy(mathQuestions);
-      const englishAccuracy = calculateAccuracy(englishQuestions);
-      const programmingAccuracy = calculateAccuracy(programmingQuestions);
-      
-      // Find last activity
-      const allQuestions = [...mathQuestions, ...englishQuestions, ...programmingQuestions];
-      const lastActivity = allQuestions.length > 0 
-        ? Math.max(...allQuestions.map(q => new Date(q.createdAt || q.timestamp || 0).getTime()))
-        : 0;
-
-      return {
-        ...student,
-        id: studentId,
-        mathAccuracy,
-        englishAccuracy,
-        programmingAccuracy,
-        totalQuestions: allQuestions.length,
-        overallAccuracy: allQuestions.length > 0 
-          ? Math.round((mathAccuracy + englishAccuracy + programmingAccuracy) / 3) 
-          : 0,
-        needsAttention: (mathAccuracy < 60 || englishAccuracy < 60 || programmingAccuracy < 60),
-        strongSubjects: [
-          mathAccuracy >= 80 ? 'Mathematics' : null,
-          englishAccuracy >= 80 ? 'English' : null,
-          programmingAccuracy >= 80 ? 'Programming' : null
-        ].filter(Boolean),
-        weakSubjects: [
-          mathAccuracy < 60 ? 'Mathematics' : null,
-          englishAccuracy < 60 ? 'English' : null,
-          programmingAccuracy < 60 ? 'Programming' : null
-        ].filter(Boolean),
-        lastActivity: lastActivity > 0 ? lastActivity : null,
-        recentActivities: allQuestions.slice(0, 10)
-      };
-    });
-  };
-
-  // Helper functions for individual student analysis
-  const getStudentActivityTimeline = () => {
-    if (!dashboardState.selectedStudent) return [];
-    
-    const studentData = analyticsData.studentProgress.find(s => s.id === dashboardState.selectedStudent);
-    if (!studentData || !studentData.recentActivities) return [];
-    
-    return studentData.recentActivities
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 10);
-  };
-
-  const generateSubjectSpecificRecommendations = (subject) => {
-    const recommendations = {
-      'Mathematics': [
-        'Practice foundational arithmetic skills',
-        'Work on problem-solving strategies',
-        'Review key formulas and concepts'
-      ],
-      'English': [
-        'Focus on reading comprehension exercises',
-        'Practice grammar rules',
-        'Expand vocabulary with weekly word lists'
-      ],
-      'Programming': [
-        'Debugging practice with sample code',
-        'Algorithmic thinking exercises',
-        'Pair programming sessions'
-      ]
-    };
-    
-    const subjectRecs = recommendations[subject] || ['General practice recommended'];
-    const randomIndex = Math.floor(Math.random() * subjectRecs.length);
-    return subjectRecs[randomIndex];
-  };
-
-  const generateStrengthBasedRecommendations = (subject) => {
-    const recommendations = {
-      'Mathematics': [
-        'Challenge with advanced problems',
-        'Peer tutoring opportunities',
-        'Math competition preparation'
-      ],
-      'English': [
-        'Creative writing assignments',
-        'Literature analysis projects',
-        'Debate team participation'
-      ],
-      'Programming': [
-        'Independent coding projects',
-        'Open source contributions',
-        'Algorithm optimization challenges'
-      ]
-    };
-    
-    const subjectRecs = recommendations[subject] || ['Advanced challenges recommended'];
-    const randomIndex = Math.floor(Math.random() * subjectRecs.length);
-    return subjectRecs[randomIndex];
-  };
-
-  // Chart data preparation functions
-  const prepareSubjectComparisonChart = () => {
-    const data = analyticsData.studentProgress.slice(0, 10).map(student => ({
-      name: student.name || `Student ${student.id?.slice(-4) || 'Unknown'}`,
-      math: student.mathAccuracy || 0,
-      english: student.englishAccuracy || 0,
-      programming: student.programmingAccuracy || 0
-    }));
-
-    return {
-      labels: data.map(d => d.name),
-      datasets: [
-        {
-          label: 'Mathematics',
-          data: data.map(d => d.math),
-          backgroundColor: 'rgba(59, 130, 246, 0.8)',
-          borderColor: 'rgb(59, 130, 246)',
-          borderWidth: 2
-        },
-        {
-          label: 'English',
-          data: data.map(d => d.english),
-          backgroundColor: 'rgba(16, 185, 129, 0.8)',
-          borderColor: 'rgb(16, 185, 129)',
-          borderWidth: 2
-        },
-        {
-          label: 'Programming',
-          data: data.map(d => d.programming),
-          backgroundColor: 'rgba(245, 158, 11, 0.8)',
-          borderColor: 'rgb(245, 158, 11)',
-          borderWidth: 2
-        }
-      ]
-    };
-  };
-
-  const prepareTopicPerformanceChart = (subject) => {
-    let topicData = {};
-    
-    switch(subject) {
-      case 'math':
-        topicData = analyticsData.mathTopicPerformance;
-        break;
-      case 'english':
-        topicData = analyticsData.englishTopicPerformance;
-        break;
-      case 'programming':
-        topicData = analyticsData.programmingTopicPerformance;
-        break;
-      default:
-        topicData = {};
-    }
-
-    // Sort topics by success rate and take top 10
-    const sortedTopics = Object.entries(topicData)
-      .filter(([, stats]) => stats.totalQuestions > 0)
-      .sort(([,a], [,b]) => b.successRate - a.successRate)
-      .slice(0, 10);
-
-    if (sortedTopics.length === 0) {
-      return { labels: [], datasets: [] };
-    }
-
-    const topics = sortedTopics.map(([topic]) => topic);
-    const successRates = sortedTopics.map(([, stats]) => stats.successRate);
-
-    return {
-      labels: topics.map(topic => topic.replace(/[-_]/g, ' ')),
-      datasets: [{
-        label: 'Success Rate (%)',
-        data: successRates,
-        backgroundColor: successRates.map(rate => 
-          rate >= 80 ? 'rgba(16, 185, 129, 0.8)' :
-          rate >= 60 ? 'rgba(245, 158, 11, 0.8)' :
-          'rgba(239, 68, 68, 0.8)'
-        ),
-        borderColor: successRates.map(rate => 
-          rate >= 80 ? 'rgb(16, 185, 129)' :
-          rate >= 60 ? 'rgb(245, 158, 11)' :
-          'rgb(239, 68, 68)'
-        ),
-        borderWidth: 2
-      }]
-    };
-  };
-
-  // Mini progress bars component
-  const renderMiniProgressBars = (student) => {
+  if (isLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '150px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-          <small style={{ color: '#6c757d' }}>Math</small>
-          <div style={{ 
-            width: '100%', 
-            height: '6px', 
-            backgroundColor: '#e9ecef', 
-            borderRadius: '3px', 
-            overflow: 'hidden' 
-          }}>
-            <div 
-              style={{ 
-                width: `${student.mathAccuracy}%`, 
-                height: '100%',
-                backgroundColor: student.mathAccuracy >= 80 ? '#28a745' : student.mathAccuracy >= 60 ? '#ffc107' : '#dc3545'
-              }}
-            />
+      <div className="container-fluid py-4">
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
           </div>
-          
-          <small style={{ color: '#6c757d', marginTop: '4px' }}>English</small>
-          <div style={{ 
-            width: '100%', 
-            height: '6px', 
-            backgroundColor: '#e9ecef', 
-            borderRadius: '3px', 
-            overflow: 'hidden' 
-          }}>
-            <div 
-              style={{ 
-                width: `${student.englishAccuracy}%`, 
-                height: '100%',
-                backgroundColor: student.englishAccuracy >= 80 ? '#28a745' : student.englishAccuracy >= 60 ? '#ffc107' : '#dc3545'
-              }}
-            />
-          </div>
-          
-          <small style={{ color: '#6c757d', marginTop: '4px' }}>Programming</small>
-          <div style={{ 
-            width: '100%', 
-            height: '6px', 
-            backgroundColor: '#e9ecef', 
-            borderRadius: '3px', 
-            overflow: 'hidden' 
-          }}>
-            <div 
-              style={{ 
-                width: `${student.programmingAccuracy}%`, 
-                height: '100%',
-                backgroundColor: student.programmingAccuracy >= 80 ? '#28a745' : student.programmingAccuracy >= 60 ? '#ffc107' : '#dc3545'
-              }}
-            />
-          </div>
+          <p className="mt-2">Loading your dashboard...</p>
         </div>
-        <small style={{ color: '#6c757d', marginLeft: '8px' }}>{student.overallAccuracy}%</small>
-      </div>
-    );
-  };
-
-  // Effect hooks
-  useEffect(() => {
-    fetchClassrooms();
-  }, [fetchClassrooms]);
-
-  useEffect(() => {
-    if (dashboardState.selectedClassroom && classroomData.classrooms.length > 0) {
-      fetchClassroomAnalytics(dashboardState.selectedClassroom);
-    }
-  }, [dashboardState.selectedClassroom, dashboardState.timeRange, fetchClassroomAnalytics]);
-
-  // Utility functions for rendering
-  const formatPercentage = (value) => `${Math.round(value || 0)}%`;
-  
-  const getPerformanceColor = (percentage) => {
-    if (percentage >= 80) return 'success';
-    if (percentage >= 60) return 'warning';
-    return 'danger';
-  };
-
-  // Loading state
-  if (dashboardState.loading && !classroomData.classrooms.length) {
-    return (
-      <div style={{ 
-        fontFamily: "'Open Sans', sans-serif",
-        minHeight: '100vh',
-        backgroundColor: '#f8f9fa',
-        padding: '2rem',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            border: '4px solid #f3f3f3',
-            borderTop: '4px solid #3498db',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 1rem auto'
-          }} />
-          <h5 style={{ color: '#6c757d', marginBottom: '0.5rem' }}>Loading Your Classroom Dashboard...</h5>
-          <p style={{ color: '#6c757d', margin: 0 }}>Fetching analytics data from MongoDB...</p>
-        </div>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     );
   }
 
-  return (
-    <div style={{ 
-      fontFamily: "'Open Sans', sans-serif",
-      minHeight: '100vh',
-      backgroundColor: '#f8f9fa',
-      lineHeight: 1.6,
-      color: '#333'
-    }}>
-      {/* Header */}
-      <nav style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '1rem 0',
-        marginBottom: '2rem',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                borderRadius: '50%',
-                padding: '0.5rem',
-                marginRight: '1rem'
-              }}>
-                <span style={{ fontSize: '1.25rem', color: 'white' }}>🎓</span>
+// Add this component before the return statement
+const OverviewTab = () => (
+    <div className="row mb-4">
+      {/* Subject Cards Row */}
+      <div className="col-12 mb-4">
+        <div className="row">
+          {/* English Card */}
+          <div className="col-lg-4 col-md-6 mb-4">
+            <div className="card h-100 shadow-sm" style={{border: '1px solid #d4edda'}}>
+              <div className="card-header text-dark" style={{backgroundColor: '#d4edda'}}>
+                <h5 className="mb-0">📚 English Performance</h5>
               </div>
-              <div>
-                <h5 style={{ margin: 0, color: 'white', fontSize: '1.25rem' }}>Tutor Analytics Dashboard</h5>
-                <small style={{ color: 'rgba(255,255,255,0.75)' }}>Real-time Student Progress from MongoDB</small>
+              <div className="card-body">
+                <div className="row text-center">
+                  <div className="col-6">
+                    <h3 className="text-primary">{vocabularyData.length}</h3>
+                    <small className="text-muted">Active Students</small>
+                  </div>
+                  <div className="col-6">
+                    <h3 className="text-success">{vocabularyMetrics?.improvementRate || 0}%</h3>
+                    <small className="text-muted">Improvement Rate</small>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="d-flex justify-content-between mb-2">
+                    <small>Avg Session Length:</small>
+                    <small>{vocabularyMetrics?.averageSessionLength || 0} questions</small>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <small>Engagement Score:</small>
+                    <small>{vocabularyMetrics?.engagementScore || 0}%</small>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <small>Weak Areas:</small>
+                    <small className="badge bg-warning">{vocabularyInsights?.weakAreas?.length || 0}</small>
+                  </div>
+                </div>
+                <button 
+                  className="btn btn-primary w-100 mt-3"
+                  onClick={() => setActiveTab('english')}
+                >
+                  View Detailed Analytics
+                </button>
               </div>
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <select 
-                style={{
-                  padding: '0.5rem',
-                  border: 'none',
-                  borderRadius: '4px',
-                  backgroundColor: 'white',
-                  color: '#3498db',
-                  fontWeight: 'bold'
-                }}
-                value={dashboardState.selectedClassroom || ''}
-                onChange={(e) => setDashboardState(prev => ({ ...prev, selectedClassroom: e.target.value }))}
-                disabled={dashboardState.loading}
-              >
-                <option value="">Select Classroom...</option>
-                {classroomData.classrooms.map(classroom => (
-                  <option key={classroom._id} value={classroom._id}>
-                    {classroom.name} ({classroom.students?.length || 0} students)
-                  </option>
-                ))}
-              </select>
+          </div>
 
-              <select
-                style={{
-                  padding: '0.5rem',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '4px',
-                  backgroundColor: 'transparent',
-                  color: 'white'
-                }}
-                value={dashboardState.timeRange}
-                onChange={(e) => setDashboardState(prev => ({ ...prev, timeRange: e.target.value }))}
-                disabled={dashboardState.loading}
-              >
-                <option value="day">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="all">All Time</option>
-              </select>
-
-              <button 
-                style={{
-                  padding: '0.5rem 1rem',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '4px',
-                  backgroundColor: 'transparent',
-                  color: 'white',
-                  cursor: 'pointer'
-                }}
-                onClick={() => dashboardState.selectedClassroom && fetchClassroomAnalytics(dashboardState.selectedClassroom)}
-                disabled={dashboardState.loading}
-              >
-                🔄 Refresh
-              </button>
-              
-              <div style={{ display: 'flex', alignItems: 'center', color: 'white' }}>
-                <div style={{
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  borderRadius: '50%',
-                  padding: '0.5rem',
-                  marginRight: '0.5rem'
-                }}>
-                  👤
-                </div>
-                {user?.name || 'Tutor'}
+          {/* Math Card */}
+          <div className="col-lg-4 col-md-6 mb-4">
+            <div className="card h-100 shadow-sm" style={{border: '1px solid #bee5eb'}}>
+              <div className="card-header text-dark" style={{backgroundColor: '#bee5eb'}}>
+                <h5 className="mb-0">🧮 Math Performance</h5>
               </div>
+              <div className="card-body">
+                <div className="row text-center">
+                  <div className="col-6">
+                    <h3 className="text-primary">{getAllTutorStudents().length}</h3>
+                    <small className="text-muted">Total Students</small>
+                  </div>
+                  <div className="col-6">
+                    <h3 className="text-warning">{mathMetrics?.studentsAtRisk || 0}%</h3>
+                    <small className="text-muted">Students At Risk</small>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="d-flex justify-content-between mb-2">
+                    <small>Avg Mastery Level:</small>
+                    <small>{mathMetrics?.averageMasteryLevel || 0}%</small>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <small>Practice Efficiency:</small>
+                    <small>{mathMetrics?.practiceEfficiency || 0}%</small>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <small>Conceptual Gaps:</small>
+                    <small className="badge bg-danger">{mathInsights?.conceptualGaps?.length || 0}</small>
+                  </div>
+                </div>
+                <button 
+                  className="btn btn-primary w-100 mt-3"
+                  onClick={() => setActiveTab('math')}
+                >
+                  View Detailed Analytics
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Programming Card */}
+          <div className="col-lg-4 col-md-6 mb-4">
+            <div className="card h-100 shadow-sm" style={{border: '1px solid #fdeaa7'}}>
+              <div className="card-header text-dark" style={{backgroundColor: '#fdeaa7'}}>
+                <h5 className="mb-0">💻 Programming Performance</h5>
+              </div>
+              <div className="card-body">
+                <div className="row text-center">
+                  <div className="col-6">
+                    <h3 className="text-primary">{ctData.length + pythonFingerData.size}</h3>
+                    <small className="text-muted">Active Students</small>
+                  </div>
+                  <div className="col-6">
+                    <h3 className="text-warning">{programmingMetrics?.studentsAtRisk || 0}%</h3>
+                    <small className="text-muted">Students At Risk</small>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="d-flex justify-content-between mb-2">
+                    <small>Completion Rate:</small>
+                    <small>{programmingMetrics?.averageCompletionRate || 0}%</small>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <small>Code Efficiency:</small>
+                    <small>{programmingMetrics?.codeEfficiency || 0}%</small>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <small>Concept Gaps:</small>
+                    <small className="badge bg-warning">{programmingInsights?.conceptualGaps?.length || 0}</small>
+                  </div>
+                </div>
+                <button 
+                  className="btn btn-primary w-100 mt-3"
+                  onClick={() => setActiveTab('programming')}
+                >
+                  View Detailed Analytics
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Summary Stats */}
+      <div className="col-12">
+        <div className="card">
+          <div className="card-header">
+            <h5 className="mb-0">📊 Overall Class Performance Summary</h5>
+          </div>
+          <div className="card-body">
+            <div className="row">
+              <div className="col-md-3">
+                <div className="text-center p-3 border rounded bg-light">
+                  <h4 className="text-primary">{getAllTutorStudents().length}</h4>
+                  <p className="mb-0 text-muted">Total Students</p>
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="text-center p-3 border rounded bg-light">
+                  <h4 className="text-success">{(vocabularyData.length + Object.keys(mathInsights?.overallPerformance || {}).length + Object.keys(programmingInsights?.overallPerformance || {}).length) / 3 || 0}</h4>
+                  <p className="mb-0 text-muted">Avg Active/Subject</p>
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="text-center p-3 border rounded bg-light">
+                  <h4 className="text-warning">
+                    {Math.round((
+                      (vocabularyInsights?.weakAreas?.length || 0) +
+                      (mathInsights?.conceptualGaps?.length || 0) +
+                      (programmingInsights?.conceptualGaps?.length || 0)
+                    ) / 3) || 0}
+                  </h4>
+                  <p className="mb-0 text-muted">Avg Areas Needing Attention</p>
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="text-center p-3 border rounded bg-light">
+                  <h4 className="text-info">
+                    {Math.round((
+                      parseFloat(vocabularyMetrics?.engagementScore || 0) +
+                      parseFloat(mathMetrics?.overallEngagement || 0) +
+                      parseFloat(programmingMetrics?.overallEngagement || 0)
+                    ) / 3) || 0}%
+                  </h4>
+                  <p className="mb-0 text-muted">Overall Engagement</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );  
+
+  return (
+    <div className="container-fluid">
+      {/* Header */}
+      <nav className="navbar navbar-expand-lg navbar-dark bg-success mb-4">
+        <div className="container-fluid">
+          <span className="navbar-brand">
+            <i className="bi bi-person-workspace me-2"></i>
+            Tutor Dashboard
+          </span>
+          
+          <div className="navbar-nav ms-auto">
+            <div className="nav-item dropdown">
+              <a className="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown">
+                <i className="bi bi-person-circle me-2"></i>
+                {user?.name || 'Tutor'}
+              </a>
+              <ul className="dropdown-menu dropdown-menu-end">
+                <li><button className="dropdown-item" onClick={handleLogout}><i className="bi bi-box-arrow-right me-2"></i>Logout</button></li>
+              </ul>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Error Alert */}
-      {dashboardState.error && (
-        <div style={{ maxWidth: '1200px', margin: '0 auto 2rem auto', padding: '0 1rem' }}>
-          <div style={{
-            padding: '1rem',
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
-            border: '1px solid #f5c6cb',
-            borderRadius: '8px',
-            borderLeft: '4px solid #dc3545'
-          }}>
-            ⚠️ {dashboardState.error}
-            <button 
-              style={{
-                float: 'right',
-                background: 'none',
-                border: 'none',
-                fontSize: '1.2rem',
-                cursor: 'pointer',
-                color: '#721c24'
-              }}
-              onClick={() => setDashboardState(prev => ({ ...prev, error: null }))}
-            >
-              ×
-            </button>
-          </div>
+      {/* Error Display */}
+      {error && (
+        <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+          <i className="bi bi-exclamation-triangle me-2"></i>
+          {error}
+          <button type="button" className="btn-close" onClick={() => setError('')}></button>
         </div>
       )}
 
-      {/* Main Content */}
-      {!dashboardState.selectedClassroom ? (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div style={{ maxWidth: '600px', width: '100%' }}>
-              <div style={{
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                padding: '3rem',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏠</div>
-                <h4 style={{ color: '#6c757d', marginBottom: '1rem' }}>Select a Classroom to Begin</h4>
-                {classroomData.classrooms.length === 0 && (
-                  <div style={{ marginTop: '2rem' }}>
-                    <p style={{ color: '#6c757d' }}>You don't have any classrooms yet.</p>
-                    <button style={{
-                      padding: '0.8rem 1.5rem',
-                      backgroundColor: '#3498db',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '25px',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>
-                      ➕ Create Your First Classroom
+      {/* Classrooms Section */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">
+                <i className="bi bi-house-door me-2"></i>Classroom Details
+              </h5>
+            </div>
+            <div className="card-body">
+              {classrooms.length === 0 ? (
+                <div className="text-center py-5">
+                  <i className="bi bi-house-door fs-1 text-muted"></i>
+                  <h6 className="mt-3 text-muted">No Classrooms Found</h6>
+                  <p className="text-muted">No classrooms available.</p>
+                </div>
+              ) : (
+                <div className="row">
+                  {classrooms.map((classroom) => (
+                    <div key={classroom._id} className="col-lg-6 col-md-12 mb-4">
+                      <div className="card h-100">
+                        <div className="card-header bg-success text-white">
+                          <h5 className="mb-0">
+                            {classroom.name}
+                          </h5>
+                        </div>
+                        <div className="card-body">
+                          <p>Students: {classroom.students.length}</p>
+                          <p>Join Code: <strong>{classroom.joinCode}</strong></p>
+                          <p>Subjects: 
+                            {classroom.subjects && classroom.subjects.length > 0 ? (
+                              <span className="ms-2">
+                                {classroom.subjects.map((subject, index) => (
+                                  <span key={index} className="badge bg-info me-1 text-capitalize">
+                                    {subject}
+                                  </span>
+                                ))}
+                              </span>
+                            ) : (
+                              <span className="text-muted ms-2">English, Math and Programming</span>
+                            )}
+                          </p>
+                          <div className="d-flex gap-2">
+                            <button 
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleShareInvite(classroom.joinCode)}
+                            >
+                              <i className="bi bi-share me-2"></i>Share Invite Link
+                            </button>
+                            <button 
+                              className="btn btn-success btn-sm"
+                              onClick={() => handleViewStudents(classroom._id)}
+                              disabled={loadingStudents}
+                            >
+                              <i className="bi bi-people me-2"></i>View Students
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Student List Modal/View */}
+          {selectedClassroom && (
+            <div className="row mt-4">
+              <div className="col-12">
+                <div className="card">
+                  <div className="card-header d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">
+                      <i className="bi bi-people me-2"></i>Students in {selectedClassroom.name}
+                    </h5>
+                    <button 
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={handleCloseStudentView}
+                    >
+                      <i className="bi bi-x"></i> Close
                     </button>
                   </div>
-                )}
+                  <div className="card-body">
+                    {loadingStudents ? (
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-primary" role="status">
+                          <span className="visually-hidden">Loading students...</span>
+                        </div>
+                        <p className="mt-2">Loading students...</p>
+                      </div>
+                    ) : studentList.length === 0 ? (
+                      <div className="text-center py-4">
+                        <i className="bi bi-person-plus fs-1 text-muted"></i>
+                        <h6 className="mt-3 text-muted">No Students Enrolled</h6>
+                        <p className="text-muted">Share the join code <strong>{selectedClassroom.joinCode}</strong> to invite students.</p>
+                      </div>
+                    ) : (
+                      <div className="table-responsive">
+                        <table className="table table-hover">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Email</th>
+                              <th>Status</th>
+                              <th>Last Active</th>
+                              <th>Joined Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {studentList.map((student, index) => (
+                              <tr key={student._id || index}>
+                                <td>
+                                  <div className="d-flex align-items-center">
+                                    <div className="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
+                                      <i className="bi bi-person"></i>
+                                    </div>
+                                    <strong>{student.name}</strong>
+                                  </div>
+                                </td>
+                                <td>{student.email}</td>
+                                <td>
+                                  <span className={`badge ${student.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
+                                    {student.status || 'Active'}
+                                  </span>
+                                </td>
+                                <td>{student.lastActive && student.lastActive !== 'Recently' && student.lastActive !== 'Never' ? 
+                                  new Date(student.lastActive).toLocaleDateString('en-GB', {
+                                    year: 'numeric',
+                                    month: 'numeric', 
+                                    day: 'numeric'
+                                  }) : student.lastActive || 'Recently'}</td>
+                                <td>{student.date ? new Date(student.date).toLocaleDateString('en-GB', {
+                                  year: 'numeric',
+                                  month: 'numeric', 
+                                  day: 'numeric'
+                                }) : 'N/A'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+     
+      {/* ADD THIS: Tab Navigation */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <ul className="nav nav-tabs nav-justified">
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${activeTab === 'overview' ? 'active' : ''}`}
+                onClick={() => setActiveTab('overview')}
+              >
+                <i className="bi bi-speedometer2 me-2"></i>📊 Overview
+              </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${activeTab === 'english' ? 'active' : ''}`}
+                onClick={() => setActiveTab('english')}
+              >
+                <i className="bi bi-book me-2"></i>📚 English
+              </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${activeTab === 'math' ? 'active' : ''}`}
+                onClick={() => setActiveTab('math')}
+              >
+                <i className="bi bi-calculator me-2"></i>🧮 Math
+              </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link ${activeTab === 'programming' ? 'active' : ''}`}
+                onClick={() => setActiveTab('programming')}
+              >
+                <i className="bi bi-code-slash me-2"></i>💻 Programming
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+
+
+      {/* Tab Content */}
+      {/* English SECTION - ENHANCED */}
+      {activeTab === 'overview' && <OverviewTab />}
+
+      {activeTab === 'english' && (
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm" style={{border: '1px solid #d4edda'}}>
+            <div className="card-header text-dark" style={{backgroundColor: '#d4edda', borderBottom: '1px solid #c3e6cb'}}>
+              <h4 className="mb-0">
+                <i className="bi bi-book me-2"></i>English Performance
+              </h4>
+            </div>
+            {/* Traditional Table (Enhanced) */}
+              <div className="row mb-4">
+                <div className="col-12">
+                  <div className="card">
+                    <div className="card-header">
+                      <h5 className="mb-0">Detailed Student Performance</h5>
+                    </div>
+                    <div className="card-body">
+                      <div className="table-responsive">
+                        <table className="table table-striped">
+                          <thead>
+                            <tr>
+                              <th>Student</th>
+                              <th>Last Activity</th>
+                              <th>Topic</th>
+                              <th>Questions</th>
+                              <th>Accuracy</th>
+                              <th>Performance Trend</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {vocabularyData.slice(0, showMoreVocab ? vocabularyData.length : 5).map((user, index) => {
+                              const progressData = vocabularyInsights.learningProgress.find(p => p.username === user.username);
+                              return (
+                                <tr key={index}>
+                                  <td><strong>{user.username}</strong></td>
+                                  <td>{user.lastActivity}</td>
+                                  <td>
+                                    <span className="badge bg-primary">{user.topic}</span>
+                                  </td>
+                                  <td>{user.totalQuestions}</td>
+                                  <td>
+                                    <div className="d-flex align-items-center">
+                                      <div className="progress me-2" style={{width: '60px', height: '8px'}}>
+                                        <div 
+                                          className={`progress-bar ${user.averagePercentage >= 80 ? 'bg-success' : user.averagePercentage >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                          style={{width: `${user.averagePercentage}%`}}
+                                        ></div>
+                                      </div>
+                                      <span>{user.averagePercentage}%</span>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    {progressData ? (
+                                      <span className={`badge ${progressData.improvementRate > 0 ? 'bg-success' : 'bg-secondary'}`}>
+                                        {progressData.improvementRate > 0 ? '↗️' : '➡️'} 
+                                        {progressData.improvementRate.toFixed(1)}%
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted">Need more data</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {vocabularyData.length > 5 && (
+                        <div className="text-center">
+                          <button 
+                            className="btn btn-secondary"
+                            onClick={() => setShowMoreVocab(!showMoreVocab)}
+                          >
+                            {showMoreVocab ? 'Show Less' : 'Show More'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <div className="card-body">
+
+              
+              {/* CEFR Level Distribution */}
+              <div className="row mb-4">
+                <div className="col-md-6">
+                  <div className="card">
+                    <div className="card-header">
+                      <h5 className="mb-0">CEFR Level Performance</h5>
+                      <small className="text-muted">Common European Framework of Reference</small>
+                    </div>
+                    <div className="card-body">
+                      {Object.entries(vocabularyInsights.cefrLevelDistribution).map(([level, data]) => {
+                        const accuracy = ((data.correct / data.total) * 100).toFixed(1);
+                        return (
+                          <div key={level} className="mb-3">
+                            <div className="d-flex justify-content-between">
+                              <span><strong>{level}</strong> ({data.total} questions)</span>
+                              <span>{accuracy}%</span>
+                            </div>
+                            <div className="progress" style={{height: '8px'}}>
+                              <div 
+                                className={`progress-bar ${accuracy >= 80 ? 'bg-success' : accuracy >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                style={{width: `${accuracy}%`}}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Topic Performance */}
+                <div className="col-md-6">
+                  <div className="card">
+                    <div className="card-header">
+                      <h5 className="mb-0">Topic Performance Overview</h5>
+                    </div>
+                    <div className="card-body" style={{maxHeight: '400px', overflowY: 'auto'}}>
+                      {Object.entries(vocabularyInsights.topicPerformance)
+                        .sort(([,a], [,b]) => (b.correct/b.total) - (a.correct/a.total))
+                        .map(([topic, data]) => {
+                          const accuracy = ((data.correct / data.total) * 100).toFixed(1);
+                          return (
+                            <div key={topic} className="mb-2">
+                              <div className="d-flex justify-content-between align-items-center">
+                                <small><strong>{topic}</strong></small>
+                                <div className="d-flex align-items-center">
+                                  <span className="badge bg-secondary me-2">{data.users.size} students</span>
+                                  <span className="text-muted">{accuracy}%</span>
+                                </div>
+                              </div>
+                              <div className="progress" style={{height: '4px'}}>
+                                <div 
+                                  className={`progress-bar ${accuracy >= 75 ? 'bg-success' : accuracy >= 50 ? 'bg-warning' : 'bg-danger'}`}
+                                  style={{width: `${accuracy}%`}}
+                                ></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Weak and Strong Areas */}
+              <div className="row mb-4">
+                <div className="col-md-6">
+                  <div className="card border-danger">
+                    <div className="card-header bg-danger text-white">
+                      <h5 className="mb-0">Areas Needing Attention</h5>
+                    </div>
+                    <div className="card-body">
+                    {vocabularyInsights.weakAreas.length === 0 ? (
+                      <p className="text-muted">No weak areas identified. Great job!</p>
+                    ) : (
+                      vocabularyInsights.weakAreas
+                        .sort((a, b) => a.accuracy - b.accuracy) // Sort by accuracy (lowest first)
+                        .slice(0, 3) // Take only the first 3 (top 3 weakest)
+                        .map((area, index) => (
+                          <div key={index} className="mb-3 p-3 border-start border-danger border-3">
+                            <h6 className="text-danger">{area.topic}</h6>
+                            <p className="mb-1">Accuracy: <strong>{area.accuracy}%</strong></p>
+                            <p className="mb-0 text-muted">{area.studentsAttempted} students, {area.totalQuestions} questions</p>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                  </div>
+                </div>
+
+                <div className="col-md-6">
+                  <div className="card border-success">
+                    <div className="card-header bg-success text-white">
+                      <h5 className="mb-0">Strong Performance Areas</h5>
+                    </div>
+                    <div className="card-body">
+                      {vocabularyInsights.strongAreas.length === 0 ? (
+                        <p className="text-muted">Keep working to identify strong areas!</p>
+                      ) : (
+                        vocabularyInsights.strongAreas.map((area, index) => (
+                          <div key={index} className="mb-3 p-3 border-start border-success border-3">
+                            <h6 className="text-success">{area.topic}</h6>
+                            <p className="mb-1">Accuracy: <strong>{area.accuracy}%</strong></p>
+                            <p className="mb-0 text-muted">{area.studentsAttempted} students, {area.totalQuestions} questions</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      ) : (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
-          <div style={{ display: 'flex', gap: '2rem' }}>
-            {/* Sidebar */}
-            <div style={{ width: '280px' }}>
-              <div style={{
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  padding: '1rem',
-                  borderBottom: '1px solid #dee2e6'
-                }}>
-                  <h6 style={{ margin: 0, color: '#3498db', fontWeight: 'bold' }}>
-                    {classroomData.classrooms.find(c => c._id === dashboardState.selectedClassroom)?.name || 'Classroom'}
-                  </h6>
-                </div>
-                <div>
-                  {['overview', 'mathematics', 'english', 'programming', 'individual'].map(tab => (
-                    <button 
-                      key={tab}
-                      style={{
-                        width: '100%',
-                        padding: '1rem',
-                        border: 'none',
-                        backgroundColor: dashboardState.activeTab === tab ? '#3498db' : 'transparent',
-                        color: dashboardState.activeTab === tab ? 'white' : '#333',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        borderBottom: '1px solid #f8f9fa',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      onClick={() => setDashboardState(prev => ({ ...prev, activeTab: tab }))}
-                    >
-                      <span style={{ marginRight: '0.5rem' }}>
-                        {tab === 'overview' && '📊'}
-                        {tab === 'mathematics' && '🧮'}
-                        {tab === 'english' && '📚'}
-                        {tab === 'programming' && '💻'}
-                        {tab === 'individual' && '👤'}
-                      </span>
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
+      </div>
+      )}
 
-              <div style={{
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                marginTop: '1rem',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  padding: '1rem',
-                  borderBottom: '1px solid #dee2e6'
-                }}>
-                  <h6 style={{ margin: 0, color: '#28a745', fontWeight: 'bold' }}>Classroom Insights</h6>
-                </div>
-                <div style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.875rem' }}>Total Students:</span>
-                    <strong>{classroomData.classroomStats.totalStudents || 0}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.875rem' }}>Engagement:</span>
-                    <strong style={{ color: '#28a745' }}>{classroomData.classroomStats.overallEngagement || 0}%</strong>
-                  </div>
-                  <hr style={{ margin: '0.5rem 0', border: 'none', borderTop: '1px solid #dee2e6' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.875rem' }}>Math Active:</span>
-                    <strong style={{ color: '#3498db' }}>{classroomData.classroomStats.mathParticipation || 0}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.875rem' }}>English Active:</span>
-                    <strong style={{ color: '#17a2b8' }}>{classroomData.classroomStats.englishParticipation || 0}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.875rem' }}>Programming Active:</span>
-                    <strong style={{ color: '#ffc107' }}>{classroomData.classroomStats.programmingParticipation || 0}</strong>
-                  </div>
-                  
-                  {dashboardState.lastUpdated && (
-                    <div style={{ 
-                      marginTop: '1rem', 
-                      paddingTop: '0.5rem', 
-                      borderTop: '1px solid #dee2e6' 
-                    }}>
-                      <small style={{ color: '#6c757d' }}>
-                        Last updated: {dashboardState.lastUpdated.toLocaleTimeString()}
-                      </small>
-                    </div>
-                  )}
-                </div>
-              </div>
+
+     {/* Math SECTION - ENHANCED */}
+      {activeTab === 'math' && (
+            
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm" style={{border: '1px solid #bee5eb'}}>
+            <div className="card-header text-dark" style={{backgroundColor: '#bee5eb', borderBottom: '1px solid #a6d9e0'}}>
+              <h4 className="mb-0">
+                <i className="bi bi-calculator me-2"></i>Math Performance
+              </h4>
             </div>
-
-            {/* Main Content Area */}
-            <div style={{ flex: 1 }}>
-              {dashboardState.activeTab === 'overview' && (
-                <div>
-                  {/* Stats Cards */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                    <div style={{
-                      background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      padding: '1.5rem',
-                      textAlign: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem', opacity: 0.75 }}>👥</div>
-                      <h3 style={{ margin: '0 0 0.25rem 0' }}>{classroomData.selectedClassroomStudents.length}</h3>
-                      <small>Total Students</small>
+            <div className="card-body">
+              
+              {/* Enhanced Math Analytics Section */}
+              {/* Math Performance Metrics Dashboard */}
+              <div className="row mb-4">
+                <div className="col-12">
+                  <div className="card">
+                    <div className="card-header bg-info text-white">
+                      <h5 className="mb-0">Math Learning Metrics Overview</h5>
                     </div>
-                    <div style={{
-                      background: 'linear-gradient(135deg, #28a745 0%, #218838 100%)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      padding: '1.5rem',
-                      textAlign: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem', opacity: 0.75 }}>📈</div>
-                      <h3 style={{ margin: '0 0 0.25rem 0' }}>
-                        {analyticsData.studentProgress.length > 0 
-                          ? Math.round(analyticsData.studentProgress.reduce((sum, student) => sum + student.overallAccuracy, 0) / analyticsData.studentProgress.length)
-                          : 0}%
-                      </h3>
-                      <small>Class Average</small>
-                    </div>
-                    <div style={{
-                      background: 'linear-gradient(135deg, #ffc107 0%, #e0a800 100%)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      padding: '1.5rem',
-                      textAlign: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem', opacity: 0.75 }}>⚠️</div>
-                      <h3 style={{ margin: '0 0 0.25rem 0' }}>
-                        {analyticsData.studentProgress.filter(s => s.needsAttention).length}
-                      </h3>
-                      <small>Need Attention</small>
-                    </div>
-                    <div style={{
-                      background: 'linear-gradient(135deg, #17a2b8 0%, #138496 100%)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      padding: '1.5rem',
-                      textAlign: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
-                      <div style={{ fontSize: '2rem', marginBottom: '0.5rem', opacity: 0.75 }}>🏆</div>
-                      <h3 style={{ margin: '0 0 0.25rem 0' }}>
-                        {analyticsData.studentProgress.filter(s => s.overallAccuracy >= 80).length}
-                      </h3>
-                      <small>High Performers</small>
+                    <div className="card-body">
+                      <div className="row">
+                        <div className="col-md">
+                          <div className="text-center p-3 border rounded bg-light">
+                            <h3 className="text-primary">{mathMetrics?.averageMasteryLevel || 0}%</h3>
+                            <p className="mb-0 text-muted">Average Mastery Level</p>
+                          </div>
+                        </div>
+                        <div className="col-md">
+                          <div className="text-center p-3 border rounded bg-light">
+                            <h3 className="text-warning">{mathMetrics?.studentsAtRisk || 0}%</h3>
+                            <p className="mb-0 text-muted">Students At Risk</p>
+                          </div>
+                        </div>
+                        <div className="col-md">
+                          <div className="text-center p-3 border rounded bg-light">
+                            <h3 className="text-success">{mathMetrics?.conceptualUnderstanding || 0}%</h3>
+                            <p className="mb-0 text-muted">Conceptual Understanding</p>
+                          </div>
+                        </div>
+                        <div className="col-md">
+                          <div className="text-center p-3 border rounded bg-light">
+                            <h3 className="text-info">{mathMetrics?.practiceEfficiency || 0}%</h3>
+                            <p className="mb-0 text-muted">Practice Efficiency</p>
+                          </div>
+                        </div>
+                        <div className="col-md">
+                          <div className="text-center p-3 border rounded bg-light">
+                            <h3 className="text-secondary">{mathMetrics?.overallEngagement || 0}%</h3>
+                            <p className="mb-0 text-muted">Student Engagement</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* Student Progress Table */}
-                  <div style={{ marginBottom: '2rem' }}>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>Student Progress Overview</h5>
-                        <small style={{ color: '#6c757d' }}>Real-time data from MongoDB collections</small>
-                      </div>
-                      <div style={{ padding: '1rem' }}>
-                        {analyticsData.studentProgress.length > 0 ? (
-                          <div style={{ overflowX: 'auto' }}>
-                            <table style={{ 
-                              width: '100%', 
-                              borderCollapse: 'collapse',
-                              fontFamily: "'Open Sans', sans-serif"
-                            }}>
-                              <thead>
-                                <tr style={{ backgroundColor: '#f8f9fa' }}>
-                                  <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Student</th>
-                                  <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Progress</th>
-                                  <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Exercises</th>
-                                  <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Strong Areas</th>
-                                  <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Needs Work</th>
-                                  <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Last Activity</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {analyticsData.studentProgress.map((student, index) => (
-                                  <tr key={index} style={{ 
-                                    backgroundColor: student.needsAttention ? '#fff3cd' : 'transparent',
-                                    borderBottom: '1px solid #dee2e6'
-                                  }}>
-                                    <td style={{ padding: '0.75rem' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <div style={{
-                                          backgroundColor: '#f8f9fa',
-                                          borderRadius: '50%',
-                                          padding: '0.5rem',
-                                          marginRight: '0.75rem'
-                                        }}>
-                                          👤
-                                        </div>
-                                        <div>
-                                          <h6 style={{ margin: 0 }}>{student.name || `Student ${student.id?.slice(-4) || 'Unknown'}`}</h6>
-                                          <small style={{ color: '#6c757d' }}>{student.email}</small>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td style={{ padding: '0.75rem' }}>
-                                      {renderMiniProgressBars(student)}
-                                    </td>
-                                    <td style={{ padding: '0.75rem' }}>
-                                      <span style={{
-                                        padding: '0.25rem 0.5rem',
-                                        backgroundColor: '#6c757d',
-                                        color: 'white',
-                                        borderRadius: '4px',
-                                        fontSize: '0.875rem'
-                                      }}>
-                                        {student.totalQuestions}
-                                      </span>
-                                    </td>
-                                    <td style={{ padding: '0.75rem' }}>
-                                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                                        {student.strongSubjects.map(subject => (
-                                          <span key={subject} style={{
-                                            padding: '0.25rem 0.5rem',
-                                            backgroundColor: '#28a745',
-                                            color: 'white',
-                                            borderRadius: '4px',
-                                            fontSize: '0.75rem'
-                                          }}>
-                                            {subject}
-                                          </span>
-                                        ))}
-                                        {student.strongSubjects.length === 0 && (
-                                          <span style={{ color: '#6c757d', fontSize: '0.875rem' }}>None yet</span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td style={{ padding: '0.75rem' }}>
-                                      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                                        {student.weakSubjects.map(subject => (
-                                          <span key={subject} style={{
-                                            padding: '0.25rem 0.5rem',
-                                            backgroundColor: '#dc3545',
-                                            color: 'white',
-                                            borderRadius: '4px',
-                                            fontSize: '0.75rem'
-                                          }}>
-                                            {subject}
-                                          </span>
-                                        ))}
-                                        {student.weakSubjects.length === 0 && (
-                                          <span style={{ color: '#6c757d', fontSize: '0.875rem' }}>Doing well</span>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td style={{ padding: '0.75rem' }}>
-                                      {student.lastActivity 
-                                        ? new Date(student.lastActivity).toLocaleDateString() 
-                                        : 'No activity'}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+              {/* Topic Mastery Analysis */}
+              <div className="row mb-4">
+                <div className="col-md-8">
+                  <div className="card">
+                    <div className="card-header">
+                      <h5 className="mb-0">Topic Mastery Overview</h5>
+                    </div>
+                    <div className="card-body" style={{maxHeight: '400px', overflowY: 'auto'}}>
+                      {mathInsights?.topicMastery && Object.entries(mathInsights.topicMastery).length > 0 ? (
+                        Object.entries(mathInsights.topicMastery)
+                          .sort(([,a], [,b]) => (b.masteredStudents/b.totalStudents) - (a.masteredStudents/a.totalStudents))
+                          .map(([topic, data]) => {
+                            const masteryRate = data.totalStudents > 0 ? (data.masteredStudents / data.totalStudents) * 100 : 0;
+                            const accuracy = data.questionStats.total > 0 ? (data.questionStats.correct / data.questionStats.total) * 100 : 0;
+                            return (
+                              <div key={topic} className="mb-3 p-3 border rounded">
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <h6 className="mb-0">{topic.charAt(0).toUpperCase() + topic.slice(1)}</h6>
+                                  <div className="d-flex gap-2">
+                                    <span className="badge bg-primary">{data.masteredStudents}/{data.totalStudents} mastered</span>
+                                    <span className="badge bg-secondary">{accuracy.toFixed(1)}% accuracy</span>
+                                  </div>
+                                </div>
+                                <div className="progress mb-2" style={{height: '8px'}}>
+                                  <div 
+                                    className={`progress-bar ${masteryRate >= 80 ? 'bg-success' : masteryRate >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                    style={{width: `${accuracy}%`}}
+                                  ></div>
+                                </div>
+                                <small className="text-muted">
+                                  {masteryRate.toFixed(1)}% mastery rate • {data.questionStats.total} questions attempted
+                                </small>
+                              </div>
+                            );
+                          })
+                      ) : (
+                        <div className="text-center py-4">
+                          <i className="bi bi-trophy fs-2 text-muted"></i>
+                          <p className="text-muted mt-2 mb-0">No topic mastery data available yet.</p>
+                          <small className="text-muted">Data will appear once students complete algebra assessments.</small>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Difficulty Analysis - SAFE VERSION */}
+                <div className="col-md-4">
+                  <div className="card">
+                    <div className="card-header">
+                      <h5 className="mb-0">Performance by Difficulty</h5>
+                    </div>
+                    <div className="card-body">
+                      {Array.isArray(mathInsights?.difficultyAnalysis) && mathInsights.difficultyAnalysis.length > 0 ? (
+                        mathInsights.difficultyAnalysis.map((diff, index) => (
+                          <div key={index} className="mb-3">
+                            <div className="d-flex justify-content-between">
+                              <span className="fw-bold text-capitalize">{diff.level}</span>
+                              <span>{diff.accuracy ? diff.accuracy.toFixed(1) : 0}%</span>
+                            </div>
+                            <div className="progress mb-1" style={{height: '10px'}}>
+                              <div 
+                                className={`progress-bar ${
+                                  diff.level === 'easy' ? 'bg-success' : 
+                                  diff.level === 'medium' ? 'bg-warning' : 'bg-danger'
+                                }`}
+                                style={{width: `${diff.accuracy || 0}%`}}
+                              ></div>
+                            </div>
+                            <small className="text-muted">{diff.correctAnswers || 0}/{diff.totalQuestions || 0} correct</small>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-4">
+                          <i className="bi bi-bar-chart fs-2 text-muted"></i>
+                          <p className="text-muted mt-2 mb-0">No difficulty analysis data available yet.</p>
+                          <small className="text-muted">Data will appear once students complete assessments.</small>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Areas Needing Attention & Strengths - SAFE VERSION */}
+              <div className="row mb-4">
+                <div className="col-md-6">
+                  <div className="card border-warning">
+                    <div className="card-header bg-warning text-dark">
+                      <h5 className="mb-0">⚠️ Conceptual Gaps Identified</h5>
+                    </div>
+                    <div className="card-body">
+                      {Array.isArray(mathInsights?.conceptualGaps) ? (
+                        mathInsights.conceptualGaps.length === 0 ? (
+                          <div className="text-center py-3">
+                            <i className="bi bi-check-circle fs-2 text-success"></i>
+                            <p className="text-muted mt-2 mb-0">No significant conceptual gaps identified.</p>
+                            <small className="text-success">Excellent progress!</small>
                           </div>
                         ) : (
-                          <div style={{ textAlign: 'center', padding: '2rem' }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👥</div>
-                            <p style={{ color: '#6c757d', marginBottom: '0.5rem' }}>No student data available yet</p>
-                            <p style={{ color: '#6c757d', margin: 0 }}>Students need to complete exercises to see analytics</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Subject Comparison Chart */}
-                  <div>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>Subject Performance Comparison</h5>
-                        <small style={{ color: '#6c757d' }}>Based on exercise data from all collections</small>
-                      </div>
-                      <div style={{ padding: '1rem' }}>
-                        <div style={{ height: '400px' }}>
-                          {analyticsData.studentProgress.length > 0 ? (
-                            <Bar 
-                              data={prepareSubjectComparisonChart()} 
-                              options={{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                  legend: { position: 'top' },
-                                  tooltip: {
-                                    callbacks: {
-                                      label: (context) => `${context.dataset.label}: ${context.raw}%`
-                                    }
-                                  }
-                                },
-                                scales: {
-                                  y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    ticks: { callback: (value) => value + '%' }
-                                  }
-                                }
-                              }} 
-                            />
-                          ) : (
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              height: '100%' 
-                            }}>
-                              <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
-                                <p style={{ color: '#6c757d', margin: 0 }}>No student data available yet</p>
+                          mathInsights.conceptualGaps
+                            .sort((a, b) => a.severity === 'critical' ? -1 : 1)
+                            .map((gap, index) => (
+                              <div key={index} className={`alert alert-${gap.severity === 'critical' ? 'danger' : gap.severity === 'moderate' ? 'warning' : 'info'} mb-3`}>
+                                <h6 className="alert-heading">{gap.topic}</h6>
+                                <div className="row">
+                                  <div className="col-6">
+                                    <small><strong>Mastery Rate:</strong> {gap.masteryRate || 0}%</small>
+                                  </div>
+                                  <div className="col-6">
+                                    <small><strong>Accuracy:</strong> {gap.accuracy || 0}%</small>
+                                  </div>
+                                </div>
+                                <small className="text-muted">
+                                  {gap.studentsStrugglingCount || 0} of {gap.totalStudents || 0} students need support
+                                </small>
                               </div>
-                            </div>
-                          )}
+                            ))
+                        )
+                      ) : (
+                        <div className="text-center py-3">
+                          <i className="bi bi-hourglass-split fs-2 text-muted"></i>
+                          <p className="text-muted mt-2 mb-0">Loading gap analysis...</p>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              )}
 
-              {/* Mathematics Tab */}
-              {dashboardState.activeTab === 'mathematics' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                    <h4 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ marginRight: '0.5rem', color: '#3498db' }}>🧮</span>
-                      Mathematics Analytics
-                    </h4>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <span style={{
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: '#17a2b8',
-                        color: 'white',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem'
-                      }}>
-                        {analyticsData.mathFingerExercises.length} exercises tracked
-                      </span>
-                      <button 
-                        style={{
-                          padding: '0.5rem 1rem',
-                          border: '1px solid #3498db',
-                          borderRadius: '4px',
-                          backgroundColor: 'transparent',
-                          color: '#3498db',
-                          cursor: 'pointer',
-                          fontSize: '0.875rem'
-                        }}
-                        onClick={() => fetchClassroomAnalytics(dashboardState.selectedClassroom)}
-                      >
-                        🔄 Refresh
-                      </button>
+                <div className="col-md-6">
+                  <div className="card border-success">
+                    <div className="card-header bg-success text-white">
+                      <h5 className="mb-0">💪 Strength Areas</h5>
                     </div>
-                  </div>
-
-                  {/* Math Topic Performance Chart and Analysis */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>Topic Performance</h5>
-                        <small style={{ color: '#6c757d' }}>Data from MathScores, Diagnostic, Arithmetic, Algebra & CT collections</small>
-                      </div>
-                      <div style={{ padding: '1rem' }}>
-                        <div style={{ height: '350px' }}>
-                          {Object.keys(analyticsData.mathTopicPerformance).length > 0 ? (
-                            <Bar 
-                              data={prepareTopicPerformanceChart('math')} 
-                              options={{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                  legend: { display: false },
-                                  tooltip: {
-                                    callbacks: {
-                                      label: (context) => `Success Rate: ${context.raw}%`
-                                    }
-                                  }
-                                },
-                                scales: {
-                                  y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    ticks: { callback: (value) => value + '%' }
-                                  }
-                                }
-                              }} 
-                            />
-                          ) : (
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              height: '100%' 
-                            }}>
-                              <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🧮</div>
-                                <p style={{ color: '#6c757d', marginBottom: '0.5rem' }}>No mathematics data available</p>
-                                <p style={{ color: '#6c757d', fontSize: '0.875rem', margin: 0 }}>Students need to complete math exercises</p>
+                    <div className="card-body">
+                      {Array.isArray(mathInsights?.strengthAreas) ? (
+                        mathInsights.strengthAreas.length === 0 ? (
+                          <div className="text-center py-3">
+                            <i className="bi bi-arrow-up fs-2 text-muted"></i>
+                            <p className="text-muted mt-2 mb-0">Continue building strengths across all topics.</p>
+                            <small className="text-muted">Strength areas will appear as students improve.</small>
+                          </div>
+                        ) : (
+                          mathInsights.strengthAreas.map((strength, index) => (
+                            <div key={index} className="alert alert-success mb-3">
+                              <h6 className="alert-heading">{strength.topic}</h6>
+                              <div className="row">
+                                <div className="col-6">
+                                  <small><strong>Mastery Rate:</strong> {strength.masteryRate || 0}%</small>
+                                </div>
+                                <div className="col-6">
+                                  <small><strong>Accuracy:</strong> {strength.accuracy || 0}%</small>
+                                </div>
                               </div>
+                              <small className="text-muted">
+                                {strength.masteredStudents || 0} of {strength.totalStudents || 0} students have mastered this topic
+                              </small>
                             </div>
-                          )}
+                          ))
+                        )
+                      ) : (
+                        <div className="text-center py-3">
+                          <i className="bi bi-hourglass-split fs-2 text-muted"></i>
+                          <p className="text-muted mt-2 mb-0">Loading strength analysis...</p>
                         </div>
-                      </div>
-                    </div>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>Data Sources</h5>
-                        <small style={{ color: '#6c757d' }}>MongoDB collections</small>
-                      </div>
-                      <div style={{ padding: '1rem' }}>
-                        <div style={{ fontSize: '0.875rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span>Diagnostic Tests:</span>
-                            <strong>{analyticsData.mathFingerExercises.filter(e => e.sourceCollection === 'MathematicsDiagnosticScore').length}</strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span>Math Scores:</span>
-                            <strong>{analyticsData.mathFingerExercises.filter(e => e.sourceCollection === 'MathScores').length}</strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span>Arithmetic:</span>
-                            <strong>{analyticsData.mathFingerExercises.filter(e => e.sourceCollection === 'ArithmeticScore').length}</strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span>Algebra:</span>
-                            <strong>{analyticsData.mathFingerExercises.filter(e => e.sourceCollection === 'AlgebraScores').length}</strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <span>CT Foundation:</span>
-                            <strong>{analyticsData.mathFingerExercises.filter(e => e.sourceCollection === 'CTFingerScore').length}</strong>
-                          </div>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* Detailed Topic Analysis Table */}
-                  <div>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>Detailed Topic Analysis</h5>
-                        <small style={{ color: '#6c757d' }}>Class performance across all math topics</small>
-                      </div>
-                      <div style={{ padding: '1rem', overflowX: 'auto' }}>
-                        <table style={{ 
-                          width: '100%', 
-                          borderCollapse: 'collapse',
-                          fontFamily: "'Open Sans', sans-serif"
-                        }}>
+              {/* Individual Student Performance Analysis - SAFE VERSION */}
+              <div className="row mb-4">
+                <div className="col-12">
+                  <div className="card">
+                    <div className="card-header">
+                      <h5 className="mb-0">Individual Student Analysis</h5>
+                    </div>
+                    <div className="card-body">
+                      <div className="table-responsive">
+                        <table className="table table-striped">
                           <thead>
-                            <tr style={{ backgroundColor: '#f8f9fa' }}>
-                              <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Topic</th>
-                              <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Students</th>
-                              <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Questions</th>
-                              <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Success Rate</th>
-                              <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Avg Time</th>
-                              <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid #dee2e6' }}>Status</th>
+                            <tr>
+                              <th>Student</th>
+                              <th>Overall Accuracy</th>
+                              <th>Learning Trend</th>
+                              <th>Time Efficiency</th>
+                              <th>Weak Areas</th>
+                              <th>Recommendation</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {Object.entries(analyticsData.mathTopicPerformance)
-                              .filter(([, stats]) => stats.totalQuestions > 0)
-                              .sort(([,a], [,b]) => b.totalQuestions - a.totalQuestions)
-                              .map(([topic, stats]) => (
-                                <tr key={topic} style={{ borderBottom: '1px solid #dee2e6' }}>
-                                  <td style={{ padding: '0.75rem', textTransform: 'capitalize' }}>
-                                    {topic.replace(/[-_]/g, ' ')}
-                                  </td>
-                                  <td style={{ padding: '0.75rem' }}>{stats.studentCount}</td>
-                                  <td style={{ padding: '0.75rem' }}>{stats.totalQuestions}</td>
-                                  <td style={{ padding: '0.75rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                      <div style={{
-                                        width: '60px',
-                                        height: '6px',
-                                        backgroundColor: '#e9ecef',
-                                        borderRadius: '3px',
-                                        marginRight: '0.5rem',
-                                        overflow: 'hidden'
-                                      }}>
+                            {mathInsights?.overallPerformance && Object.keys(mathInsights.overallPerformance).length > 0 ? (
+                              Object.entries(mathInsights.overallPerformance).map(([email, perf]) => (
+                                <tr key={email}>
+                                  <td><strong>{perf.username || 'Unknown'}</strong></td>
+                                  <td>
+                                    <div className="d-flex align-items-center">
+                                      <div className="progress me-2" style={{width: '60px', height: '8px'}}>
                                         <div 
-                                          style={{
-                                            width: `${stats.successRate}%`,
-                                            height: '100%',
-                                            backgroundColor: stats.successRate >= 80 ? '#28a745' : stats.successRate >= 60 ? '#ffc107' : '#dc3545'
-                                          }}
-                                        />
+                                          className={`progress-bar ${(perf.overallAccuracy || 0) >= 80 ? 'bg-success' : (perf.overallAccuracy || 0) >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                          style={{width: `${perf.overallAccuracy || 0}%`}}
+                                        ></div>
                                       </div>
-                                      <span>{stats.successRate}%</span>
+                                      <span>{(perf.overallAccuracy || 0).toFixed(1)}%</span>
                                     </div>
                                   </td>
-                                  <td style={{ padding: '0.75rem' }}>{stats.averageTime}s</td>
-                                  <td style={{ padding: '0.75rem' }}>
-                                    <span style={{
-                                      padding: '0.25rem 0.5rem',
-                                      backgroundColor: stats.successRate >= 80 ? '#28a745' : stats.successRate >= 60 ? '#ffc107' : '#dc3545',
-                                      color: 'white',
-                                      borderRadius: '4px',
-                                      fontSize: '0.75rem'
-                                    }}>
-                                      {stats.successRate >= 80 ? 'Excellent' : 
-                                       stats.successRate >= 60 ? 'Good' : 'Needs Work'}
+                                  <td>
+                                    <span className={`badge ${
+                                      perf.improvementTrend === 'strong_improvement' ? 'bg-success' :
+                                      perf.improvementTrend === 'moderate_improvement' ? 'bg-info' :
+                                      perf.improvementTrend === 'stable' ? 'bg-secondary' :
+                                      perf.improvementTrend === 'declining' ? 'bg-danger' : 'bg-warning'
+                                    }`}>
+                                      {perf.improvementTrend === 'strong_improvement' ? '📈 Excellent' :
+                                      perf.improvementTrend === 'moderate_improvement' ? '📊 Good' :
+                                      perf.improvementTrend === 'stable' ? '➡️ Stable' :
+                                      perf.improvementTrend === 'declining' ? '📉 Declining' : '❓ Need Data'}
                                     </span>
                                   </td>
+                                  <td>
+                                    <span className="text-muted">{(perf.avgTimePerQuestion || 0).toFixed(1)}s/q</span>
+                                  </td>
+                                  <td>
+                                    {Array.isArray(perf.weaknessAreas) && perf.weaknessAreas.length > 0 ? (
+                                      <div>
+                                        {perf.weaknessAreas.slice(0, 2).map((weak, i) => (
+                                          <span key={i} className="badge bg-warning me-1">{weak}</span>
+                                        ))}
+                                        {perf.weaknessAreas.length > 2 && <span className="text-muted">+{perf.weaknessAreas.length - 2} more</span>}
+                                      </div>
+                                    ) : (
+                                      <span className="text-success">No major weaknesses</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <small className="text-muted">
+                                      {(perf.overallAccuracy || 0) < 60 ? 'Focus on fundamentals' :
+                                      perf.improvementTrend === 'declining' ? 'Needs intervention' :
+                                      (perf.overallAccuracy || 0) >= 85 ? 'Ready for advanced topics' :
+                                      'Continue current pace'}
+                                    </small>
+                                  </td>
                                 </tr>
-                              ))}
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="6" className="text-center py-4">
+                                  <i className="bi bi-person-plus fs-2 text-muted"></i>
+                                  <p className="text-muted mt-2 mb-0">No student performance data available yet.</p>
+                                  <small className="text-muted">Data will appear once students complete math assessments.</small>
+                                </td>
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {/* English Tab */}
-              {dashboardState.activeTab === 'english' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                    <h4 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ marginRight: '0.5rem', color: '#17a2b8' }}>📚</span>
-                      English Analytics
-                    </h4>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <span style={{
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: '#17a2b8',
-                        color: 'white',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem'
-                      }}>
-                        {analyticsData.englishFingerExercises.length} exercises tracked
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* English Topic Performance and Analysis - Similar structure to Math */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>English Topic Performance</h5>
-                        <small style={{ color: '#6c757d' }}>Success rates across English skills</small>
-                      </div>
-                      <div style={{ padding: '1rem' }}>
-                        <div style={{ height: '350px' }}>
-                          {Object.keys(analyticsData.englishTopicPerformance).length > 0 ? (
-                            <Bar 
-                              data={prepareTopicPerformanceChart('english')} 
-                              options={{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                  legend: { display: false }
-                                },
-                                scales: {
-                                  y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    ticks: { callback: (value) => value + '%' }
-                                  }
-                                }
-                              }} 
-                            />
-                          ) : (
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              height: '100%' 
-                            }}>
-                              <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
-                                <p style={{ color: '#6c757d', margin: 0 }}>No English data available yet</p>
-                              </div>
-                            </div>
-                          )}
+            
+              {/* Enhanced Pre-Post Diagnostic Analysis */}
+              {enhancedDiagnosticInsights?.prePostComparison && enhancedDiagnosticInsights.prePostComparison.length > 0 && (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header bg-primary text-white">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <h5 className="mb-0">
+                            <i className="bi bi-graph-up me-2"></i>
+                            Pre-Post Diagnostic Analysis
+                          </h5>
+                          <select
+                            className="form-select w-auto"
+                            value={selectedDiagnosticTopic}
+                            onChange={(e) => setSelectedDiagnosticTopic(e.target.value)}
+                          >
+                            <option value="arithmetic">Arithmetic</option>
+                            <option value="pre-algebra">Pre-Algebra</option>
+                            <option value="algebra">Algebra</option>
+                            <option value="geometry">Geometry</option>
+                            <option value="trigonometry">Trigonometry</option>
+                            <option value="calculus">Calculus</option>
+                            <option value="statistics">Statistics</option>
+                            <option value="probability">Probability</option>
+                          </select>
                         </div>
                       </div>
-                    </div>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>English Skills Breakdown</h5>
-                      </div>
-                      <div style={{ padding: '1rem' }}>
-                        {Object.keys(analyticsData.englishTopicPerformance).length > 0 ? (
-                          Object.entries(analyticsData.englishTopicPerformance)
-                            .filter(([, stats]) => stats.totalQuestions > 0)
-                            .slice(0, 4)
-                            .map(([topic, stats]) => (
-                              <div key={topic} style={{ marginBottom: '1rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                                  <span style={{ fontSize: '0.875rem', textTransform: 'capitalize' }}>
-                                    {topic.replace(/[-_]/g, ' ')}
-                                  </span>
-                                  <strong>{stats.successRate}%</strong>
-                                </div>
-                                <div style={{
-                                  width: '100%',
-                                  height: '8px',
-                                  backgroundColor: '#e9ecef',
-                                  borderRadius: '4px',
-                                  overflow: 'hidden'
-                                }}>
-                                  <div style={{
-                                    width: `${stats.successRate}%`,
-                                    height: '100%',
-                                    backgroundColor: stats.successRate >= 80 ? '#28a745' : stats.successRate >= 60 ? '#ffc107' : '#dc3545'
-                                  }} />
-                                </div>
-                              </div>
-                            ))
+                      
+                      <div className="card-body">
+                        {loadingDiagnostics ? (
+                          <div className="text-center py-4">
+                            <div className="spinner-border text-primary" role="status">
+                              <span className="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading diagnostic comparisons...</p>
+                          </div>
+                        ) : diagnosticComparisonData.length > 0 ? (
+                          <>
+                            <div style={{ height: '500px' }}>
+                              <Bar
+                                data={prepareDiagnosticChartData()}
+                                options={diagnosticChartOptions}
+                              />
+                            </div>
+                            
+                            <div className="mt-4">
+                              <EnhancedPrePostDiagnosticTable 
+                                comparisonData={enhancedDiagnosticInsights.prePostComparison} 
+                              />
+                            </div>
+                          </>
                         ) : (
-                          <p style={{ color: '#6c757d', textAlign: 'center' }}>No English data available</p>
+                          <div className="text-center py-4">
+                            <p className="text-muted">No diagnostic comparison data available</p>
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* Programming Tab */}
-              {dashboardState.activeTab === 'programming' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                    <h4 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ marginRight: '0.5rem', color: '#ffc107' }}>💻</span>
-                      Programming Analytics
-                    </h4>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <span style={{
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: '#17a2b8',
-                        color: 'white',
-                        borderRadius: '4px',
-                        fontSize: '0.875rem'
-                      }}>
-                        {analyticsData.programmingFingerExercises.length} exercises tracked
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Programming Topic Performance and Analysis */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>Programming Topic Performance</h5>
-                        <small style={{ color: '#6c757d' }}>Success rates across programming concepts</small>
+              {/* Common Misconceptions - SAFE VERSION */}
+              {Array.isArray(enhancedDiagnosticInsights?.conceptualMisconceptions) && enhancedDiagnosticInsights.conceptualMisconceptions.length > 0 && (
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card border-warning">
+                      <div className="card-header bg-warning text-dark">
+                        <h5 className="mb-0">🧠 Common Misconceptions Identified</h5>
                       </div>
-                      <div style={{ padding: '1rem' }}>
-                        <div style={{ height: '350px' }}>
-                          {Object.keys(analyticsData.programmingTopicPerformance).length > 0 ? (
-                            <Bar 
-                              data={prepareTopicPerformanceChart('programming')} 
-                              options={{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                  legend: { display: false }
-                                },
-                                scales: {
-                                  y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    ticks: { callback: (value) => value + '%' }
-                                  }
-                                }
-                              }} 
-                            />
-                          ) : (
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center', 
-                              height: '100%' 
-                            }}>
-                              <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💻</div>
-                                <p style={{ color: '#6c757d', margin: 0 }}>No programming data available yet</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        padding: '1rem',
-                        borderBottom: '1px solid #dee2e6'
-                      }}>
-                        <h5 style={{ margin: 0 }}>Programming Concepts</h5>
-                      </div>
-                      <div style={{ padding: '1rem' }}>
-                        {Object.keys(analyticsData.programmingTopicPerformance).length > 0 ? (
-                          Object.entries(analyticsData.programmingTopicPerformance)
-                            .filter(([, stats]) => stats.totalQuestions > 0)
-                            .slice(0, 5)
-                            .map(([topic, stats]) => (
-                              <div key={topic} style={{ marginBottom: '1rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                                  <span style={{ fontSize: '0.875rem', textTransform: 'capitalize' }}>
-                                    {topic.replace(/[-_]/g, ' ')}
-                                  </span>
-                                  <strong>{stats.successRate}%</strong>
-                                </div>
-                                <div style={{
-                                  width: '100%',
-                                  height: '8px',
-                                  backgroundColor: '#e9ecef',
-                                  borderRadius: '4px',
-                                  overflow: 'hidden'
-                                }}>
-                                  <div style={{
-                                    width: `${stats.successRate}%`,
-                                    height: '100%',
-                                    backgroundColor: stats.successRate >= 80 ? '#28a745' : stats.successRate >= 60 ? '#ffc107' : '#dc3545'
-                                  }} />
-                                </div>
-                              </div>
-                            ))
-                        ) : (
-                          <p style={{ color: '#6c757d', textAlign: 'center' }}>No programming data available</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Individual Student Analysis Tab */}
-              {dashboardState.activeTab === 'individual' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                    <h4 style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                      <span style={{ marginRight: '0.5rem', color: '#6f42c1' }}>👤</span>
-                      Individual Student Analysis
-                    </h4>
-                    <select
-                      style={{
-                        padding: '0.5rem',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '4px',
-                        backgroundColor: 'white'
-                      }}
-                      value={dashboardState.selectedStudent || ''}
-                      onChange={(e) => setDashboardState(prev => ({ ...prev, selectedStudent: e.target.value }))}
-                    >
-                      <option value="">Select a student...</option>
-                      {analyticsData.studentProgress.map(student => (
-                        <option key={student.id} value={student.id}>
-                          {student.name} ({student.overallAccuracy}% overall)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {dashboardState.selectedStudent ? (
-                    (() => {
-                      const selectedStudentData = analyticsData.studentProgress.find(s => s.id === dashboardState.selectedStudent);
-                      return (
-                        <div>
-                          {/* Individual Student Profile */}
-                          <div style={{
-                            backgroundColor: 'white',
-                            borderRadius: '8px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                            padding: '2rem',
-                            marginBottom: '2rem'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-                              <div style={{
-                                width: '80px',
-                                height: '80px',
-                                borderRadius: '50%',
-                                backgroundColor: '#f8f9fa',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '2rem',
-                                marginRight: '1.5rem'
-                              }}>
-                                👤
-                              </div>
-                              <div style={{ flex: 1 }}>
-                                <h3 style={{ margin: '0 0 0.5rem 0' }}>{selectedStudentData.name}</h3>
-                                <p style={{ color: '#6c757d', margin: '0 0 0.5rem 0' }}>{selectedStudentData.email}</p>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                  <span style={{
-                                    padding: '0.25rem 0.5rem',
-                                    backgroundColor: selectedStudentData.overallAccuracy >= 80 ? '#28a745' : selectedStudentData.overallAccuracy >= 60 ? '#ffc107' : '#dc3545',
-                                    color: 'white',
-                                    borderRadius: '4px',
-                                    fontSize: '0.875rem'
-                                  }}>
-                                    Overall: {selectedStudentData.overallAccuracy}%
-                                  </span>
-                                  <span style={{ color: '#6c757d', fontSize: '0.875rem' }}>
-                                    {selectedStudentData.totalQuestions} exercises completed
-                                  </span>
-                                  {selectedStudentData.needsAttention && (
-                                    <span style={{
-                                      padding: '0.25rem 0.5rem',
-                                      backgroundColor: '#dc3545',
-                                      color: 'white',
-                                      borderRadius: '4px',
-                                      fontSize: '0.875rem'
-                                    }}>
-                                      ⚠️ Needs Attention
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Subject Performance Breakdown */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
-                              <div style={{ textAlign: 'center', padding: '1rem', border: '1px solid #dee2e6', borderRadius: '8px' }}>
-                                <h5 style={{ margin: '0 0 0.5rem 0', color: '#3498db' }}>Mathematics</h5>
-                                <div style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                                  {selectedStudentData.mathAccuracy}%
-                                </div>
-                                <div style={{
-                                  width: '100%',
-                                  height: '8px',
-                                  backgroundColor: '#e9ecef',
-                                  borderRadius: '4px',
-                                  overflow: 'hidden'
-                                }}>
-                                  <div style={{
-                                    width: `${selectedStudentData.mathAccuracy}%`,
-                                    height: '100%',
-                                    backgroundColor: selectedStudentData.mathAccuracy >= 80 ? '#28a745' : selectedStudentData.mathAccuracy >= 60 ? '#ffc107' : '#dc3545'
-                                  }} />
-                                </div>
-                              </div>
-                              <div style={{ textAlign: 'center', padding: '1rem', border: '1px solid #dee2e6', borderRadius: '8px' }}>
-                                <h5 style={{ margin: '0 0 0.5rem 0', color: '#17a2b8' }}>English</h5>
-                                <div style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                                  {selectedStudentData.englishAccuracy}%
-                                </div>
-                                <div style={{
-                                  width: '100%',
-                                  height: '8px',
-                                  backgroundColor: '#e9ecef',
-                                  borderRadius: '4px',
-                                  overflow: 'hidden'
-                                }}>
-                                  <div style={{
-                                    width: `${selectedStudentData.englishAccuracy}%`,
-                                    height: '100%',
-                                    backgroundColor: selectedStudentData.englishAccuracy >= 80 ? '#28a745' : selectedStudentData.englishAccuracy >= 60 ? '#ffc107' : '#dc3545'
-                                  }} />
-                                </div>
-                              </div>
-                              <div style={{ textAlign: 'center', padding: '1rem', border: '1px solid #dee2e6', borderRadius: '8px' }}>
-                                <h5 style={{ margin: '0 0 0.5rem 0', color: '#ffc107' }}>Programming</h5>
-                                <div style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-                                  {selectedStudentData.programmingAccuracy}%
-                                </div>
-                                <div style={{
-                                  width: '100%',
-                                  height: '8px',
-                                  backgroundColor: '#e9ecef',
-                                  borderRadius: '4px',
-                                  overflow: 'hidden'
-                                }}>
-                                  <div style={{
-                                    width: `${selectedStudentData.programmingAccuracy}%`,
-                                    height: '100%',
-                                    backgroundColor: selectedStudentData.programmingAccuracy >= 80 ? '#28a745' : selectedStudentData.programmingAccuracy >= 60 ? '#ffc107' : '#dc3545'
-                                  }} />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Intelligent Recommendations */}
-                          <div style={{
-                            backgroundColor: 'white',
-                            borderRadius: '8px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                            overflow: 'hidden',
-                            marginBottom: '2rem'
-                          }}>
-                            <div style={{
-                              padding: '1rem',
-                              backgroundColor: '#d1ecf1',
-                              borderBottom: '1px solid #b6d4db'
-                            }}>
-                              <h5 style={{ margin: 0, color: '#0c5460', display: 'flex', alignItems: 'center' }}>
-                                <span style={{ marginRight: '0.5rem' }}>💡</span>
-                                Intelligent Recommendations
-                              </h5>
-                            </div>
-                            <div style={{ padding: '1rem' }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-                                {/* Priority Actions */}
-                                <div style={{
-                                  padding: '1rem',
-                                  border: '1px solid #dee2e6',
-                                  borderRadius: '8px',
-                                  backgroundColor: selectedStudentData.overallAccuracy < 50 ? '#f8d7da' : selectedStudentData.overallAccuracy < 70 ? '#fff3cd' : '#d4edda'
-                                }}>
-                                  <h6 style={{ margin: '0 0 0.5rem 0', color: selectedStudentData.overallAccuracy < 50 ? '#721c24' : selectedStudentData.overallAccuracy < 70 ? '#856404' : '#155724' }}>
-                                    Priority Level: {selectedStudentData.overallAccuracy < 50 ? 'High' : selectedStudentData.overallAccuracy < 70 ? 'Medium' : 'Low'}
-                                  </h6>
-                                  <p style={{ margin: 0, fontSize: '0.875rem' }}>
-                                    {selectedStudentData.overallAccuracy < 50 
-                                      ? 'Immediate intervention needed. Schedule one-on-one tutoring sessions.'
-                                      : selectedStudentData.overallAccuracy < 70 
-                                      ? 'Provide additional practice and review sessions.'
-                                      : 'Continue current learning path with challenging problems.'
-                                    }
-                                  </p>
-                                </div>
-
-                                {/* Engagement Level */}
-                                <div style={{
-                                  padding: '1rem',
-                                  border: '1px solid #dee2e6',
-                                  borderRadius: '8px',
-                                  backgroundColor: selectedStudentData.totalQuestions < 10 ? '#f8d7da' : selectedStudentData.totalQuestions < 50 ? '#fff3cd' : '#d4edda'
-                                }}>
-                                  <h6 style={{ margin: '0 0 0.5rem 0', color: selectedStudentData.totalQuestions < 10 ? '#721c24' : selectedStudentData.totalQuestions < 50 ? '#856404' : '#155724' }}>
-                                    Engagement: {selectedStudentData.totalQuestions < 10 ? 'Low' : selectedStudentData.totalQuestions < 50 ? 'Medium' : 'High'}
-                                  </h6>
-                                  <p style={{ margin: 0, fontSize: '0.875rem' }}>
-                                    {selectedStudentData.totalQuestions < 10 
-                                      ? 'Motivate student to practice more regularly. Consider gamification.'
-                                      : selectedStudentData.totalQuestions < 50 
-                                      ? 'Good progress! Encourage consistent daily practice.'
-                                      : 'Excellent engagement! Ready for advanced challenges.'
-                                    }
-                                  </p>
-                                </div>
-
-                                {/* Next Steps */}
-                                <div style={{
-                                  padding: '1rem',
-                                  border: '1px solid #dee2e6',
-                                  borderRadius: '8px',
-                                  backgroundColor: '#e7f3ff'
-                                }}>
-                                  <h6 style={{ margin: '0 0 0.5rem 0', color: '#004085' }}>
-                                    Next Steps
-                                  </h6>
-                                  <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: '0.875rem' }}>
-                                    {selectedStudentData.weakSubjects.length > 0 && (
-                                      <li>Focus on {selectedStudentData.weakSubjects.join(', ')} fundamentals</li>
-                                    )}
-                                    {selectedStudentData.strongSubjects.length > 0 && (
-                                      <li>Advance {selectedStudentData.strongSubjects.join(', ')} to higher difficulty</li>
-                                    )}
-                                    <li>Schedule progress review in 1-2 weeks</li>
-                                    {selectedStudentData.totalQuestions < 20 && (
-                                      <li>Increase practice frequency to daily sessions</li>
-                                    )}
-                                  </ul>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Recent Activity Timeline */}
-                          <div style={{
-                            backgroundColor: 'white',
-                            borderRadius: '8px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                            overflow: 'hidden'
-                          }}>
-                            <div style={{
-                              padding: '1rem',
-                              borderBottom: '1px solid #dee2e6'
-                            }}>
-                              <h5 style={{ margin: 0 }}>Recent Activity Timeline</h5>
-                              <small style={{ color: '#6c757d' }}>Latest exercise attempts and performance</small>
-                            </div>
-                            <div style={{ padding: '1rem' }}>
-                              {getStudentActivityTimeline().length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                  {getStudentActivityTimeline().map((activity, i) => (
-                                    <div key={i} style={{ 
-                                      display: 'flex',
-                                      paddingBottom: i < getStudentActivityTimeline().length - 1 ? '1rem' : 0,
-                                      borderBottom: i < getStudentActivityTimeline().length - 1 ? '1px dashed #dee2e6' : 'none'
-                                    }}>
-                                      <div style={{ 
-                                        width: '40px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center'
-                                      }}>
-                                        <div style={{
-                                          width: '16px',
-                                          height: '16px',
-                                          borderRadius: '50%',
-                                          backgroundColor: activity.isCorrect ? '#28a745' : '#dc3545',
-                                          border: '2px solid white',
-                                          boxShadow: '0 0 0 2px ' + (activity.isCorrect ? '#28a745' : '#dc3545')
-                                        }} />
-                                        {i < getStudentActivityTimeline().length - 1 && (
-                                          <div style={{
-                                            flex: 1,
-                                            width: '2px',
-                                            backgroundColor: '#dee2e6',
-                                            margin: '4px 0'
-                                          }} />
-                                        )}
-                                      </div>
-                                      <div style={{ flex: 1, marginLeft: '1rem' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                          <strong>{activity.topicArea?.replace(/[-_]/g, ' ') || 'General Exercise'}</strong>
-                                          <small style={{ color: '#6c757d' }}>
-                                            {new Date(activity.createdAt).toLocaleDateString()}
-                                          </small>
-                                        </div>
-                                        <div style={{ 
-                                          display: 'flex', 
-                                          justifyContent: 'space-between',
-                                          marginBottom: '0.25rem'
-                                        }}>
-                                          <span>{activity.questionType} exercise</span>
-                                          <span style={{ 
-                                            color: activity.isCorrect ? '#28a745' : '#dc3545',
-                                            fontWeight: '500'
-                                          }}>
-                                            {activity.isCorrect ? '✓ Correct' : '✗ Incorrect'} ({activity.responseTime}s)
-                                          </span>
-                                        </div>
-                                        {!activity.isCorrect && activity.errorType && (
-                                          <div style={{ 
-                                            backgroundColor: '#fff3cd',
-                                            padding: '0.5rem',
-                                            borderRadius: '4px',
-                                            fontSize: '0.875rem'
-                                          }}>
-                                            <strong>Error Type:</strong> {activity.errorType}
-                                          </div>
-                                        )}
-                                      </div>
+                      <div className="card-body">
+                        <div className="row">
+                          {enhancedDiagnosticInsights.conceptualMisconceptions
+                            .sort((a, b) => b.frequency - a.frequency)
+                            .slice(0, 6)
+                            .map((misconception, index) => (
+                              <div key={index} className="col-md-6 mb-3">
+                                <div className="card border-warning h-100">
+                                  <div className="card-body">
+                                    <h6 className="card-title text-warning">{misconception.topic}</h6>
+                                    <p className="card-text">{misconception.misconception}</p>
+                                    <div className="d-flex justify-content-between align-items-center">
+                                      <span className="badge bg-warning">{misconception.frequency} occurrences</span>
+                                      <small className="text-muted">{misconception.students ? misconception.students.size : 0} students affected</small>
                                     </div>
-                                  ))}
+                                  </div>
                                 </div>
-                              ) : (
-                                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
-                                  <p style={{ color: '#6c757d', margin: 0 }}>No recent activity recorded</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                              </div>
+                            ))}
                         </div>
-                      );
-                    })()
-                  ) : (
-                    <div style={{
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      padding: '3rem',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>👥</div>
-                      <h5 style={{ color: '#6c757d', marginBottom: '1rem' }}>Select a Student for Individual Analysis</h5>
-                      <p style={{ color: '#6c757d', margin: 0 }}>
-                        Choose a student from the dropdown above to view detailed performance analytics, 
-                        strengths, weaknesses, and personalized recommendations.
-                      </p>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
+
+              {/* Intervention Recommendations - SAFE VERSION */}
+              
+                {enhancedDiagnosticInsights?.interventionRecommendations && enhancedDiagnosticInsights.interventionRecommendations.length > 0 && (
+                  <EnhancedInterventionRecommendations interventionData={enhancedDiagnosticInsights.interventionRecommendations} />
+                )}
+              {/* EXISTING ORIGINAL SECTIONS - Updated and preserved */}        
             </div>
           </div>
         </div>
+      </div>
+            )}
+
+
+
+       {/* PROGRAMMING SECTION - ENHANCED */}
+      {activeTab === 'programming' && (
+       
+        <div className="row mb-4">
+          <div className="col-12">
+           <div className="card shadow-sm" style={{border: '1px solid #fdeaa7'}}>
+             <div className="card-header text-dark" style={{backgroundColor: '#fdeaa7', borderBottom: '1px solid #fce38a'}}>
+                <h4 className="mb-0">
+                  <i className="bi bi-code-slash me-2"></i>Programming Performance
+                </h4>
+              </div>
+              <div className="card-body">
+                
+                {/* Programming Performance Metrics Dashboard */}
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header bg-warning text-dark">
+                        <h5 className="mb-0">Programming Learning Metrics Overview</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="row">
+                          <div className="col-md">
+                            <div className="text-center p-3 border rounded bg-light">
+                              <h3 className="text-primary">{programmingMetrics?.averageCompletionRate || 0}%</h3>
+                              <p className="mb-0 text-muted">Average Completion Rate</p>
+                            </div>
+                          </div>
+                          <div className="col-md">
+                            <div className="text-center p-3 border rounded bg-light">
+                              <h3 className="text-warning">{programmingMetrics?.studentsAtRisk || 0}%</h3>
+                              <p className="mb-0 text-muted">Students At Risk</p>
+                            </div>
+                          </div>
+                          <div className="col-md">
+                            <div className="text-center p-3 border rounded bg-light">
+                              <h3 className="text-success">{programmingMetrics?.conceptualUnderstanding || 0}%</h3>
+                              <p className="mb-0 text-muted">Conceptual Understanding</p>
+                            </div>
+                          </div>
+                          <div className="col-md">
+                            <div className="text-center p-3 border rounded bg-light">
+                              <h3 className="text-info">{programmingMetrics?.codeEfficiency || 0}%</h3>
+                              <p className="mb-0 text-muted">Code Efficiency</p>
+                            </div>
+                          </div>
+                          <div className="col-md">
+                            <div className="text-center p-3 border rounded bg-light">
+                              <h3 className="text-secondary">{programmingMetrics?.overallEngagement || 0}%</h3>
+                              <p className="mb-0 text-muted">Student Engagement</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Topic Mastery Analysis */}
+                <div className="row mb-4">
+                  <div className="">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Programming Topic Mastery Overview</h5>
+                      </div>
+                      <div className="card-body" style={{maxHeight: '400px', overflowY: 'auto'}}>
+                        {programmingInsights?.topicMastery && Object.entries(programmingInsights.topicMastery).length > 0 ? (
+                          Object.entries(programmingInsights.topicMastery)
+                            .sort(([,a], [,b]) => (b.masteredStudents/b.totalStudents) - (a.masteredStudents/a.totalStudents))
+                            .map(([topic, data]) => {
+                              const masteryRate = data.totalStudents > 0 ? (data.masteredStudents / data.totalStudents) * 100 : 0;
+                              return (
+                                <div key={topic} className="mb-3 p-3 border rounded">
+                                  <div className="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 className="mb-0">
+                                      {topic.charAt(0).toUpperCase() + topic.slice(1).replace('_', ' ')}
+                                      <span className={`badge ms-2 ${data.type === 'computational_thinking' ? 'bg-info' : 'bg-success'}`}>
+                                        {data.type === 'computational_thinking' ? 'CT' : 'Python'}
+                                      </span>
+                                    </h6>
+                                    <div className="d-flex gap-2">
+                                      <span className="badge bg-primary">{data.masteredStudents}/{data.totalStudents} mastered</span>
+                                      <span className="badge bg-secondary">{data.averageAccuracy.toFixed(1)}% avg accuracy</span>
+                                    </div>
+                                  </div>
+                                  <div className="progress mb-2" style={{height: '8px'}}>
+                                    <div 
+                                      className={`progress-bar ${masteryRate >= 80 ? 'bg-success' : masteryRate >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                      style={{width: `${Math.max(masteryRate, 2)}%`}}
+                                    ></div>
+                                  </div>
+                                  <small className="text-muted">
+                                    {masteryRate.toFixed(1)}% mastery rate
+                                  </small>
+                                </div>
+                              );
+                            })
+                        ) : (
+                          <div className="text-center py-4">
+                            <i className="bi bi-trophy fs-2 text-muted"></i>
+                            <p className="text-muted mt-2 mb-0">No programming mastery data available yet.</p>
+                            <small className="text-muted">Data will appear once students complete programming assessments.</small>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Programming Gaps and Strengths */}
+                <div className="row mb-4">
+                  <div className="col-md-6">
+                    <div className="card border-warning">
+                      <div className="card-header bg-warning text-dark">
+                        <h5 className="mb-0">⚠️ Programming Gaps Identified</h5>
+                      </div>
+                      <div className="card-body">
+                        {Array.isArray(programmingInsights?.conceptualGaps) ? (
+                          programmingInsights.conceptualGaps.length === 0 ? (
+                            <div className="text-center py-3">
+                              <i className="bi bi-check-circle fs-2 text-success"></i>
+                              <p className="text-muted mt-2 mb-0">No significant programming gaps identified.</p>
+                              <small className="text-success">Excellent progress!</small>
+                            </div>
+                          ) : (
+                            programmingInsights.conceptualGaps
+                              .sort((a, b) => a.severity === 'critical' ? -1 : 1)
+                              .slice(0, 3)
+                              .map((gap, index) => (
+                                <div key={index} className={`alert alert-${gap.severity === 'critical' ? 'danger' : gap.severity === 'moderate' ? 'warning' : 'info'} mb-3`}>
+                                  <h6 className="alert-heading">
+                                    {gap.topic}
+                                    <span className={`badge ms-2 ${gap.type === 'computational_thinking' ? 'bg-info' : 'bg-success'}`}>
+                                      {gap.type === 'computational_thinking' ? 'CT' : 'Python'}
+                                    </span>
+                                  </h6>
+                                  <div className="row">
+                                    <div className="col-6">
+                                      <small><strong>Mastery Rate:</strong> {gap.masteryRate || 0}%</small>
+                                    </div>
+                                    <div className="col-6">
+                                      <small><strong>Accuracy:</strong> {gap.accuracy || 0}%</small>
+                                    </div>
+                                  </div>
+                                  <small className="text-muted">
+                                    {gap.studentsStrugglingCount || 0} of {gap.totalStudents || 0} students need support
+                                  </small>
+                                  {gap.recommendations && (
+                                    <div className="mt-2">
+                                      <small><strong>Recommendations:</strong></small>
+                                      <ul className="small mb-0 mt-1">
+                                        {gap.recommendations.slice(0, 2).map((rec, i) => (
+                                          <li key={i}>{rec}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                          )
+                        ) : (
+                          <div className="text-center py-3">
+                            <i className="bi bi-hourglass-split fs-2 text-muted"></i>
+                            <p className="text-muted mt-2 mb-0">Loading gap analysis...</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <div className="card border-success">
+                      <div className="card-header bg-success text-white">
+                        <h5 className="mb-0">💪 Programming Strengths</h5>
+                      </div>
+                      <div className="card-body">
+                        {Array.isArray(programmingInsights?.strengthAreas) ? (
+                          programmingInsights.strengthAreas.length === 0 ? (
+                            <div className="text-center py-3">
+                              <i className="bi bi-arrow-up fs-2 text-muted"></i>
+                              <p className="text-muted mt-2 mb-0">Continue building programming strengths.</p>
+                              <small className="text-muted">Strength areas will appear as students improve.</small>
+                            </div>
+                          ) : (
+                            programmingInsights.strengthAreas.map((strength, index) => (
+                              <div key={index} className="alert alert-success mb-3">
+                                <h6 className="alert-heading">
+                                  {strength.topic}
+                                  <span className={`badge ms-2 ${strength.type === 'computational_thinking' ? 'bg-info' : 'bg-success'}`}>
+                                    {strength.type === 'computational_thinking' ? 'CT' : 'Python'}
+                                  </span>
+                                </h6>
+                                <div className="row">
+                                  <div className="col-6">
+                                    <small><strong>Mastery Rate:</strong> {strength.masteryRate || 0}%</small>
+                                  </div>
+                                  <div className="col-6">
+                                    <small><strong>Accuracy:</strong> {strength.accuracy || 0}%</small>
+                                  </div>
+                                </div>
+                                <small className="text-muted">
+                                  {strength.masteredStudents || 0} of {strength.totalStudents || 0} students have mastered this topic
+                                </small>
+                              </div>
+                            ))
+                          )
+                        ) : (
+                          <div className="text-center py-3">
+                            <i className="bi bi-hourglass-split fs-2 text-muted"></i>
+                            <p className="text-muted mt-2 mb-0">Loading strength analysis...</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Individual Student Programming Analysis */}
+                <div className="row mb-4">
+                  <div className="col-12">
+                    <div className="card">
+                      <div className="card-header">
+                        <h5 className="mb-0">Individual Student Programming Analysis</h5>
+                      </div>
+                      <div className="card-body">
+                        <div className="table-responsive">
+                          <table className="table table-striped">
+                            <thead>
+                              <tr>
+                                <th>Student</th>
+                                <th>CT Accuracy</th>
+                                <th>Python Accuracy</th>
+                                <th>Overall Progress</th>
+                                <th>Learning Trend</th>
+                                <th>Weak Areas</th>
+                                <th>Strong Areas</th>
+                                <th>Recommendation</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {programmingInsights?.overallPerformance && Object.keys(programmingInsights.overallPerformance).length > 0 ? (
+                                Object.entries(programmingInsights.overallPerformance).map(([email, perf]) => (
+                                  <tr key={email}>
+                                    <td><strong>{perf.username || 'Unknown'}</strong></td>
+                                    <td>
+                                      <div className="d-flex align-items-center">
+                                        <div className="progress me-2" style={{width: '50px', height: '6px'}}>
+                                          <div 
+                                            className={`progress-bar ${(perf.ctAccuracy || 0) >= 80 ? 'bg-success' : (perf.ctAccuracy || 0) >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                            style={{width: `${perf.ctAccuracy || 0}%`}}
+                                          ></div>
+                                        </div>
+                                        <span className="small">{(perf.ctAccuracy || 0).toFixed(1)}%</span>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <div className="d-flex align-items-center">
+                                        <div className="progress me-2" style={{width: '50px', height: '6px'}}>
+                                          <div 
+                                            className={`progress-bar ${(perf.pythonAccuracy || 0) >= 80 ? 'bg-success' : (perf.pythonAccuracy || 0) >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                            style={{width: `${perf.pythonAccuracy || 0}%`}}
+                                          ></div>
+                                        </div>
+                                        <span className="small">{(perf.pythonAccuracy || 0).toFixed(1)}%</span>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <div className="d-flex align-items-center">
+                                        <div className="progress me-2" style={{width: '50px', height: '6px'}}>
+                                          <div 
+                                            className={`progress-bar ${(perf.overallAccuracy || 0) >= 80 ? 'bg-success' : (perf.overallAccuracy || 0) >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                            style={{width: `${perf.overallAccuracy || 0}%`}}
+                                          ></div>
+                                        </div>
+                                        <span className="small">{(perf.overallAccuracy || 0).toFixed(1)}%</span>
+                                      </div>
+                                      <small className="text-muted d-block">
+                                        CT: {perf.ctProgress || 0} topics, Python: {perf.pythonProgress || 0} topics
+                                      </small>
+                                    </td>
+                                    <td>
+                                      <span className={`badge ${
+                                        perf.improvementTrend === 'strong_improvement' ? 'bg-success' :
+                                        perf.improvementTrend === 'moderate_improvement' ? 'bg-info' :
+                                        perf.improvementTrend === 'stable' ? 'bg-secondary' :
+                                        perf.improvementTrend === 'declining' ? 'bg-danger' : 'bg-warning'
+                                      }`}>
+                                        {perf.improvementTrend === 'strong_improvement' ? '📈 Excellent' :
+                                        perf.improvementTrend === 'moderate_improvement' ? '📊 Good' :
+                                        perf.improvementTrend === 'stable' ? '➡️ Stable' :
+                                        perf.improvementTrend === 'declining' ? '📉 Declining' : '❓ Need Data'}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      {Array.isArray(perf.weakAreas) && perf.weakAreas.length > 0 ? (
+                                        <div>
+                                          {perf.weakAreas.slice(0, 2).map((weak, i) => (
+                                            <span key={i} className="badge bg-warning me-1 mb-1 small">{weak}</span>
+                                          ))}
+                                          {perf.weakAreas.length > 2 && <small className="text-muted d-block">+{perf.weakAreas.length - 2} more</small>}
+                                        </div>
+                                      ) : (
+                                        <span className="text-success small">No major weaknesses</span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      {Array.isArray(perf.strongAreas) && perf.strongAreas.length > 0 ? (
+                                        <div>
+                                          {perf.strongAreas.slice(0, 2).map((strong, i) => (
+                                            <span key={i} className="badge bg-success me-1 mb-1 small">{strong}</span>
+                                          ))}
+                                          {perf.strongAreas.length > 2 && <small className="text-muted d-block">+{perf.strongAreas.length - 2} more</small>}
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted small">Building strengths</span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      <small className="text-muted">
+                                        {(perf.overallAccuracy || 0) < 50 ? 'Needs immediate support' :
+                                        perf.improvementTrend === 'declining' ? 'Requires intervention' :
+                                        (perf.overallAccuracy || 0) >= 85 ? 'Ready for advanced topics' :
+                                        'Continue current pace'}
+                                      </small>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan="8" className="text-center py-4">
+                                    <i className="bi bi-person-plus fs-2 text-muted"></i>
+                                    <p className="text-muted mt-2 mb-0">No student programming data available yet.</p>
+                                    <small className="text-muted">Data will appear once students complete programming assessments.</small>
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Learning Progress Insights */}
+                {Array.isArray(programmingInsights?.learningProgress) && programmingInsights.learningProgress.length > 0 && (
+                  <div className="row mb-4">
+                    <div className="col-12">
+                      <div className="card border-info">
+                        <div className="card-header bg-info text-white">
+                          <h5 className="mb-0">📈 Programming Learning Progress Insights</h5>
+                        </div>
+                        <div className="card-body">
+                          <div className="row">
+                            {programmingInsights.learningProgress
+                              .sort((a, b) => b.overallAccuracy - a.overallAccuracy)
+                              .slice(0, 6)
+                              .map((progress, index) => (
+                                <div key={index} className="col-md-6 col-lg-4 mb-3">
+                                  <div className="card border-info h-100">
+                                    <div className="card-body">
+                                      <h6 className="card-title">{progress.username}</h6>
+                                      <div className="mb-2">
+                                        <div className="d-flex justify-content-between">
+                                          <small>Overall Progress</small>
+                                          <small>{progress.overallAccuracy.toFixed(1)}%</small>
+                                        </div>
+                                        <div className="progress" style={{height: '6px'}}>
+                                          <div 
+                                            className={`progress-bar ${progress.overallAccuracy >= 80 ? 'bg-success' : progress.overallAccuracy >= 60 ? 'bg-warning' : 'bg-danger'}`}
+                                            style={{width: `${progress.overallAccuracy}%`}}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                      <div className="row">
+                                        <div className="col-6">
+                                          <small className="text-muted">CT Topics: {progress.ctProgress}</small>
+                                        </div>
+                                        <div className="col-6">
+                                          <small className="text-muted">Python Topics: {progress.pythonProgress}</small>
+                                        </div>
+                                      </div>
+                                      <div className="mt-2">
+                                        <span className={`badge ${
+                                          progress.trend === 'strong_improvement' ? 'bg-success' :
+                                          progress.trend === 'moderate_improvement' ? 'bg-info' :
+                                          progress.trend === 'stable' ? 'bg-secondary' : 'bg-warning'
+                                        }`}>
+                                          {progress.trend.replace('_', ' ')}
+                                        </span>
+                                      </div>
+                                      <small className="text-muted d-block mt-2">{progress.recommendation}</small>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                
+
+                {/* Programming Diagnostics Section */}
+                {diagnosticsData.length > 0 ? (
+                  <div className="row mb-4">
+                    <div className="col-12">
+                      <div className="card">
+                        <div className="card-header">
+                          <h5 className="mb-0">Programming Diagnostic Test Scores</h5>
+                        </div>
+                        <div className="card-body">
+                          <div className="table-responsive">
+                            <table className="table table-striped">
+                              <thead>
+                                <tr>
+                                  <th>Username</th>
+                                  <th>Last Attempt Date</th>
+                                  <th>Total Questions</th>
+                                  <th>Score</th>
+                                  <th>Success Rate</th>
+                                  <th>Analysis</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {diagnosticsData.map((user, index) => (
+                                  <tr key={index}>
+                                    <td><strong>{user.username}</strong></td>
+                                    <td>{user.lastAttempt}</td>
+                                    <td>{user.totalQuestions}</td>
+                                    <td>{user.score}</td>
+                                    <td>
+                                      <div className="d-flex align-items-center">
+                                        <span className="me-2">{user.successRate}%</span>
+                                        <div className="progress flex-grow-1" style={{height: '8px'}}>
+                                          <div 
+                                            className="progress-bar" 
+                                            style={{
+                                              width: `${user.successRate}%`,
+                                              backgroundColor: 
+                                                parseFloat(user.successRate) < 40 ? '#dc3545' :
+                                                parseFloat(user.successRate) < 70 ? '#ffc107' : '#28a745'
+                                            }}
+                                          ></div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <span className={`badge ${
+                                        parseFloat(user.successRate) >= 80 ? 'bg-success' :
+                                        parseFloat(user.successRate) >= 60 ? 'bg-warning' :
+                                        'bg-danger'
+                                      }`}>
+                                        {parseFloat(user.successRate) >= 80 ? 'Excellent' :
+                                        parseFloat(user.successRate) >= 60 ? 'Good' : 'Needs Support'}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : allStudents.length > 0 && (
+                  <div className="row mb-4">
+                    <div className="col-12">
+                      <div className="card">
+                        <div className="card-header">
+                          <h5 className="mb-0">Programming Diagnostic Test Scores</h5>
+                        </div>
+                        <div className="card-body">
+                          <div className="text-center py-4">
+                            <i className="bi bi-clipboard-check fs-1 text-muted"></i>
+                            <h6 className="mt-3 text-muted">No Diagnostic Data Available</h6>
+                            <p className="text-muted">No programming diagnostic test data available for your students yet.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show message when no programming data at all */}
+                {ctData.length === 0 && pythonFingerData.size === 0 && diagnosticsData.length === 0 && allStudents.length > 0 && (
+                  <div className="text-center py-4">
+                    <i className="bi bi-code-slash fs-1 text-muted"></i>
+                    <h6 className="mt-3 text-muted">No Programming Data Available</h6>
+                    <p className="text-muted">No programming assessment data available for your students yet.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div> 
       )}
-
-      {/* Custom Styles */}
-      <style>{`
-        .python-conditionals-container {
-          font-family: 'Open Sans', sans-serif;
-          line-height: 1.6;
-          color: #333;
-        }
-
-        .loading-indicator {
-          background: #fff3cd;
-          border: 1px solid #ffeaa7;
-          border-radius: 8px;
-          padding: 15px;
-          margin: 20px 0;
-          text-align: center;
-          color: #856404;
-        }
-
-        .text-success { color: #28a745 !important; }
-        .text-danger { color: #dc3545 !important; }
-
-        .section {
-          background: #f8f9fa;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 20px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .explanation {
-          background: #ffffff;
-          margin: 1.5rem 0;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-          padding: 15px;
-          border-radius: 8px;
-        }
-
-        code {
-          background-color: #f8f9fa;
-          padding: 0.2em 0.4em;
-          border-radius: 3px;
-          font-family: 'Roboto Mono', monospace;
-          font-size: 0.9em;
-        }
-
-        pre {
-          background-color: #f8f9fa;
-          padding: 1rem;
-          border-radius: 8px;
-          border-left: 4px solid #3498db;
-          overflow-x: auto;
-        }
-
-        .operators-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 20px 0;
-          background-color: #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-          border-radius: 8px;
-          overflow: hidden;
-          font-family: 'Roboto Mono', monospace;
-          font-size: 0.95rem;
-        }
-
-        .operators-table th,
-        .operators-table td {
-          padding: 12px 16px;
-          text-align: left;
-          border-bottom: 1px solid #e0e0e0;
-        }
-
-        .operators-table th {
-          background-color: #f8f9fa;
-          font-weight: bold;
-          color: #2c3e50;
-        }
-
-        .operators-table tr:hover {
-          background-color: #f1f1f1;
-        }
-
-        .comparison-container {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 20px;
-          margin: 20px 0;
-        }
-
-        .code-comparison {
-          flex: 1;
-          min-width: 300px;
-          border-radius: 8px;
-          overflow: hidden;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .card {
-          border: 1px solid #dee2e6;
-          border-radius: 8px;
-          overflow: hidden;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .alert {
-          padding: 15px;
-          margin-bottom: 15px;
-          border: 1px solid transparent;
-          border-radius: 8px;
-        }
-
-        .alert-success {
-          color: #155724;
-          background-color: #d4edda;
-          border-color: #c3e6cb;
-          border-left: 4px solid #28a745;
-        }
-
-        .alert-info {
-          color: #0c5460;
-          background-color: #d1ecf1;
-          border-color: #b6d4db;
-          border-left: 4px solid #17a2b8;
-        }
-
-        .alert-warning {
-          color: #856404;
-          background-color: #fff3cd;
-          border-color: #ffeaa7;
-          border-left: 4px solid #f39c12;
-        }
-
-        .alert-danger {
-          color: #721c24;
-          background-color: #f8d7da;
-          border-color: #f5c6cb;
-          border-left: 4px solid #dc3545;
-        }
-
-        @media (max-width: 768px) {
-          .comparison-container {
-            flex-direction: column;
-          }
-          
-          .code-comparison {
-            min-width: 100%;
-          }
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };
-
-export default EnhancedTutorDashboard;
+export default TutorDashboard;
