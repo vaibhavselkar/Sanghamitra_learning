@@ -154,7 +154,7 @@ const LoginPage = () => {
             targetPath = data.hasClassroom ? '/tutor-dashboard' : '/create-classroom';
             break;
           case 'student':
-            targetPath = '/student/dashboard';
+            targetPath = '/dashboard';
             break;
           default:
             targetPath = '/dashboard';
