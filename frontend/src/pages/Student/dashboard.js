@@ -364,9 +364,6 @@ const StudentDashboard = () => {
 
   // NEW: Chart update effect for finger exercises
   useEffect(() => {
-   'doughnut',
-        data: {
-          labels:const updateFingerExerciseChart = () => {
     // Don't try to render chart while still loading
     if (loading) {
       return;
