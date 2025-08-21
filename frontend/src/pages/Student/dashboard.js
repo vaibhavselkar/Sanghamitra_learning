@@ -425,7 +425,9 @@ const StudentDashboard = () => {
     // Create new chart
     try {
       chartRefs.current[canvasId] = new ChartJS(ctx, {
-        type: ['Correct Answers', 'Incorrect Answers'],
+        type: 'doughnut', // ✅ FIXED: Correct chart type
+        data: {
+          labels:['Correct Answers', 'Incorrect Answers'],
           datasets: [{
             data: [correctAnswers, incorrectAnswers],
             backgroundColor: ['#4CAF50', '#F44336'],
