@@ -320,9 +320,53 @@ const StudentDashboard = () => {
     }
   };
 
+   // Create doughnut chart
+  const createDoughnutChart = (canvasId, correctAnswers, incorrectAnswers) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    
+    // Clear any existing chart
+    if (chartRefs.current[canvasId]) {
+      chartRefs.current[canvasId].destroy();
+    }
+
+    chartRefs.current[canvasId] = new ChartJS(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Correct Answers', 'Incorrect Answers'],
+        datasets: [{
+          data: [correctAnswers, incorrectAnswers],
+          backgroundColor: ['#1C4E80', '#A5D8DD'],
+          hoverBackgroundColor: ['#1C4E80', '#A5D8DD'],
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '70%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+          },
+          tooltip: {
+            callbacks: {
+              label: function (tooltipItem) {
+                return tooltipItem.label + ': ' + tooltipItem.raw;
+              }
+            }
+          }
+        }
+      }
+    });
+  };
+
   // NEW: Chart update effect for finger exercises
   useEffect(() => {
-  const updateFingerExerciseChart = () => {
+   'doughnut',
+        data: {
+          labels:const updateFingerExerciseChart = () => {
     // Don't try to render chart while still loading
     if (loading) {
       return;
@@ -384,9 +428,7 @@ const StudentDashboard = () => {
     // Create new chart
     try {
       chartRefs.current[canvasId] = new ChartJS(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Correct Answers', 'Incorrect Answers'],
+        type: ['Correct Answers', 'Incorrect Answers'],
           datasets: [{
             data: [correctAnswers, incorrectAnswers],
             backgroundColor: ['#4CAF50', '#F44336'],
