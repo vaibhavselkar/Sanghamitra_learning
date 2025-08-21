@@ -784,7 +784,6 @@ const StudentDashboard = () => {
             <th>Topic</th>
             <th>Date</th>
             <th>Percentage</th>
-            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
