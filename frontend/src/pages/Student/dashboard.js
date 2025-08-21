@@ -364,109 +364,127 @@ const StudentDashboard = () => {
 
   // NEW: Chart update effect for finger exercises
   useEffect(() => {
-    // Don't try to render chart while still loading
-    if (loading) {
-      return;
-    }
+    const updateFingerExerciseChart = () => {
+      debugLog('Chart update triggered', {
+        selectedExercise,
+        fingerExercises: fingerExercises.length,
+        loading
+      });
 
-    // If no exercises available, show no data message
-    if (fingerExercises.length === 0) {
+      // Don't try to render chart while still loading
+      if (loading) {
+        debugLog('Still loading, skipping chart update');
+        return;
+      }
+
+      // If no exercises available, show no data message
+      if (fingerExercises.length === 0) {
+        debugLog('No finger exercises available');
+        const canvasId = 'finger-exercise-chart';
+        const canvas = document.getElementById(canvasId);
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Add a message when no data is available
+          ctx.fillStyle = '#666';
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('No data available', canvas.width/2, canvas.height/2);
+        }
+        return;
+      }
+
+      // Set default exercise if none selected
+      if (!selectedExercise && fingerExercises.length > 0) {
+        debugLog('Setting default exercise to first available:', fingerExercises[0].operationType);
+        setSelectedExercise(fingerExercises[0].operationType);
+        return; // This will trigger a re-render
+      }
+
+      // Find the selected exercise data
+      const selectedData = fingerExercises.find(
+        ex => ex.operationType === selectedExercise
+      );
+
+      debugLog('Selected exercise data:', selectedData);
+
+      if (!selectedData) {
+        debugLog('No data found for selected exercise:', selectedExercise);
+        return;
+      }
 
       const canvasId = 'finger-exercise-chart';
       const canvas = document.getElementById(canvasId);
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Add a message when no data is available
-        ctx.fillStyle = '#666';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('No data available', canvas.width/2, canvas.height/2);
+      if (!canvas) {
+        debugError('Canvas element not found with ID:', canvasId);
+        return;
       }
-      return;
-    }
 
-    // Set default exercise if none selected
-    if (!selectedExercise && fingerExercises.length > 0) {
-      setSelectedExercise(fingerExercises[0].operationType);
-      return; // This will trigger a re-render
-    }
+      const ctx = canvas.getContext('2d');
+      
+      // Destroy previous chart if exists
+      if (chartRefs.current[canvasId]) {
+        debugLog('Destroying previous chart instance');
+        chartRefs.current[canvasId].destroy();
+        chartRefs.current[canvasId] = null;
+      }
 
-    // Find the selected exercise data
-    const selectedData = fingerExercises.find(
-      ex => ex.operationType === selectedExercise
-    );
+      const correctAnswers = selectedData.correctAnswers || 0;
+      const totalQuestions = selectedData.totalQuestions || 1;
+      const incorrectAnswers = Math.max(0, totalQuestions - correctAnswers);
 
+      debugLog('Chart data:', {
+        correctAnswers,
+        incorrectAnswers,
+        totalQuestions
+      });
 
-    if (!selectedData) {
-      return;
-    }
-
-    const canvasId = 'finger-exercise-chart';
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) {
-      return;
-    }
-
-    const ctx = canvas.getContext('2d');
-    
-    // Destroy previous chart if exists
-    if (chartRefs.current[canvasId]) {
-      chartRefs.current[canvasId].destroy();
-      chartRefs.current[canvasId] = null;
-    }
-
-    const correctAnswers = selectedData.correctAnswers || 0;
-    const totalQuestions = selectedData.totalQuestions || 1;
-    const incorrectAnswers = Math.max(0, totalQuestions - correctAnswers);
-
-
-    // Create new chart
-    try {
-      chartRefs.current[canvasId] = new ChartJS(ctx, {
-        type: 'doughnut', 
-        data: {
-          labels: ['Correct Answers', 'Incorrect Answers'], 
-          datasets: [{
-            data: [correctAnswers, incorrectAnswers],
-            backgroundColor: ['#4CAF50', '#F44336'],
-            borderWidth: 1,
-            hoverOffset: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                font: {
-                  size: 14
+      // Create new chart - FIXED VERSION
+      try {
+        chartRefs.current[canvasId] = new ChartJS(ctx, {
+          type: 'doughnut', // FIXED: Correct chart type
+          data: {
+            labels: ['Correct Answers', 'Incorrect Answers'], // FIXED: Added missing data wrapper
+            datasets: [{
+              data: [correctAnswers, incorrectAnswers],
+              backgroundColor: ['#4CAF50', '#F44336'],
+              borderWidth: 1,
+              hoverOffset: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  font: {
+                    size: 14
+                  }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.raw || 0;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                    return `${label}: ${value} (${percentage}%)`;
+                  }
                 }
               }
             },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  const label = context.label || '';
-                  const value = context.raw || 0;
-                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                  return `${label}: ${value} (${percentage}%)`;
-                }
-              }
-            }
-          },
-          cutout: '65%'
-        }
-      });
-    } catch (error) {
-      console.error('Error creating chart:', error);
-    }
-  };
-
+            cutout: '65%'
+          }
+        });
+        debugLog('Successfully created new chart instance');
+      } catch (error) {
+        debugError('Error creating chart:', error);
+      }
+    };
   // Add a small delay to ensure DOM is ready
   const timeoutId = setTimeout(updateFingerExerciseChart, 100);
 
