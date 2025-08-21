@@ -483,6 +483,18 @@ const StudentDashboard = () => {
   }, [user, isAuthenticated, navigate]);
 
 
+  useEffect(() => {
+    if (mathTopics.length > 0) {
+      setTimeout(() => {
+        mathTopics.forEach((topic) => {
+          const correctAnswers = topic.questions.filter(q => q.correct).length;
+          const incorrectAnswers = topic.questions.length - correctAnswers;
+          createDoughnutChart(`${topic.topic}-performance-chart`, correctAnswers, incorrectAnswers);
+        });
+      }, 100);
+    }
+  }, [mathTopics]);
+  
   // Utility functions
   const capitalizeFirstLetter = (string) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
