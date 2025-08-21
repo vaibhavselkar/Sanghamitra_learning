@@ -390,6 +390,9 @@ const TutorDashboard = () => {
     commonErrors: []
   });
 
+  const [mathDataLoading, setMathDataLoading] = useState(true);
+  const [mathInsightsReady, setMathInsightsReady] = useState(false);
+  
   const [mathMetrics, setMathMetrics] = useState({
     averageMasteryLevel: 0,
     studentsAtRisk: 0,
@@ -568,6 +571,20 @@ useEffect(() => {
   }
 }, [classrooms]);
 
+  useEffect(() => {
+  const checkDataConsistency = () => {
+    if (mathInsightsReady && 
+        (!mathInsights?.topicMastery || Object.keys(mathInsights.topicMastery).length === 0) &&
+        (arithmeticData.length > 0 || algebraData.length > 0)) {
+      console.log('🔄 Data inconsistency detected, regenerating insights...');
+      generateMathInsights();
+    }
+  };
+
+  const timer = setTimeout(checkDataConsistency, 1000);
+  return () => clearTimeout(timer);
+}, [mathInsightsReady, mathInsights, arithmeticData, algebraData]);
+
   const fetchAnalyticsData = async () => {
     const students = getAllTutorStudents();
     const studentEmails = students.map(student => student.email);
@@ -575,6 +592,8 @@ useEffect(() => {
     if (studentEmails.length === 0) return;
     
     try {
+      setMathDataLoading(true); // 🔥 ADD THIS
+      setMathInsightsReady(false);
       console.log('🚀 Starting analytics data fetch...');
       
       // Fetch all data and wait for completion
@@ -605,11 +624,14 @@ useEffect(() => {
         await new Promise(resolve => setTimeout(resolve, 200));
         await generateMathInsights();
       }
-      
+
+      setMathDataLoading(false); 
+      setMathInsightsReady(true); 
       console.log('✅ All analytics data fetched and insights generated!');
       
     } catch (error) {
       console.error('Error fetching analytics data:', error);
+      setMathDataLoading(false);
     }
 };
   const fetchMathDiagnosticData = async (studentEmails) => {
@@ -1237,6 +1259,7 @@ const analyzeMathPerformanceFixed = async (arithmeticData, algebraData, diagnost
   });
 
   setMathInsights(insights);
+  console.log('✅ Math insights set successfully');
 };
 
 const generateDiagnosticInsightsFixed = async (diagnosticData) => {
@@ -1332,104 +1355,115 @@ const generateDiagnosticInsightsFixed = async (diagnosticData) => {
 const calculateMathMetricsFixed = async (arithmeticData, algebraData, diagnosticData) => {
   console.log('📊 Calculating math metrics...');
   
-  const studentEmails = getAllTutorStudents().map(s => s.email);
-  const metrics = {
-    averageMasteryLevel: 0,
-    studentsAtRisk: 0,
-    conceptualUnderstanding: 0,
-    practiceEfficiency: 0,
-    overallEngagement: 0
-  };
+  try {
+    const studentEmails = getAllTutorStudents().map(s => s.email);
+    const metrics = {
+      averageMasteryLevel: 0,
+      studentsAtRisk: 0,
+      conceptualUnderstanding: 0,
+      practiceEfficiency: 0,
+      overallEngagement: 0
+    };
 
-  // Calculate average mastery level from algebra data
-  let totalMastery = 0;
-  let masteryCount = 0;
-  
-  algebraData.forEach(user => {
-    if (user.topics && Array.isArray(user.topics)) {
-      user.topics.forEach(topic => {
-        const levelValues = { 
-          easy: 25, 
-          medium: 50, 
-          hard: 75, 
-          mastered: 100, 
-          intermediate: 62.5 
-        };
-        const value = levelValues[topic.current_level] || 0;
-        totalMastery += value;
-        masteryCount++;
-      });
-    }
-  });
-
-  metrics.averageMasteryLevel = masteryCount > 0 ? (totalMastery / masteryCount).toFixed(1) : 0;
-
-  // Students at risk calculation from arithmetic data
-  let atRiskCount = 0;
-  const userPerformance = {};
-
-  arithmeticData.forEach(score => {
-    if (!userPerformance[score.userEmail]) {
-      userPerformance[score.userEmail] = { correct: 0, total: 0 };
-    }
-    userPerformance[score.userEmail].correct += score.correctAnswers;
-    userPerformance[score.userEmail].total += score.totalQuestions;
-  });
-
-  Object.values(userPerformance).forEach(perf => {
-    if (perf.total > 0 && (perf.correct / perf.total) < 0.6) {
-      atRiskCount++;
-    }
-  });
-
-  metrics.studentsAtRisk = studentEmails.length > 0 ? 
-    ((atRiskCount / Math.max(studentEmails.length, Object.keys(userPerformance).length)) * 100).toFixed(1) : 0;
-
-  // Conceptual understanding from diagnostic data
-  if (diagnosticData.length > 0) {
-    const totalScore = diagnosticData.reduce((sum, test) => {
-      // Handle different data structures
-      if (test.postTest && test.postTest.totalScore) {
-        return sum + test.postTest.totalScore;
-      } else if (test.totalScore) {
-        return sum + test.totalScore;
-      } else if (test.hasPostTest) {
-        return sum + (test.postTest?.totalScore || 0);
-      } else if (test.hasPreTest) {
-        return sum + (test.preTest?.totalScore || 0);
-      }
-      return sum;
-    }, 0);
+    // Calculate average mastery level from algebra data
+    let totalMastery = 0;
+    let masteryCount = 0;
     
-    metrics.conceptualUnderstanding = (totalScore / diagnosticData.length).toFixed(1);
+    algebraData.forEach(user => {
+      if (user.topics && Array.isArray(user.topics)) {
+        user.topics.forEach(topic => {
+          const levelValues = { 
+            easy: 25, 
+            medium: 50, 
+            hard: 75, 
+            mastered: 100, 
+            intermediate: 62.5 
+          };
+          const value = levelValues[topic.current_level] || 0;
+          totalMastery += value;
+          masteryCount++;
+        });
+      }
+    });
+
+    metrics.averageMasteryLevel = masteryCount > 0 ? (totalMastery / masteryCount).toFixed(1) : 0;
+
+    // Students at risk calculation from arithmetic data
+    let atRiskCount = 0;
+    const userPerformance = {};
+
+    arithmeticData.forEach(score => {
+      if (!userPerformance[score.userEmail]) {
+        userPerformance[score.userEmail] = { correct: 0, total: 0 };
+      }
+      userPerformance[score.userEmail].correct += score.correctAnswers;
+      userPerformance[score.userEmail].total += score.totalQuestions;
+    });
+
+    Object.values(userPerformance).forEach(perf => {
+      if (perf.total > 0 && (perf.correct / perf.total) < 0.6) {
+        atRiskCount++;
+      }
+    });
+
+    metrics.studentsAtRisk = studentEmails.length > 0 ? 
+      ((atRiskCount / Math.max(studentEmails.length, Object.keys(userPerformance).length)) * 100).toFixed(1) : 0;
+
+    // Conceptual understanding from diagnostic data
+    if (diagnosticData.length > 0) {
+      const totalScore = diagnosticData.reduce((sum, test) => {
+        // Handle different data structures
+        if (test.postTest && test.postTest.totalScore) {
+          return sum + test.postTest.totalScore;
+        } else if (test.totalScore) {
+          return sum + test.totalScore;
+        } else if (test.hasPostTest) {
+          return sum + (test.postTest?.totalScore || 0);
+        } else if (test.hasPreTest) {
+          return sum + (test.preTest?.totalScore || 0);
+        }
+        return sum;
+      }, 0);
+      
+      metrics.conceptualUnderstanding = (totalScore / diagnosticData.length).toFixed(1);
+    }
+
+    // Practice efficiency from arithmetic timing
+    const totalQuestions = arithmeticData.reduce((sum, score) => sum + score.totalQuestions, 0);
+    const totalTime = arithmeticData.reduce((sum, score) => sum + score.timeTaken, 0);
+    const avgTimePerQuestion = totalQuestions > 0 ? totalTime / totalQuestions : 0;
+    
+    // Efficiency: lower time = higher efficiency (benchmark: 60 seconds)
+    metrics.practiceEfficiency = Math.max(0, Math.min(100, (60 - avgTimePerQuestion) + 50)).toFixed(1);
+
+    // Overall engagement based on active users
+    const uniqueArithmeticUsers = new Set(arithmeticData.map(d => d.userEmail));
+    const uniqueAlgebraUsers = new Set(algebraData.map(d => d.email || d.username));
+    const uniqueDiagnosticUsers = new Set(diagnosticData.map(d => d.email || d.username));
+    
+    const allActiveUsers = new Set([
+      ...uniqueArithmeticUsers,
+      ...uniqueAlgebraUsers,
+      ...uniqueDiagnosticUsers
+    ]);
+
+    metrics.overallEngagement = studentEmails.length > 0 ? 
+      ((allActiveUsers.size / studentEmails.length) * 100).toFixed(1) : 0;
+
+    console.log('📊 Calculated metrics:', metrics);
+    setMathMetrics(metrics);
+  } catch (error) {
+    console.error('❌ Error calculating math metrics:', error);
+    // Set default values on error
+    setMathMetrics({
+      averageMasteryLevel: 0,
+      studentsAtRisk: 0,
+      conceptualUnderstanding: 0,
+      practiceEfficiency: 0,
+      overallEngagement: 0
+    });
   }
-
-  // Practice efficiency from arithmetic timing
-  const totalQuestions = arithmeticData.reduce((sum, score) => sum + score.totalQuestions, 0);
-  const totalTime = arithmeticData.reduce((sum, score) => sum + score.timeTaken, 0);
-  const avgTimePerQuestion = totalQuestions > 0 ? totalTime / totalQuestions : 0;
-  
-  // Efficiency: lower time = higher efficiency (benchmark: 60 seconds)
-  metrics.practiceEfficiency = Math.max(0, Math.min(100, (60 - avgTimePerQuestion) + 50)).toFixed(1);
-
-  // Overall engagement based on active users
-  const uniqueArithmeticUsers = new Set(arithmeticData.map(d => d.userEmail));
-  const uniqueAlgebraUsers = new Set(algebraData.map(d => d.email || d.username));
-  const uniqueDiagnosticUsers = new Set(diagnosticData.map(d => d.email || d.username));
-  
-  const allActiveUsers = new Set([
-    ...uniqueArithmeticUsers,
-    ...uniqueAlgebraUsers,
-    ...uniqueDiagnosticUsers
-  ]);
-
-  metrics.overallEngagement = studentEmails.length > 0 ? 
-    ((allActiveUsers.size / studentEmails.length) * 100).toFixed(1) : 0;
-
-  console.log('📊 Calculated metrics:', metrics);
-  setMathMetrics(metrics);
 };
-
 // Helper Functions
 const calculateImprovementTrendFixed = (attempts) => {
   if (!attempts || attempts.length < 2) return 'insufficient_data';
@@ -2835,10 +2869,10 @@ const OverviewTab = () => (
                 </div>
               </div>
               <div className="col-md-3">
-                <div className="text-center p-3 border rounded bg-light">
-                  <h4 className="text-success">{(vocabularyData.length + Object.keys(mathInsights?.overallPerformance || {}).length + Object.keys(programmingInsights?.overallPerformance || {}).length) / 3 || 0}</h4>
-                  <p className="mb-0 text-muted">Avg Active/Subject</p>
-                </div>
+                  <div className="text-center p-3 border rounded bg-light">
+                    <h4 className="text-success">{Math.round((vocabularyData.length + Object.keys(mathInsights?.overallPerformance || {}).length + Object.keys(programmingInsights?.overallPerformance || {}).length) / 3) || 0}</h4>
+                    <p className="mb-0 text-muted">Avg Active/Subject</p>
+                  </div>
               </div>
               <div className="col-md-3">
                 <div className="text-center p-3 border rounded bg-light">
@@ -3323,6 +3357,13 @@ const OverviewTab = () => (
                   <div className="card">
                     <div className="card-header bg-info text-white">
                       <h5 className="mb-0">Math Learning Metrics Overview</h5>
+                       {mathDataLoading && (
+                          <div className="float-end">
+                            <div className="spinner-border spinner-border-sm text-light" role="status">
+                              <span className="visually-hidden">Loading...</span>
+                            </div>
+                          </div>
+                        )}
                     </div>
                     <div className="card-body">
                       <div className="row">
@@ -3370,7 +3411,14 @@ const OverviewTab = () => (
                       <h5 className="mb-0">Topic Mastery Overview</h5>
                     </div>
                     <div className="card-body" style={{maxHeight: '400px', overflowY: 'auto'}}>
-                      {mathInsights?.topicMastery && Object.entries(mathInsights.topicMastery).length > 0 ? (
+                      {mathDataLoading ? (
+                        <div className="text-center py-4">
+                          <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">Loading math insights...</span>
+                          </div>
+                          <p className="text-muted mt-2">Analyzing math performance data...</p>
+                        </div>
+                      ) : mathInsights?.topicMastery && Object.entries(mathInsights.topicMastery).length > 0 ? (
                         Object.entries(mathInsights.topicMastery)
                           .sort(([,a], [,b]) => (b.masteredStudents/b.totalStudents) - (a.masteredStudents/a.totalStudents))
                           .map(([topic, data]) => {
