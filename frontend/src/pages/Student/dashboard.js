@@ -1125,7 +1125,6 @@ const StudentDashboard = () => {
                     <div className="quiz-count" style={{ width: '100%', textAlign: 'right' }}>
                       <h3>Quiz Count</h3>
                       <p>Math: {quizCounts.math}</p>
-                      <p>RC: {quizCounts.rc}</p>
                       <p>Vocabulary: {quizCounts.vocab}</p>
                       <p>Programming: {quizCounts.prog}</p>
                     </div>
