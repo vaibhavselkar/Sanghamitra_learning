@@ -365,21 +365,14 @@ const StudentDashboard = () => {
   // NEW: Chart update effect for finger exercises
   useEffect(() => {
     const updateFingerExerciseChart = () => {
-      debugLog('Chart update triggered', {
-        selectedExercise,
-        fingerExercises: fingerExercises.length,
-        loading
-      });
-
+      
       // Don't try to render chart while still loading
       if (loading) {
-        debugLog('Still loading, skipping chart update');
         return;
       }
 
       // If no exercises available, show no data message
       if (fingerExercises.length === 0) {
-        debugLog('No finger exercises available');
         const canvasId = 'finger-exercise-chart';
         const canvas = document.getElementById(canvasId);
         if (canvas) {
@@ -397,7 +390,6 @@ const StudentDashboard = () => {
 
       // Set default exercise if none selected
       if (!selectedExercise && fingerExercises.length > 0) {
-        debugLog('Setting default exercise to first available:', fingerExercises[0].operationType);
         setSelectedExercise(fingerExercises[0].operationType);
         return; // This will trigger a re-render
       }
@@ -407,17 +399,13 @@ const StudentDashboard = () => {
         ex => ex.operationType === selectedExercise
       );
 
-      debugLog('Selected exercise data:', selectedData);
-
       if (!selectedData) {
-        debugLog('No data found for selected exercise:', selectedExercise);
         return;
       }
 
       const canvasId = 'finger-exercise-chart';
       const canvas = document.getElementById(canvasId);
       if (!canvas) {
-        debugError('Canvas element not found with ID:', canvasId);
         return;
       }
 
@@ -425,7 +413,6 @@ const StudentDashboard = () => {
       
       // Destroy previous chart if exists
       if (chartRefs.current[canvasId]) {
-        debugLog('Destroying previous chart instance');
         chartRefs.current[canvasId].destroy();
         chartRefs.current[canvasId] = null;
       }
@@ -433,12 +420,6 @@ const StudentDashboard = () => {
       const correctAnswers = selectedData.correctAnswers || 0;
       const totalQuestions = selectedData.totalQuestions || 1;
       const incorrectAnswers = Math.max(0, totalQuestions - correctAnswers);
-
-      debugLog('Chart data:', {
-        correctAnswers,
-        incorrectAnswers,
-        totalQuestions
-      });
 
       // Create new chart - FIXED VERSION
       try {
@@ -480,9 +461,8 @@ const StudentDashboard = () => {
             cutout: '65%'
           }
         });
-        debugLog('Successfully created new chart instance');
       } catch (error) {
-        debugError('Error creating chart:', error);
+        console.log('Error creating chart:', error);
       }
     };
   // Add a small delay to ensure DOM is ready
