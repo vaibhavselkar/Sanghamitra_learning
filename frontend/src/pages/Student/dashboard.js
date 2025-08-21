@@ -11,7 +11,7 @@ import '../../assets/css/breadcrumb.css';
 // Initialize GLightbox if needed
 import 'glightbox/dist/css/glightbox.min.css';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend, DoughnutController);
 
 const StudentDashboard = () => {
   const { user, logout, isAuthenticated } = useAuth();
