@@ -784,6 +784,7 @@ const StudentDashboard = () => {
             <th>Topic</th>
             <th>Date</th>
             <th>Percentage</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -794,17 +795,17 @@ const StudentDashboard = () => {
 
             return (
               <tr key={index}>
-                <td>{assessment.assess_topic || 'N/A'}</td>
+                <td>{assessment.assess_topic}</td>
                 <td>{new Date(assessment.date).toLocaleDateString()}</td>
                 <td>{percentage}%</td>
-                {/*<td>
+                <td>
                   <button 
                     className="btn btn-primary"
                     onClick={() => goToQuizAnalytics(assessment.date)}
                   >
                     Analytics
                   </button>
-                </td> */}
+                </td>
               </tr>
             );
           })}
