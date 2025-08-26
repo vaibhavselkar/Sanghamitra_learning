@@ -36,6 +36,9 @@ const VocabularyDiagnosticTest = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  
+  // ✅ ADD THIS: Quiz ID for analytics linking
+  const [currentQuizId, setCurrentQuizId] = useState(null);
 
   // CSS Styles
   const styles = {
@@ -134,28 +137,43 @@ const VocabularyDiagnosticTest = () => {
       display: 'none'
     },
     primaryButton: {
-      padding: '10px 20px',
       backgroundColor: '#007bff',
       color: 'white',
+      padding: '12px 24px',
       border: 'none',
-      borderRadius: '5px',
-      cursor: 'pointer'
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontSize: '16px',
+      fontWeight: '600',
+      transition: 'all 0.3s ease',
+      textAlign: 'center',
+      minWidth: '150px'
     },
     secondaryButton: {
-      padding: '10px 20px',
       backgroundColor: '#6c757d',
       color: 'white',
+      padding: '12px 24px',
       border: 'none',
-      borderRadius: '5px',
-      cursor: 'pointer'
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontSize: '16px',
+      fontWeight: '600',
+      transition: 'all 0.3s ease',
+      textAlign: 'center',
+      minWidth: '150px'
     },
     dangerButton: {
-      padding: '10px 20px',
       backgroundColor: '#dc3545',
       color: 'white',
+      padding: '12px 24px',
       border: 'none',
-      borderRadius: '5px',
-      cursor: 'pointer'
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontSize: '16px',
+      fontWeight: '600',
+      transition: 'all 0.3s ease',
+      textAlign: 'center',
+      minWidth: '150px'
     },
     expandButton: {
       padding: '5px 10px',
@@ -186,25 +204,23 @@ const VocabularyDiagnosticTest = () => {
   };
 
   useEffect(() => {
-  // Initialize AOS
-  AOS.init({
-    duration: 1000,
-    once: true
-  });
+    // Initialize AOS
+    AOS.init({
+      duration: 1000,
+      once: true
+    });
 
-  // Initialize GLightbox if needed
-  GLightbox({
-    selector: '.glightbox'
-  });
+    // Initialize GLightbox if needed
+    GLightbox({
+      selector: '.glightbox'
+    });
 
-  // Initialize Swiper if needed
-  // new Swiper(...)
+    fetchSessionInfo();
+  }, []);
 
-  fetchSessionInfo();
-}, []);
   const fetchSessionInfo = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/session-info`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/session-info`, {
         credentials: 'include'
       });
 
@@ -253,6 +269,11 @@ const VocabularyDiagnosticTest = () => {
 
   const startQuiz = () => {
     if (quizRunning || questions.length === 0) return;
+    
+    // ✅ CREATE QUIZ ID when starting quiz
+    const quizId = new Date().toISOString(); // or generate a better unique ID
+    setCurrentQuizId(quizId);
+    
     setCurrentPage('quiz');
     setCurrentQuestionIndex(0);
     setTotalPoints(0);
@@ -262,6 +283,7 @@ const VocabularyDiagnosticTest = () => {
     setTotalQuestions({ A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 });
     setExpandedQuestions([]);
     setQuizRunning(true);
+    setIsSubmitted(false);
   };
 
   const recordAnswer = (selectedOption) => {
@@ -327,112 +349,61 @@ const VocabularyDiagnosticTest = () => {
           topic: question.topic
         };
       }
-  
-      // Track scores only here after quiz ends
-      const level = question.CEFRLevel;
-      const newCorrect = { ...correctAnswers };
-      const newTotal = { ...totalQuestions };
-      const newCefr = { ...cefrScores };
-  
-      if (answer.is_correct) {
-        newCorrect[level]++;
-        newCefr[level] += question.points;
-      }
-      newTotal[level]++;
-  
-      setCorrectAnswers(newCorrect);
-      setTotalQuestions(newTotal);
-      setCefrScores(newCefr);
-  
       return answer;
     });
-  
+
     setAnswers(finalAnswers);
-    setIsSubmitted(true); // ✅ Lock submission state
+    setIsSubmitted(true);
     setCurrentPage('result');
     setQuizRunning(false);
-  
+
+    // ✅ POST DATA WITH QUIZ ID
     postUserData({
       username: username,
       email: email,
       assessments: [{
         total_score: totalPoints,
         assess_topic: "Diagnostic",
+        date: currentQuizId, // ✅ Also include in assessment
         questions: finalAnswers
       }]
     });
+    window.location.href = `/vocab-analytics/${currentQuizId}`;
   };
+
 
   const postUserData = async (userData) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/vocabscoreadd`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/vocabscoreadd`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(userData)
       });
+      
       if (!response.ok) {
         throw new Error('Failed to post user data');
       }
-      await response.json();
+      
+      const result = await response.json();
+      console.log('Quiz data saved successfully:', result);
     } catch (error) {
       console.error('Error posting user data:', error);
     }
   };
 
-  const determineVocabularyLevel = () => {
-    const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-    let determinedLevel = 'A1';
-  
-    const penaltyWeights = {
-      A1: 0.5, A2: 0.4, B1: 0.2, B2: 0.2, C1: 0.1, C2: 0.05
-    };
-  
-    const thresholds = {
-      A1: 3, A2: 3, B1: 2.5, B2: 2.5, C1: 2.5, C2: 2.5
-    };
-  
-    for (let level of levels) {
-      const total = totalQuestions[level] || 1;
-      const correct = correctAnswers[level] || 0;
-      const incorrect = total - correct;
-      const effectiveScore = correct - (penaltyWeights[level] * incorrect);
-  
-      if (effectiveScore >= thresholds[level]) {
-        determinedLevel = level;
-      } else {
-        break;
-      }
-    }
-  
-    return determinedLevel;
-  };
 
-  const restartQuiz = () => {
-    setIsSubmitted(false); // reset submission state
-    setCurrentPage('home');
-    fetchSessionInfo();
-  };
-
-  const toggleQuestionExpand = (index) => {
-    setExpandedQuestions(prev => 
-      prev.includes(index) 
-        ? prev.filter(i => i !== index) 
-        : [...prev, index]
-    );
-  };
 
   const renderQuestionNav = () => (
     <div style={styles.questionNav}>
       {questions.map((_, index) => {
         const answer = answers[index];
-  
         const isCurrent = index === currentQuestionIndex;
         const isCorrect = answer?.is_correct;
         const isSkipped = answer?.user_response === "You did not answer this question.";
         const isAttempted = answer !== null;
-  
+
         let backgroundColor = '#ddd';
         if (isCurrent) {
           backgroundColor = '#5fcf80';
@@ -441,16 +412,16 @@ const VocabularyDiagnosticTest = () => {
           else if (isSkipped) backgroundColor = '#6c757d';
           else if (isAttempted) backgroundColor = '#ffc107';
         } else if (isAttempted) {
-          backgroundColor = '#cce5ff'; // light blue pre-submission
+          backgroundColor = '#cce5ff';
         }
-  
+
         let statusIcon = null;
         if (isSubmitted) {
           if (isSkipped) statusIcon = '?';
           else if (isCorrect) statusIcon = '✓';
           else if (isAttempted) statusIcon = '✗';
         }
-  
+
         return (
           <div
             key={index}
@@ -480,15 +451,13 @@ const VocabularyDiagnosticTest = () => {
       })}
     </div>
   );
-  
-  
 
   const renderCurrentQuestion = () => {
     if (!questions.length || currentQuestionIndex >= questions.length) return null;
-  
+
     const question = questions[currentQuestionIndex];
     const answer = answers[currentQuestionIndex];
-  
+
     return (
       <div style={styles.quizContainer}>
         {renderQuestionNav()}
@@ -503,7 +472,7 @@ const VocabularyDiagnosticTest = () => {
                   ...(answer?.selectedOption === key ? styles.selectedOption : {})
                 }}
                 onClick={() => recordAnswer(key)}
-                disabled={isSubmitted} // prevent change post-submit
+                disabled={isSubmitted}
               >
                 {value}
               </button>
@@ -540,56 +509,6 @@ const VocabularyDiagnosticTest = () => {
     );
   };
 
-  const renderAnalysis = () => (
-    <div style={{ marginTop: '20px', textAlign: 'left' }}>
-      <h3>Total Points: {totalPoints}</h3>
-      <h3>Your Vocabulary Level is: {determineVocabularyLevel()}</h3>
-      {questions.map((question, index) => {
-        const answer = answers[index] || {};
-        const isExpanded = expandedQuestions.includes(index);
-        
-        return (
-          <div key={index} style={styles.analysisQuestion}>
-            <div style={styles.questionHeader}>
-              <div style={{
-                ...styles.iconContainer,
-                backgroundColor: answer.is_correct 
-                  ? '#d4edda' 
-                  : answer.user_response === "You did not answer this question." 
-                    ? '#e2e3e5' 
-                    : '#f8d7da'
-              }}>
-                {answer.is_correct ? (
-                  <FaCheck style={styles.correctIcon} />
-                ) : answer.user_response === "You did not answer this question." ? (
-                  <FaQuestion style={styles.skippedIcon} />
-                ) : (
-                  <FaTimes style={styles.incorrectIcon} />
-                )}
-              </div>
-              <p><strong>Question {index + 1}:</strong> {question.question}</p>
-            </div>
-            <p><strong>Your answer:</strong> {answer.user_response}</p>
-            <p><strong>Correct answer:</strong> {answer.correct_option}</p>
-            <button 
-              style={styles.expandButton}
-              onClick={() => toggleQuestionExpand(index)}
-            >
-              {isExpanded ? 'Hide Details' : 'Show Details'}
-            </button>
-            <div style={isExpanded ? {} : styles.hidden}>
-              <p><strong>Explanation:</strong> {question.explanation}</p>
-              <p><strong>Synonyms:</strong> {question.synonyms?.join(', ')}</p>
-              <p><strong>Antonyms:</strong> {question.antonyms?.join(', ')}</p>
-              <p><strong>Phonetic:</strong> {question.phonetic}</p>
-              <p><strong>Points Earned:</strong> {answer.points_awarded}</p>
-              <p><strong>CEFR Level:</strong> {question.CEFRLevel}</p>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 
   if (isLoading) {
     return (
@@ -613,29 +532,29 @@ const VocabularyDiagnosticTest = () => {
 
   return (
     <main className="main">
-          {/* Page Title Section */}
-          <div className="page-title">
-            <div className="heading">
-              <div className="container">
-                <div className="row d-flex justify-content-center text-center">
-                  <div className="col-lg-8">
-                    <h1>Vocabulary Diagnostic Test</h1>
-                    <p className="mb-0">Welcome to the Diagnostic Vocabulary Assessment</p>
-                  </div>
-                </div>
+      {/* Page Title Section */}
+      <div className="page-title">
+        <div className="heading">
+          <div className="container">
+            <div className="row d-flex justify-content-center text-center">
+              <div className="col-lg-8">
+                <h1>Vocabulary Diagnostic Test</h1>
+                <p className="mb-0">Welcome to the Diagnostic Vocabulary Assessment</p>
               </div>
             </div>
-            <nav className="breadcrumbs">
-              <div className="container">
-                <ol>
-                  <li><Link to="/">Home</Link></li>
-                  <li><Link to="/english">English</Link></li>
-                  <li><Link to="/english/vocabulary">Vocabulary</Link></li>
-                  <li className="current">Vocabulary Diagnostic Test</li>
-                </ol>
-              </div>
-            </nav>
           </div>
+        </div>
+        <nav className="breadcrumbs">
+          <div className="container">
+            <ol>
+              <li><Link to="/">Home</Link></li>
+              <li><Link to="/english">English</Link></li>
+              <li><Link to="/vocabulary">Vocabulary</Link></li>
+              <li className="current">Vocabulary Diagnostic Test</li>
+            </ol>
+          </div>
+        </nav>
+      </div>
 
       {/* Home Page */}
       {currentPage === 'home' && (
@@ -653,8 +572,9 @@ const VocabularyDiagnosticTest = () => {
                   padding: '12px 24px'
                 }}
                 onClick={startQuiz}
+                disabled={questions.length === 0}
               >
-                Start Test
+                {questions.length === 0 ? 'Loading...' : 'Start Test'}
               </button>
             </div>
           </div>
@@ -664,47 +584,6 @@ const VocabularyDiagnosticTest = () => {
       {/* Quiz Page */}
       {currentPage === 'quiz' && renderCurrentQuestion()}
 
-      {/* Result Page */}
-      {currentPage === 'result' && (
-        <div style={{ ...styles.page, ...styles.activePage }}>
-          <div className="container">
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <h2 style={{ marginBottom: '20px' }}>Quiz Completed!</h2>
-              <div style={{ 
-                backgroundColor: '#f8f9fa',
-                padding: '20px',
-                borderRadius: '10px',
-                maxWidth: '800px',
-                margin: '0 auto',
-                textAlign: 'left'
-              }}>
-                {renderAnalysis()}
-                <div style={{ textAlign: 'center', marginTop: '30px' }}>
-                  <button 
-                    style={{
-                      ...styles.primaryButton,
-                      marginRight: '10px'
-                    }}
-                    onClick={restartQuiz}
-                  >
-                    Restart Quiz
-                  </button>
-                  <Link 
-                    to="/english/vocabulary/analytics"
-                    style={{
-                      ...styles.secondaryButton,
-                      textDecoration: 'none',
-                      display: 'inline-block'
-                    }}
-                  >
-                    View Analytics
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 };
