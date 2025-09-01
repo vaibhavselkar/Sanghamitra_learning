@@ -36,6 +36,7 @@ import EmailVerificationPage from './pages/emailVerificationPage';
 import ForgotPasswordPage from './pages/forgotPassword';
 import ResetPasswordPage from './pages/resetPassword';
 import VocabularyDiagnosticTest from './pages/English/vocabulary/VocabularyDiagnosticTest';
+import VocabularyAnalytics from './pages/English/vocabulary/vocabulary_analytics';
 import Programming from './pages/Programming/programming';
 import VocabularyGuide from './pages/English/vocabulary/vocabularyGuide';
 import VocabularyEndeavourMain from "./pages/English/vocabulary/vocabularyEndeavourMain";
@@ -100,6 +101,7 @@ function App() {
             
             <Route path="/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
+            <Route path="/vocab-analytics/:quizId" element={<VocabularyAnalytics />} />
             <Route path="/english/vocabulary/guide" element={<VocabularyGuide />} />
             <Route path="/english/vocabulary/main-page" element={<VocabularyEndeavourMain />} />
             <Route path="/english/vocabulary/money" element={<VocabularyEndeavourMoney />} />
