@@ -1182,6 +1182,7 @@ const StudentDashboard = () => {
                       margin: '10px 0',
                       boxShadow: '0 0 10px #6c757d'
                     }}>
+                      <h2>English Performance</h2>
                       <h3>Vocabulary Topic Wise Performance</h3>
                       <div className="mb-4">
                         {renderVocabScores()}
@@ -1253,6 +1254,7 @@ const StudentDashboard = () => {
                       margin: '10px 0',
                       boxShadow: '0 0 10px #6c757d'
                     }}>
+                      <h2>Programming Performance</h2>
                       <h3>CT Finger Exercises</h3>
                       <div className="mb-4">
                         {renderCTFingerExercises()}
