@@ -59,14 +59,13 @@ const English = () => {
               </div>
             </div>
 
-          {/* 
             <div className="col-lg-4 col-md-6 d-flex align-items-stretch">
               <div className="course-item">
                 <img src={readingComprehensionImg} className="img-fluid" alt="Reading Comprehension" />
                 <div className="course-content">
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <Link to="/english/RC">
-                      <button className="category">Reading Comprehension</button>
+                      <button className="category" disabled>Reading Comprehension Coming Soon</button>
                     </Link>
                   </div>
                   <p className="description">
@@ -88,7 +87,7 @@ const English = () => {
                 <div className="course-content">
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <Link to="/english/writing">
-                      <button className="category">Writing</button>
+                      <button className="category" disabled>Writing Coming Soon</button>
                     </Link>
                   </div>
                   <p className="description">
@@ -101,7 +100,7 @@ const English = () => {
                   </div>
                 </div>
               </div>
-            </div>  */}
+            </div> 
             
           </div>
         </div>
