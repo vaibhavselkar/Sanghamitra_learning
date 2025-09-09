@@ -35,7 +35,7 @@ const Programming = () => {
   
     {
       icon: "bi-cpu",
-      title: "CT Foundation",
+      title: "Computaional Thinking Foundation 1",
       desc: "Develop problem-solving skills using computational methods",
       bg: "bg-primary",
       href: "/programming/ct_foundation",
@@ -44,7 +44,7 @@ const Programming = () => {
     },
     {
       icon: "bi-cpu-fill", 
-      title: "CT Foundation 1",
+      title: "Computaional Thinking Foundation 2",
       desc: "Advance your computational thinking skills",
       bg: "bg-primary",
       href: "/programming/ct-foundation-1", 
@@ -53,7 +53,7 @@ const Programming = () => {
     },
     {
       icon: "bi-layers",
-      title: "CT Foundation 2", 
+      title: "Computaional Thinking Foundation 3", 
       desc: "Master complex computational problem-solving",
       bg: "bg-primary",
       href: "/programming/ct-foundation-2",
@@ -62,7 +62,7 @@ const Programming = () => {
     },
     {
       icon: "bi-arrow-repeat",
-      title: "CT Foundation 3",
+      title: "Computaional Thinking Foundation 4",
       desc: "Advanced computational problem-solving techniques", 
       bg: "bg-primary",
       href: "/programming/ct-foundation-3",
