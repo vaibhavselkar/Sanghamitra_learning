@@ -221,7 +221,7 @@ const Arithmetic = () => {
     },
     {
       id: "arithmetic-assessment",
-      title: "Let's Practice!!!",
+      title: "Adaptive test",
       description: "Sharpen your skills!",
       icon: "bi-clipboard-check",
       color: "success",
