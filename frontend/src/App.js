@@ -101,7 +101,7 @@ function App() {
             
             <Route path="/vocabulary" element={<Vocabulary />} />
             <Route path="/english/vocabulary/vocabulary-diagnostic-test" element={<VocabularyDiagnosticTest />} />
-            <Route path="/vocab-analytics/:quizId" element={<VocabularyAnalytics />} />
+            <Route path="/vocab-analytics-:quizId" element={<VocabularyAnalytics />} />
             <Route path="/english/vocabulary/guide" element={<VocabularyGuide />} />
             <Route path="/english/vocabulary/main-page" element={<VocabularyEndeavourMain />} />
             <Route path="/english/vocabulary/money" element={<VocabularyEndeavourMoney />} />
