@@ -550,7 +550,7 @@ const StudentDashboard = () => {
   };
 
   const goToQuizAnalytics = (quizId) => {
-    navigate(`/vocab-analytics/${encodeURIComponent(quizId)}`);
+    navigate(`/vocab-analytics-${encodeURIComponent(quizId)}`);
   };
   
   const exploreTopic = (topicName) => {
