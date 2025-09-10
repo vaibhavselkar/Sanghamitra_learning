@@ -368,7 +368,7 @@ const VocabularyDiagnosticTest = () => {
         questions: finalAnswers
       }]
     });
-    window.location.href = `/vocab-analytics/${currentQuizId}`;
+    window.location.href = `/vocab-analytics-${currentQuizId}`;
   };
 
 
