@@ -18,11 +18,13 @@ import 'aos/dist/aos.css';
 // Initialize GLightbox if needed
 import GLightbox from 'glightbox';
 import 'glightbox/dist/css/glightbox.min.css';
+import { useNavigate } from "react-router-dom";
 
 const VocabularyDiagnosticTest = () => {
   // State management
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [totalPoints, setTotalPoints] = useState(0);
