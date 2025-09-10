@@ -31,7 +31,7 @@ const VocabularyDiagnosticTest = () => {
   const [cefrScores, setCefrScores] = useState({ A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 });
   const [correctAnswers, setCorrectAnswers] = useState({ A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 });
   const [totalQuestions, setTotalQuestions] = useState({ A1: 0, A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 });
-  const [currentPage, setCurrentPage] = useState('home');
+  const [currentPage, setCurrentPage] = useState('quiz');
   const [expandedQuestions, setExpandedQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -555,31 +555,6 @@ const VocabularyDiagnosticTest = () => {
           </div>
         </nav>
       </div>
-
-      {/* Home Page */}
-      {currentPage === 'home' && (
-        <div style={{ ...styles.page, ...styles.activePage }}>
-          <div className="container">
-            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <h2 style={{ marginBottom: '20px' }}>Vocabulary Diagnostic Test</h2>
-              <p style={{ marginBottom: '30px' }}>
-                This test will assess your current vocabulary level according to the CEFR framework.
-              </p>
-              <button 
-                style={{
-                  ...styles.primaryButton,
-                  fontSize: '16px',
-                  padding: '12px 24px'
-                }}
-                onClick={startQuiz}
-                disabled={questions.length === 0}
-              >
-                {questions.length === 0 ? 'Loading...' : 'Start Test'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Quiz Page */}
       {currentPage === 'quiz' && renderCurrentQuestion()}
