@@ -368,10 +368,13 @@ const VocabularyDiagnosticTest = () => {
         questions: finalAnswers
       }]
     });
-    window.location.href = `/vocab-analytics/${currentQuizId}`;
+    goToQuizAnalytics(currentQuizId)
   };
 
-
+  const goToQuizAnalytics = (quizId) => {
+    navigate(`/vocab-analytics/${encodeURIComponent(quizId)}`);
+  };
+  
   const postUserData = async (userData) => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/vocabscoreadd`, {
