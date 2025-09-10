@@ -368,11 +368,7 @@ const VocabularyDiagnosticTest = () => {
         questions: finalAnswers
       }]
     });
-    goToQuizAnalytics(currentQuizId)
-  };
-
-  const goToQuizAnalytics = (quizId) => {
-    navigate(`/vocab-analytics/${encodeURIComponent(quizId)}`);
+    navigate(`/vocab-analytics/${currentQuizId}`);
   };
   
   const postUserData = async (userData) => {
