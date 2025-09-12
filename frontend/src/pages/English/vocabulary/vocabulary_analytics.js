@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../components/AuthContext';
@@ -10,6 +11,7 @@ const VocabAnalytics = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('insights');
 
   useEffect(() => {
     if (user?.email && quizId) {
@@ -209,11 +211,17 @@ const VocabAnalytics = () => {
       total,
       levelStats,
       topicStats,
-      insights,
+      insights: finalInsights,
       questions,
       vocabularyLevel
     });
   };
+
+  const tabs = [
+    { id: 'insights', label: 'Key Insights', icon: '💡' },
+    { id: 'performance', label: 'Performance', icon: '📊' },
+    { id: 'review', label: 'Question Review', icon: '📝' }
+  ];
 
   if (loading) {
     return (
@@ -252,304 +260,368 @@ const VocabAnalytics = () => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       {/* Header */}
-      <div style={{ backgroundColor: 'white', borderBottom: '1px solid #e5e7eb', padding: '2rem 0' }}>
+      <div style={{ backgroundColor: 'white', borderBottom: '1px solid #e5e7eb', padding: '1.5rem 0' }}>
         <div style={{ maxWidth: '72rem', margin: '0 auto', padding: '0 1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h1 style={{ fontSize: '2.25rem', fontWeight: 'bold', color: '#1f2937', margin: '0 0 0.5rem 0' }}>
+              <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: '#1f2937', margin: '0 0 0.25rem 0' }}>
                 Quiz Results
               </h1>
-              <p style={{ color: '#6b7280', fontSize: '1.125rem' }}>
+              <p style={{ color: '#6b7280', fontSize: '1rem' }}>
                 Your vocabulary assessment analysis
               </p>
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ 
-                width: '5rem', 
-                height: '5rem', 
+                width: '4rem', 
+                height: '4rem', 
                 borderRadius: '50%', 
                 backgroundColor: data.accuracy >= 80 ? '#dcfce7' : data.accuracy >= 65 ? '#dbeafe' : '#fef3c7',
                 color: data.accuracy >= 80 ? '#059669' : data.accuracy >= 65 ? '#2563eb' : '#d97706',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.5rem',
+                fontSize: '1.25rem',
                 fontWeight: 'bold',
                 marginBottom: '0.5rem'
               }}>
                 {data.accuracy >= 90 ? 'A+' : data.accuracy >= 80 ? 'A' : data.accuracy >= 70 ? 'B' : data.accuracy >= 60 ? 'C' : 'D'}
               </div>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Grade</div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Grade</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: '72rem', margin: '0 auto', padding: '2rem 1.5rem' }}>
+      <div style={{ maxWidth: '72rem', margin: '0 auto', padding: '1.5rem' }}>
         
-        {/* Performance Summary */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
-          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#6b7280', marginBottom: '0.5rem' }}>{data.accuracy}%</div>
-            <div style={{ color: '#6b7280', fontWeight: '500' }}>Accuracy</div>
+        {/* Performance Summary - Smaller Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+          <div style={{ backgroundColor: 'white', padding: '1.5rem 1rem', borderRadius: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#6b7280', marginBottom: '0.25rem' }}>{data.accuracy}%</div>
+            <div style={{ color: '#6b7280', fontWeight: '500', fontSize: '0.875rem' }}>Accuracy</div>
           </div>
-          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#059669', marginBottom: '0.5rem' }}>{data.correct}</div>
-            <div style={{ color: '#6b7280', fontWeight: '500' }}>Correct</div>
+          <div style={{ backgroundColor: 'white', padding: '1.5rem 1rem', borderRadius: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#059669', marginBottom: '0.25rem' }}>{data.correct}</div>
+            <div style={{ color: '#6b7280', fontWeight: '500', fontSize: '0.875rem' }}>Correct</div>
           </div>
-          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#dc2626', marginBottom: '0.5rem' }}>{data.incorrect}</div>
-            <div style={{ color: '#6b7280', fontWeight: '500' }}>Incorrect</div>
+          <div style={{ backgroundColor: 'white', padding: '1.5rem 1rem', borderRadius: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', marginBottom: '0.25rem' }}>{data.incorrect}</div>
+            <div style={{ color: '#6b7280', fontWeight: '500', fontSize: '0.875rem' }}>Incorrect</div>
           </div>
-          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '0.5rem' }}>{data.skipped}</div>
-            <div style={{ color: '#6b7280', fontWeight: '500' }}>Skipped</div>
+          <div style={{ backgroundColor: 'white', padding: '1.5rem 1rem', borderRadius: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '0.25rem' }}>{data.skipped}</div>
+            <div style={{ color: '#6b7280', fontWeight: '500', fontSize: '0.875rem' }}>Skipped</div>
           </div>
-          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#7c3aed', marginBottom: '0.5rem' }}>{data.vocabularyLevel}</div>
-            <div style={{ color: '#6b7280', fontWeight: '500' }}>CEFR Level</div>
+          <div style={{ backgroundColor: 'white', padding: '1.5rem 1rem', borderRadius: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#7c3aed', marginBottom: '0.25rem' }}>{data.vocabularyLevel}</div>
+            <div style={{ color: '#6b7280', fontWeight: '500', fontSize: '0.875rem' }}>CEFR Level</div>
           </div>
         </div>
 
-        {/* Key Insights */}
-        <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', marginBottom: '3rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1.5rem' }}>Key Insights</h2>
-          <div style={{ display: 'grid', gap: '1rem' }}>
-            {data.insights.map((insight, index) => (
-              <div key={index} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', padding: '1rem', backgroundColor: '#eff6ff', borderRadius: '0.75rem' }}>
-                <div style={{ width: '0.5rem', height: '0.5rem', backgroundColor: '#3b82f6', borderRadius: '50%', marginTop: '0.5rem', flexShrink: 0 }}></div>
-                <p style={{ color: '#1f2937', margin: 0, lineHeight: '1.5' }}>{insight}</p>
-              </div>
+        {/* Tab Navigation */}
+        <div style={{ backgroundColor: 'white', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          {/* Tab Headers */}
+          <div style={{ display: 'flex', borderBottom: '2px solid #f3f4f6' }}>
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  flex: 1,
+                  padding: '1rem 1.5rem',
+                  border: 'none',
+                  backgroundColor: activeTab === tab.id ? '#3b82f6' : 'transparent',
+                  color: activeTab === tab.id ? 'white' : '#6b7280',
+                  fontWeight: activeTab === tab.id ? '600' : '500',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s ease',
+                  borderBottom: activeTab === tab.id ? '3px solid #3b82f6' : '3px solid transparent'
+                }}
+              >
+                <span style={{ fontSize: '1.25rem' }}>{tab.icon}</span>
+                {tab.label}
+              </button>
             ))}
           </div>
-        </div>
 
-        {/* Performance Breakdown */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
-          
-          {/* CEFR Levels */}
-          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1.5rem' }}>CEFR Level Performance</h3>
-            <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>Your Level: <strong style={{ color: '#7c3aed' }}>{data.vocabularyLevel}</strong></div>
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              {Object.entries(data.levelStats).map(([level, stats]) => {
-                const percentage = (stats.correct / stats.total) * 100;
-                return (
-                  <div key={level}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <span style={{ fontWeight: '600', color: '#374151' }}>{level}</span>
-                      <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>{stats.correct}/{stats.total}</span>
-                    </div>
-                    <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '9999px', height: '0.5rem' }}>
-                      <div 
-                        style={{ 
-                          width: `${percentage}%`, 
-                          backgroundColor: percentage >= 80 ? '#059669' : percentage >= 60 ? '#3b82f6' : '#d97706', 
-                          height: '100%', 
-                          borderRadius: '9999px',
-                          transition: 'width 0.5s ease-in-out'
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Topics */}
-          <div style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1.5rem' }}>Topic Performance</h3>
-            <div style={{ display: 'grid', gap: '1rem', maxHeight: '20rem', overflowY: 'auto' }}>
-              {Object.entries(data.topicStats).map(([topic, stats]) => {
-                const percentage = (stats.correct / stats.total) * 100;
-                return (
-                  <div key={topic}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <span style={{ fontWeight: '500', color: '#374151', fontSize: '0.875rem' }}>{topic}</span>
-                      <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{stats.correct}/{stats.total}</span>
-                    </div>
-                    <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '9999px', height: '0.375rem' }}>
-                      <div 
-                        style={{ 
-                          width: `${percentage}%`, 
-                          backgroundColor: percentage >= 80 ? '#059669' : percentage >= 60 ? '#3b82f6' : '#d97706', 
-                          height: '100%', 
-                          borderRadius: '9999px' 
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Question Review Section */}
-        <div style={{ backgroundColor: 'white', borderRadius: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', overflow: 'hidden', marginBottom: '3rem' }}>
-          <div style={{ padding: '2rem', borderBottom: '1px solid #e5e7eb' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>Question Review</h2>
-            <p style={{ color: '#6b7280', margin: '0.5rem 0 0 0' }}>See your answers compared to the correct ones</p>
-          </div>
-          
-          <div style={{ maxHeight: '32rem', overflowY: 'auto' }}>
-            {data.questions.map((question, index) => (
-              <div key={index} style={{ 
-                padding: '1.5rem 2rem', 
-                borderBottom: index === data.questions.length - 1 ? 'none' : '1px solid #f3f4f6',
-                backgroundColor: question.is_correct ? '#f0fdf4' : question.user_response.includes("did not answer") ? '#f9fafb' : '#fef2f2'
-              }}>
-                {/* Question Header */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <div style={{ flex: 1, marginRight: '1rem' }}>
-                    <h3 style={{ 
-                      fontSize: '1.125rem', 
-                      fontWeight: '600', 
-                      color: '#1f2937', 
-                      margin: '0 0 0.5rem 0',
-                      lineHeight: '1.5' 
-                    }}>
-                      Question {index + 1}: {question.question_text}
-                    </h3>
-                    
-                    {/* Question Meta Info */}
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                      <span style={{ 
-                        backgroundColor: '#f3e8ff', 
-                        color: '#7c3aed', 
-                        padding: '0.25rem 0.75rem', 
-                        borderRadius: '0.5rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: '600' 
-                      }}>
-                        {question.CEFR_level}
-                      </span>
-                      <span style={{ 
-                        backgroundColor: question.difficulty_level === 'easy' ? '#dcfce7' : 
-                                        question.difficulty_level === 'medium' ? '#fef3c7' : '#fecaca',
-                        color: question.difficulty_level === 'easy' ? '#059669' : 
-                               question.difficulty_level === 'medium' ? '#d97706' : '#dc2626',
-                        padding: '0.25rem 0.75rem', 
-                        borderRadius: '0.5rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: '600',
-                        textTransform: 'capitalize'
-                      }}>
-                        {question.difficulty_level}
-                      </span>
-                      <span style={{ 
-                        backgroundColor: '#e0f2fe', 
-                        color: '#0369a1', 
-                        padding: '0.25rem 0.75rem', 
-                        borderRadius: '0.5rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: '600' 
-                      }}>
-                        {question.topic.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </span>
-                      <span style={{ 
-                        backgroundColor: '#f1f5f9', 
-                        color: '#64748b', 
-                        padding: '0.25rem 0.75rem', 
-                        borderRadius: '0.5rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: '600' 
-                      }}>
-                        {question.points_awarded} pts
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Status Badge */}
-                  <div style={{
-                    padding: '0.5rem 1rem',
-                    borderRadius: '0.75rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '600',
-                    backgroundColor: question.is_correct ? '#dcfce7' : 
-                                    question.user_response.includes("did not answer") ? '#f1f5f9' : '#fecaca',
-                    color: question.is_correct ? '#059669' : 
-                           question.user_response.includes("did not answer") ? '#64748b' : '#dc2626',
-                    minWidth: '6rem',
-                    textAlign: 'center'
-                  }}>
-                    {question.is_correct ? '✓ Correct' : 
-                     question.user_response.includes("did not answer") ? '- Skipped' : '✗ Incorrect'}
-                  </div>
-                </div>
-
-                {/* Answer Comparison */}
+          {/* Tab Content */}
+          <div style={{ padding: '2rem' }}>
+            {activeTab === 'insights' && (
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  💡 Key Insights
+                </h2>
                 <div style={{ display: 'grid', gap: '1rem' }}>
-                  {/* Your Answer */}
-                  <div>
-                    <div style={{ 
-                      fontSize: '0.875rem', 
-                      fontWeight: '600', 
-                      color: '#374151', 
-                      marginBottom: '0.5rem' 
+                  {data.insights.map((insight, index) => (
+                    <div key={index} style={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-start', 
+                      gap: '1rem', 
+                      padding: '1.25rem', 
+                      backgroundColor: '#eff6ff', 
+                      borderRadius: '0.75rem',
+                      borderLeft: '4px solid #3b82f6'
                     }}>
-                      Your Answer:
+                      <div style={{ 
+                        width: '1.5rem', 
+                        height: '1.5rem', 
+                        backgroundColor: '#3b82f6', 
+                        borderRadius: '50%', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        flexShrink: 0
+                      }}>
+                        {index + 1}
+                      </div>
+                      <p style={{ color: '#1f2937', margin: 0, lineHeight: '1.6' }}>{insight}</p>
                     </div>
-                    <div style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '0.5rem',
-                      backgroundColor: question.is_correct ? '#dcfce7' : 
-                                      question.user_response.includes("did not answer") ? '#f8fafc' : '#fef2f2',
-                      border: `2px solid ${question.is_correct ? '#059669' : 
-                                          question.user_response.includes("did not answer") ? '#e2e8f0' : '#dc2626'}`,
-                      fontSize: '1rem',
-                      color: '#1f2937'
-                    }}>
-                      {question.user_response.includes("did not answer") ? 
-                       <em style={{ color: '#6b7280' }}>Question was skipped</em> : 
-                       question.user_response}
-                    </div>
-                  </div>
-
-                  {/* Correct Answer */}
-                  <div>
-                    <div style={{ 
-                      fontSize: '0.875rem', 
-                      fontWeight: '600', 
-                      color: '#374151', 
-                      marginBottom: '0.5rem' 
-                    }}>
-                      Correct Answer:
-                    </div>
-                    <div style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '0.5rem',
-                      backgroundColor: '#dcfce7',
-                      border: '2px solid #059669',
-                      fontSize: '1rem',
-                      color: '#1f2937',
-                      fontWeight: question.is_correct ? 'normal' : '600'
-                    }}>
-                      {question.correct_option}
-                    </div>
-                  </div>
-
-                  {/* Explanation or Note */}
-                  {!question.is_correct && (
-                    <div style={{
-                      padding: '1rem',
-                      backgroundColor: '#fffbeb',
-                      border: '1px solid #fbbf24',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem',
-                      color: '#92400e'
-                    }}>
-                      <strong>Learning Note:</strong> {
-                        question.user_response.includes("did not answer") ? 
-                        "Try to attempt all questions, even if uncertain. Educated guesses help with learning!" :
-                        "Review this vocabulary item and similar words to strengthen your understanding."
-                      }
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {activeTab === 'performance' && (
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  📊 Performance Breakdown
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+                  
+                  {/* CEFR Levels */}
+                  <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                    <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      🎯 CEFR Level Performance
+                    </h3>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                      Your Level: <strong style={{ color: '#7c3aed', fontSize: '1rem' }}>{data.vocabularyLevel}</strong>
+                    </div>
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                      {Object.entries(data.levelStats).map(([level, stats]) => {
+                        const percentage = (stats.correct / stats.total) * 100;
+                        return (
+                          <div key={level}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                              <span style={{ fontWeight: '600', color: '#374151' }}>{level}</span>
+                              <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>{stats.correct}/{stats.total}</span>
+                            </div>
+                            <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '9999px', height: '0.375rem' }}>
+                              <div 
+                                style={{ 
+                                  width: `${percentage}%`, 
+                                  backgroundColor: percentage >= 80 ? '#059669' : percentage >= 60 ? '#3b82f6' : '#d97706', 
+                                  height: '100%', 
+                                  borderRadius: '9999px',
+                                  transition: 'width 0.5s ease-in-out'
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Topics */}
+                  <div style={{ backgroundColor: '#f8fafc', padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                    <h3 style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      📚 Topic Performance
+                    </h3>
+                    <div style={{ display: 'grid', gap: '0.75rem', maxHeight: '18rem', overflowY: 'auto' }}>
+                      {Object.entries(data.topicStats).map(([topic, stats]) => {
+                        const percentage = (stats.correct / stats.total) * 100;
+                        return (
+                          <div key={topic}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                              <span style={{ fontWeight: '500', color: '#374151', fontSize: '0.875rem' }}>{topic}</span>
+                              <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{stats.correct}/{stats.total}</span>
+                            </div>
+                            <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '9999px', height: '0.25rem' }}>
+                              <div 
+                                style={{ 
+                                  width: `${percentage}%`, 
+                                  backgroundColor: percentage >= 80 ? '#059669' : percentage >= 60 ? '#3b82f6' : '#d97706', 
+                                  height: '100%', 
+                                  borderRadius: '9999px' 
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'review' && (
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  📝 Question Review
+                </h2>
+                <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>Review your answers compared to the correct ones</p>
+                
+                <div style={{ display: 'grid', gap: '1rem', maxHeight: '36rem', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                  {data.questions.map((question, index) => (
+                    <div key={index} style={{ 
+                      padding: '1.5rem', 
+                      backgroundColor: question.is_correct ? '#f0fdf4' : question.user_response.includes("did not answer") ? '#f9fafb' : '#fef2f2',
+                      borderRadius: '0.75rem',
+                      border: `2px solid ${question.is_correct ? '#059669' : question.user_response.includes("did not answer") ? '#e5e7eb' : '#dc2626'}`
+                    }}>
+                      {/* Question Header */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <div style={{ flex: 1, marginRight: '1rem' }}>
+                          <h3 style={{ 
+                            fontSize: '1rem', 
+                            fontWeight: '600', 
+                            color: '#1f2937', 
+                            margin: '0 0 0.5rem 0',
+                            lineHeight: '1.4' 
+                          }}>
+                            Q{index + 1}: {question.question_text}
+                          </h3>
+                          
+                          {/* Question Meta Info */}
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                            <span style={{ 
+                              backgroundColor: '#f3e8ff', 
+                              color: '#7c3aed', 
+                              padding: '0.125rem 0.5rem', 
+                              borderRadius: '0.375rem', 
+                              fontSize: '0.625rem', 
+                              fontWeight: '600' 
+                            }}>
+                              {question.CEFR_level}
+                            </span>
+                            <span style={{ 
+                              backgroundColor: question.difficulty_level === 'easy' ? '#dcfce7' : 
+                                              question.difficulty_level === 'medium' ? '#fef3c7' : '#fecaca',
+                              color: question.difficulty_level === 'easy' ? '#059669' : 
+                                     question.difficulty_level === 'medium' ? '#d97706' : '#dc2626',
+                              padding: '0.125rem 0.5rem', 
+                              borderRadius: '0.375rem', 
+                              fontSize: '0.625rem', 
+                              fontWeight: '600',
+                              textTransform: 'capitalize'
+                            }}>
+                              {question.difficulty_level}
+                            </span>
+                            <span style={{ 
+                              backgroundColor: '#e0f2fe', 
+                              color: '#0369a1', 
+                              padding: '0.125rem 0.5rem', 
+                              borderRadius: '0.375rem', 
+                              fontSize: '0.625rem', 
+                              fontWeight: '600' 
+                            }}>
+                              {question.topic.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Status Badge */}
+                        <div style={{
+                          padding: '0.375rem 0.75rem',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          backgroundColor: question.is_correct ? '#dcfce7' : 
+                                          question.user_response.includes("did not answer") ? '#f1f5f9' : '#fecaca',
+                          color: question.is_correct ? '#059669' : 
+                                 question.user_response.includes("did not answer") ? '#64748b' : '#dc2626',
+                          minWidth: '4.5rem',
+                          textAlign: 'center'
+                        }}>
+                          {question.is_correct ? '✓ Correct' : 
+                           question.user_response.includes("did not answer") ? '- Skipped' : '✗ Incorrect'}
+                        </div>
+                      </div>
+
+                      {/* Answer Comparison */}
+                      <div style={{ display: 'grid', gap: '0.75rem' }}>
+                        {/* Your Answer */}
+                        <div>
+                          <div style={{ 
+                            fontSize: '0.75rem', 
+                            fontWeight: '600', 
+                            color: '#374151', 
+                            marginBottom: '0.375rem' 
+                          }}>
+                            Your Answer:
+                          </div>
+                          <div style={{
+                            padding: '0.75rem',
+                            borderRadius: '0.5rem',
+                            backgroundColor: question.is_correct ? '#dcfce7' : 
+                                            question.user_response.includes("did not answer") ? '#f8fafc' : '#fef2f2',
+                            border: `1px solid ${question.is_correct ? '#059669' : 
+                                                question.user_response.includes("did not answer") ? '#e2e8f0' : '#dc2626'}`,
+                            fontSize: '0.875rem',
+                            color: '#1f2937'
+                          }}>
+                            {question.user_response.includes("did not answer") ? 
+                             <em style={{ color: '#6b7280' }}>Question was skipped</em> : 
+                             question.user_response}
+                          </div>
+                        </div>
+
+                        {/* Correct Answer */}
+                        <div>
+                          <div style={{ 
+                            fontSize: '0.75rem', 
+                            fontWeight: '600', 
+                            color: '#374151', 
+                            marginBottom: '0.375rem' 
+                          }}>
+                            Correct Answer:
+                          </div>
+                          <div style={{
+                            padding: '0.75rem',
+                            borderRadius: '0.5rem',
+                            backgroundColor: '#dcfce7',
+                            border: '1px solid #059669',
+                            fontSize: '0.875rem',
+                            color: '#1f2937',
+                            fontWeight: question.is_correct ? 'normal' : '600'
+                          }}>
+                            {question.correct_option}
+                          </div>
+                        </div>
+
+                        {/* Explanation or Note */}
+                        {!question.is_correct && (
+                          <div style={{
+                            padding: '0.75rem',
+                            backgroundColor: '#fffbeb',
+                            border: '1px solid #fbbf24',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.75rem',
+                            color: '#92400e'
+                          }}>
+                            <strong>💡 Learning Note:</strong> {
+                              question.user_response.includes("did not answer") ? 
+                              "Try to attempt all questions, even if uncertain. Educated guesses help with learning!" :
+                              "Review this vocabulary item and similar words to strengthen your understanding."
+                            }
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -560,33 +632,39 @@ const VocabAnalytics = () => {
             style={{ 
               backgroundColor: '#3b82f6', 
               color: 'white', 
-              padding: '1rem 2rem', 
+              padding: '0.875rem 1.75rem', 
               borderRadius: '0.75rem', 
               border: 'none', 
               fontWeight: '600', 
-              fontSize: '1.125rem',
+              fontSize: '1rem',
               cursor: 'pointer',
               marginRight: '1rem',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
             }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#2563eb'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#3b82f6'}
           >
-            Practice More
+            🚀 Practice More
           </button>
           <button 
             onClick={() => navigate('/dashboard')}
             style={{ 
               backgroundColor: '#6b7280', 
               color: 'white', 
-              padding: '1rem 2rem', 
+              padding: '0.875rem 1.75rem', 
               borderRadius: '0.75rem', 
               border: 'none', 
               fontWeight: '600', 
-              fontSize: '1.125rem',
+              fontSize: '1rem',
               cursor: 'pointer',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
             }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#6b7280'}
           >
-            Dashboard
+            🏠 Dashboard
           </button>
         </div>
       </div>
@@ -596,6 +674,25 @@ const VocabAnalytics = () => {
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+          }
+          
+          /* Custom scrollbar for better UX */
+          div::-webkit-scrollbar {
+            width: 6px;
+          }
+          
+          div::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+          }
+          
+          div::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+          }
+          
+          div::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
           }
         `}
       </style>
