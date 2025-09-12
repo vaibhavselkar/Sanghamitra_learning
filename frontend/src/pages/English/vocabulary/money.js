@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from "react-router-dom";
 import "../../../assets/css/main.css";
 import '../../../assets/css/main.css';
@@ -16,22 +16,11 @@ import 'aos/dist/aos.css';
 
 import 'glightbox/dist/css/glightbox.min.css';
 
-const MoneyVocabularyApp = () => {
+const PoliticsVocabularyApp = () => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showDefinition, setShowDefinition] = useState(false);
   
   const vocabularyWords = [
-    {
-      word: "Wealth",
-      phonetics: "/welTH/",
-      partOfSpeech: "noun",
-      definition: "an abundance of valuable possessions or money.",
-      synonyms: ["affluence", "riches", "prosperity"],
-      antonyms: ["poverty", "destitution"],
-      examples: [
-        "She is known for her great wealth and generosity.",
-        "He amassed his wealth through hard work and determination.",
-        "The country's wealth is unevenly distributed."
-      ]
-    },
     {
       word: "Currency",
       phonetics: "/ˈkərənsē/",
@@ -296,7 +285,7 @@ const MoneyVocabularyApp = () => {
       word: "Mortgage",
       phonetics: "/ˈmôrɡij/",
       partOfSpeech: "noun",
-      definition: "a legal agreement by which a bank or other creditor lends money at interest in exchange for taking title of the debtor's property.",
+      definition: "a legal agreement by which a bank or other creditor lends money at interest in exchange for taking title of the debtor's property, with the condition that the conveyance of title becomes void upon the payment of the debt.",
       synonyms: ["home loan", "loan", "debt"],
       antonyms: ["repayment"],
       examples: [
@@ -344,7 +333,38 @@ const MoneyVocabularyApp = () => {
         "Barter was a common practice before the advent of money."
       ]
     }
-  ];
+];
+  const nextSlide = () => {
+    setCurrentIndex((prev) => (prev + 1) % vocabularyWords.length);
+    setShowDefinition(false);
+  };
+
+  const prevSlide = () => {
+    setCurrentIndex((prev) => (prev - 1 + vocabularyWords.length) % vocabularyWords.length);
+    setShowDefinition(false);
+  };
+
+  const toggleDefinition = () => {
+    setShowDefinition(!showDefinition);
+  };
+
+  // Keyboard navigation
+  React.useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      } else if (e.key === 'Enter') {
+        toggleDefinition();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
+  const currentWord = vocabularyWords[currentIndex];
 
   return (
     <div>
@@ -463,56 +483,381 @@ const MoneyVocabularyApp = () => {
 
       <div className="page-title">
         <div className="container">
-          <h1>Money</h1>
-          <p>Learn money related vocabulary</p>
+          <h1>Politics</h1>
+          <p>Learn politics related vocabulary</p>
         </div>
       </div>
 
       <nav className="breadcrumbs">
           <div className="container">
-            <ol>
+          <ol>
               <li><Link to="/">Home</Link></li>
               <li><Link to="/english">English</Link></li>
               <li><Link to="/english/vocabulary">Vocabulary</Link></li>
               <li><Link to="/english/vocabulary/main-page">VocabularyEndeavour</Link></li>
-              <li className="current">Money</li>
+              <li className="current">Politics</li>
             </ol>
           </div>
         </nav>
 
-      <div className="container">
-      
-        {vocabularyWords.map((wordData, index) => (
-          <div key={index} className="word">
-            <h2>{wordData.word}</h2>
-            <div className="phonetics">{wordData.phonetics}</div>
-            <div className="part-of-speech">{wordData.partOfSpeech}</div>
-            <div className="definition">
-              <strong>Definition:</strong> {wordData.definition}
+      <style jsx>{`
+        .slide-enter {
+          opacity: 0;
+          transform: translateX(50px);
+        }
+        .slide-enter-active {
+          opacity: 1;
+          transform: translateX(0);
+          transition: opacity 0.3s, transform 0.3s;
+        }
+        .slide-exit {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        .slide-exit-active {
+          opacity: 0;
+          transform: translateX(-50px);
+          transition: opacity 0.3s, transform 0.3s;
+        }
+      `}</style>
+
+      {/* Main Slideshow Container */}
+      <div style={{ maxWidth: '800px', margin: '2rem auto', padding: '0 1rem' }}>
+        
+        {/* Progress Bar */}
+        <div style={{ backgroundColor: '#e5e7eb', borderRadius: '1rem', height: '0.5rem', marginBottom: '2rem' }}>
+          <div 
+            style={{ 
+              backgroundColor: '#4CAF50', 
+              height: '100%', 
+              borderRadius: '1rem', 
+              width: `${((currentIndex + 1) / vocabularyWords.length) * 100}%`,
+              transition: 'width 0.3s ease'
+            }}
+          />
+        </div>
+
+        {/* Progress Counter */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem', color: '#6b7280' }}>
+          <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>
+            {currentIndex + 1} of {vocabularyWords.length}
+          </span>
+        </div>
+
+        {/* Main Card */}
+        <div style={{ 
+          backgroundColor: 'white', 
+          borderRadius: '1rem', 
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          padding: '3rem',
+          minHeight: '500px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          transition: 'all 0.3s ease'
+        }}>
+          
+          {/* Word Front Side */}
+          {!showDefinition ? (
+            <div style={{ textAlign: 'center' }}>
+              <h2 style={{ 
+                fontSize: '3rem', 
+                fontWeight: 'bold', 
+                color: '#1f2937', 
+                margin: '0 0 1rem 0',
+                letterSpacing: '-0.025em'
+              }}>
+                {currentWord.word}
+              </h2>
+              
+              <div style={{ 
+                fontSize: '1.5rem', 
+                color: '#6b7280', 
+                fontStyle: 'italic', 
+                marginBottom: '1rem' 
+              }}>
+                {currentWord.phonetics}
+              </div>
+              
+              <div style={{ 
+                fontSize: '1.25rem', 
+                color: '#4CAF50', 
+                fontWeight: '600', 
+                marginBottom: '2rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                {currentWord.partOfSpeech}
+              </div>
+              
+              <button 
+                onClick={toggleDefinition}
+                style={{
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.75rem',
+                  padding: '1rem 2rem',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#45a049'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#4CAF50'}
+              >
+                Show Definition
+              </button>
+
+              <div style={{ 
+                marginTop: '2rem', 
+                fontSize: '0.875rem', 
+                color: '#9ca3af',
+                fontStyle: 'italic'
+              }}>
+                Click "Show Definition" or press Enter to reveal meaning
+              </div>
             </div>
-            <div className="synonyms">
-              <strong>Synonyms:</strong> {wordData.synonyms.map((synonym, idx) => (
-                <span key={idx}>{synonym}</span>
-              ))}
+          ) : (
+            /* Word Back Side - Full Information */
+            <div>
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <h2 style={{ 
+                  fontSize: '2.5rem', 
+                  fontWeight: 'bold', 
+                  color: '#1f2937', 
+                  margin: '0 0 0.5rem 0'
+                }}>
+                  {currentWord.word}
+                </h2>
+                
+                <div style={{ 
+                  fontSize: '1.25rem', 
+                  color: '#6b7280', 
+                  fontStyle: 'italic' 
+                }}>
+                  {currentWord.phonetics} - {currentWord.partOfSpeech}
+                </div>
+              </div>
+
+              {/* Definition */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '700', 
+                  color: '#374151', 
+                  marginBottom: '0.75rem' 
+                }}>
+                  Definition
+                </h3>
+                <p style={{ 
+                  fontSize: '1.1rem', 
+                  lineHeight: '1.6', 
+                  color: '#1f2937',
+                  margin: 0
+                }}>
+                  {currentWord.definition}
+                </p>
+              </div>
+
+              {/* Synonyms & Antonyms */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr', 
+                gap: '1.5rem', 
+                marginBottom: '1.5rem' 
+              }}>
+                <div>
+                  <h4 style={{ 
+                    fontSize: '1rem', 
+                    fontWeight: '600', 
+                    color: '#059669', 
+                    marginBottom: '0.75rem' 
+                  }}>
+                    Synonyms
+                  </h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {currentWord.synonyms.map((synonym, idx) => (
+                      <span key={idx} style={{
+                        backgroundColor: '#dcfce7',
+                        color: '#065f46',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: '500'
+                      }}>
+                        {synonym}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 style={{ 
+                    fontSize: '1rem', 
+                    fontWeight: '600', 
+                    color: '#dc2626', 
+                    marginBottom: '0.75rem' 
+                  }}>
+                    Antonyms
+                  </h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {currentWord.antonyms.map((antonym, idx) => (
+                      <span key={idx} style={{
+                        backgroundColor: '#fecaca',
+                        color: '#991b1b',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: '500'
+                      }}>
+                        {antonym}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Examples */}
+              <div>
+                <h4 style={{ 
+                  fontSize: '1rem', 
+                  fontWeight: '600', 
+                  color: '#374151', 
+                  marginBottom: '0.75rem' 
+                }}>
+                  Examples
+                </h4>
+                <ul style={{ 
+                  margin: 0, 
+                  paddingLeft: '1.25rem',
+                  color: '#4b5563'
+                }}>
+                  {currentWord.examples.map((example, idx) => (
+                    <li key={idx} style={{ 
+                      marginBottom: '0.5rem',
+                      lineHeight: '1.5'
+                    }}>
+                      {example}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                <button 
+                  onClick={toggleDefinition}
+                  style={{
+                    backgroundColor: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.75rem',
+                    padding: '0.75rem 1.5rem',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#6b7280'}
+                >
+                  Hide Definition
+                </button>
+              </div>
             </div>
-            <div className="antonyms">
-              <strong>Antonyms:</strong> {wordData.antonyms.map((antonym, idx) => (
-                <span key={idx}>{antonym}</span>
-              ))}
-            </div>
-            <div className="examples">
-              <strong>Examples:</strong>
-              <ul>
-                {wordData.examples.map((example, idx) => (
-                  <li key={idx}>{example}</li>
-                ))}
-              </ul>
-            </div>
+          )}
+        </div>
+
+        {/* Navigation Controls */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginTop: '2rem',
+          padding: '0 1rem'
+        }}>
+          <button 
+            onClick={prevSlide}
+            disabled={currentIndex === 0}
+            style={{
+              backgroundColor: currentIndex === 0 ? '#d1d5db' : '#374151',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '3.5rem',
+              height: '3.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+              cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            ←
+          </button>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {vocabularyWords.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setCurrentIndex(idx);
+                  setShowDefinition(false);
+                }}
+                style={{
+                  width: '0.75rem',
+                  height: '0.75rem',
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: idx === currentIndex ? '#4CAF50' : '#d1d5db',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              />
+            ))}
           </div>
-        ))}
+
+          <button 
+            onClick={nextSlide}
+            disabled={currentIndex === vocabularyWords.length - 1}
+            style={{
+              backgroundColor: currentIndex === vocabularyWords.length - 1 ? '#d1d5db' : '#374151',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '3.5rem',
+              height: '3.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.5rem',
+              cursor: currentIndex === vocabularyWords.length - 1 ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            →
+          </button>
+        </div>
+
+        {/* Keyboard Instructions */}
+        <div style={{ 
+          textAlign: 'center', 
+          marginTop: '2rem', 
+          color: '#9ca3af',
+          fontSize: '0.875rem'
+        }}>
+          Use arrow keys ← → to navigate, Enter to toggle definition, or click the buttons
+        </div>
+
       </div>
     </div>
+
   );
 };
 
-export default MoneyVocabularyApp;
+export default PoliticsVocabularyApp;
