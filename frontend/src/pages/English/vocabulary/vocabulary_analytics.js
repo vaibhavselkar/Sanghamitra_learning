@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../components/AuthContext';
@@ -406,7 +405,12 @@ const VocabAnalytics = () => {
                       Your Level: <strong style={{ color: '#7c3aed', fontSize: '1rem' }}>{data.vocabularyLevel}</strong>
                     </div>
                     <div style={{ display: 'grid', gap: '0.75rem' }}>
-                      {Object.entries(data.levelStats).map(([level, stats]) => {
+                      {Object.entries(data.levelStats)
+                        .sort(([a], [b]) => {
+                          const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+                          return levels.indexOf(a) - levels.indexOf(b);
+                        })
+                        .map(([level, stats]) => {
                         const percentage = (stats.correct / stats.total) * 100;
                         return (
                           <div key={level}>
