@@ -21,7 +21,7 @@ const LoginPage = () => {
   const handleResendVerification = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/resend-verification`, {
+      const response = await fetch(`https://sanghamitra-learning.vercel.app/api/resend-verification`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -65,7 +65,7 @@ const LoginPage = () => {
     try {
       console.log('Attempting login with:', { email }); // Debug log
       
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/signin`, {
+      const response = await fetch(`https://sanghamitra-learning.vercel.app/api/signin`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
