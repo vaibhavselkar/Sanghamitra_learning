@@ -16,7 +16,7 @@ const corsOptions = {
     origin: [
       'https://sanghamitra-learning.duckdns.org',
       'http://sanghamitra-learning.duckdns.org',
-      'http://3.111.49.131',
+      'https://sanghamitra-learning.vercel.app',
       'http://localhost:3000',  // Add this for development
       'http://localhost:4000'   // Add this for same-origin
     ],
